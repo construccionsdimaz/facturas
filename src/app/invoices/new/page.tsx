@@ -48,6 +48,8 @@ export default function NewInvoice() {
   const [showQuickClient, setShowQuickClient] = useState(false);
   const [quickClientName, setQuickClientName] = useState('');
   const [quickClientEmail, setQuickClientEmail] = useState('');
+  const [quickClientTaxId, setQuickClientTaxId] = useState('');
+  const [quickClientAddress, setQuickClientAddress] = useState('');
   const [isCreatingClient, setIsCreatingClient] = useState(false);
 
   // Load Initial Data + Sequential Invoice Number
@@ -81,7 +83,12 @@ export default function NewInvoice() {
       const res = await fetch('/api/clients', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: quickClientName, email: quickClientEmail })
+        body: JSON.stringify({ 
+          name: quickClientName, 
+          email: quickClientEmail || undefined,
+          taxId: quickClientTaxId || undefined,
+          address: quickClientAddress || undefined
+        })
       });
       if (!res.ok) throw new Error('Error');
       const newClient = await res.json();
@@ -89,6 +96,8 @@ export default function NewInvoice() {
       setSelectedClientId(newClient.id);
       setQuickClientName('');
       setQuickClientEmail('');
+      setQuickClientTaxId('');
+      setQuickClientAddress('');
       setShowQuickClient(false);
     } catch {
       alert('Error al crear el cliente.');
@@ -326,37 +335,77 @@ export default function NewInvoice() {
                 background: 'rgba(255,255,255,0.03)', 
                 border: '1px solid rgba(255,255,255,0.08)', 
                 borderRadius: '12px', 
-                padding: '16px', 
+                padding: '20px', 
                 marginTop: '12px',
-                animation: 'fadeIn 0.2s ease'
               }}>
-                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
-                  Crear cliente rápido (podrás completar los datos después en Clientes)
+                <p style={{ fontSize: '14px', fontWeight: 600, marginBottom: '16px', color: 'var(--text-primary)' }}>
+                  ➕ Nuevo Cliente
                 </p>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                  <input
-                    type="text"
-                    className="input-modern"
-                    placeholder="Nombre del cliente *"
-                    value={quickClientName}
-                    onChange={(e) => setQuickClientName(e.target.value)}
-                    style={{ flex: 2, minWidth: '200px' }}
-                  />
-                  <input
-                    type="email"
-                    className="input-modern"
-                    placeholder="Email (opcional)"
-                    value={quickClientEmail}
-                    onChange={(e) => setQuickClientEmail(e.target.value)}
-                    style={{ flex: 1, minWidth: '150px' }}
-                  />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+                      Nombre / Razón Social *
+                    </label>
+                    <input
+                      type="text"
+                      className="input-modern"
+                      placeholder="Ej. Juan García / Construcciones Dímaz S.L."
+                      value={quickClientName}
+                      onChange={(e) => setQuickClientName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+                      DNI / NIE / CIF
+                    </label>
+                    <input
+                      type="text"
+                      className="input-modern"
+                      placeholder="Ej. 12345678A / B-12345678"
+                      value={quickClientTaxId}
+                      onChange={(e) => setQuickClientTaxId(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+                      Correo Electrónico
+                    </label>
+                    <input
+                      type="email"
+                      className="input-modern"
+                      placeholder="contacto@empresa.com"
+                      value={quickClientEmail}
+                      onChange={(e) => setQuickClientEmail(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+                      Dirección
+                    </label>
+                    <input
+                      type="text"
+                      className="input-modern"
+                      placeholder="Calle, nº, CP, Ciudad"
+                      value={quickClientAddress}
+                      onChange={(e) => setQuickClientAddress(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginTop: '16px' }}>
+                  <button
+                    className="btn-secondary"
+                    onClick={() => setShowQuickClient(false)}
+                    style={{ padding: '8px 16px', fontSize: '14px' }}
+                  >
+                    Cancelar
+                  </button>
                   <button
                     className="btn-primary"
                     onClick={handleQuickAddClient}
                     disabled={isCreatingClient || !quickClientName.trim()}
-                    style={{ padding: '8px 20px' }}
+                    style={{ padding: '8px 20px', fontSize: '14px' }}
                   >
-                    {isCreatingClient ? 'Creando...' : 'Añadir'}
+                    {isCreatingClient ? 'Creando...' : '✓ Crear Cliente'}
                   </button>
                 </div>
               </div>
