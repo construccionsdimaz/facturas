@@ -48,22 +48,30 @@ export default async function InvoicesPage() {
             ) : invoices.map((inv) => (
               <tr key={inv.id} className={styles.tableRow}>
                 <td className={styles.cellNumber}>
-                  <strong>{inv.number}</strong>
+                  <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>
+                    <strong>{inv.number}</strong>
+                  </Link>
                 </td>
                 <td className={styles.cellClient}>
-                  <div className={styles.clientAvatar}>
-                    {inv.client.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span>{inv.client.name}</span>
+                  <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>
+                    <div className={styles.clientAvatar}>
+                      {inv.client.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span>{inv.client.name}</span>
+                  </Link>
                 </td>
                 <td className={styles.cellAmount}>
-                  {inv.total.toFixed(2)} €
+                  <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>
+                    {inv.total.toFixed(2)} €
+                  </Link>
                 </td>
                 <td>
                   <InvoiceStatusToggle invoiceId={inv.id} currentStatus={inv.status} />
                 </td>
                 <td className={styles.cellDate}>
-                  {new Date(inv.createdAt).toLocaleDateString('es-ES')}
+                  <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>
+                    {new Date(inv.createdAt).toLocaleDateString('es-ES')}
+                  </Link>
                 </td>
               </tr>
             ))}
