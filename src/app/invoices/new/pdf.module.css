@@ -58,7 +58,8 @@
   letter-spacing: 1px;
   margin: 0 0 16px 0;
   color: #1a1a1a;
-  background: none; /* Ensure no background */
+  background: none !important; /* Force no background */
+  box-shadow: none !important;
   padding: 0;
 }
 

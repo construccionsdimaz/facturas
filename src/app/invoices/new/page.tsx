@@ -76,8 +76,8 @@ export default function NewInvoice() {
       const year = new Date().getFullYear();
       const existingNumbers = (invoicesData || [])
         .map((inv: any) => {
-          const match = inv.number?.match(/(\d+)/);
-          return match ? parseInt(match[0]) : 0;
+          const matches = inv.number?.match(/\d+/g);
+          return matches ? parseInt(matches[matches.length - 1]) : 0;
         })
         .filter((n: number) => n > 0);
       const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
@@ -175,8 +175,8 @@ export default function NewInvoice() {
       setSaveSuccess('✓ Factura guardada correctamente');
       setTimeout(() => setSaveSuccess(''), 4000);
       // Auto-increment for next
-      const num = parseInt(invoiceNumber.split('-')[2]) || 0;
-      setInvoiceNumber(`FAC-${new Date().getFullYear()}-${(num + 1).toString().padStart(3, '0')}`);
+      const num = parseInt(invoiceNumber) || 0;
+      setInvoiceNumber((num + 1).toString().padStart(3, '0'));
     } catch {
       alert("Error al guardar la factura.");
     } finally {
@@ -218,8 +218,8 @@ export default function NewInvoice() {
       window.print();
       
       // Auto-increment
-      const num = parseInt(invoiceNumber.split('-')[2]) || 0;
-      setInvoiceNumber(`FAC-${new Date().getFullYear()}-${(num + 1).toString().padStart(3, '0')}`);
+      const num = parseInt(invoiceNumber) || 0;
+      setInvoiceNumber((num + 1).toString().padStart(3, '0'));
       setSaveSuccess('✓ Factura emitida e impresa');
       setTimeout(() => setSaveSuccess(''), 4000);
     } catch (error) {
@@ -252,12 +252,12 @@ export default function NewInvoice() {
         }} />
       </div>
 
-      <div className={styles.header}>
+      <div className={styles.header + " no-print"}>
         <div>
           <h1 className="text-gradient">Crear Nueva Factura</h1>
           <p className={styles.subtitle}>Rellena los datos para generar una nueva factura.</p>
         </div>
-        <div className={styles.actions}>
+        <div className={styles.actions + " no-print"}>
           {saveSuccess && <span style={{ color: '#10b981', marginRight: '16px', fontWeight: 600 }}>{saveSuccess}</span>}
           <button 
             className={`btn-secondary ${styles.saveBtn}`}
@@ -277,7 +277,7 @@ export default function NewInvoice() {
         </div>
       </div>
 
-      <div className={styles.contentGrid}>
+      <div className={styles.contentGrid + " no-print"}>
         {/* Left Form Panel */}
         <div className={styles.formPanel}>
           <div className={`glass-panel ${styles.card}`}>

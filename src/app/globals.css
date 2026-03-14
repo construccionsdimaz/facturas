@@ -194,48 +194,38 @@ h1 {
   gap: 2rem;
 }
 
-/* Print Styles */
 @media print {
-  .sidebar, 
-  .topbar, 
-  .no-print,
-  .btn-primary, 
-  .btn-secondary, 
-  .backLink,
-  .actions,
-  header,
-  nav {
-    display: none !important;
+  /* Extreme Isolation: Hide everything except the invoice */
+  body * {
+    visibility: hidden !important;
   }
 
-  .main-content {
-    margin: 0 !important;
-    padding: 0 !important;
-    display: block !important;
-  }
-
-  body, html {
-    background: white !important;
-    color: black !important;
-  }
-
-  .app-container {
-    display: block !important;
-  }
-
-  /* Reset scaling and shadows for the invoice sheet */
-  .printable-invoice {
+  .printable-invoice, .printable-invoice * {
     visibility: visible !important;
-    display: block !important;
-    transform: none !important;
+  }
+
+  .printable-invoice {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
     margin: 0 !important;
     padding: 0 !important;
     box-shadow: none !important;
-    width: 100% !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
+    transform: none !important;
+    display: block !important;
+    z-index: 99999 !important;
     background: white !important;
-    z-index: 9999 !important;
+  }
+
+  /* Hide the actual app container to be extra safe */
+  .app-container, header, nav, .sidebar, .topbar, .no-print {
+    display: none !important;
+  }
+
+  /* Force background colors to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 }

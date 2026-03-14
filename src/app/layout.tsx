@@ -20,9 +20,13 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.className}>
         <div className="app-container">
-          <Sidebar />
+          <div className="no-print">
+            <Sidebar />
+          </div>
           <div className="main-content">
-            <Topbar />
+            <div className="no-print">
+              <Topbar />
+            </div>
             {children}
           </div>
         </div>

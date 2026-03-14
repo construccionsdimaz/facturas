@@ -31,10 +31,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
     <div className={styles.detailPage}>
       <div className={styles.header}>
         <div>
-          <Link href="/invoices" className={styles.backLink}>← Volver a Facturas</Link>
+          <Link href="/invoices" className={styles.backLink + " no-print"}>← Volver a Facturas</Link>
           <h1 className="text-gradient">Factura {invoice.number}</h1>
         </div>
-        <div className={styles.actions}>
+        <div className={styles.actions + " no-print"}>
           <span className={`badge badge-${invoice.status === 'PAID' ? 'success' : invoice.status === 'OVERDUE' ? 'danger' : 'warning'}`}
             style={{ fontSize: '14px', padding: '8px 16px' }}
           >
@@ -50,7 +50,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <div className={styles.grid}>
+      <div className={styles.grid + " no-print"}>
         {/* Invoice Info */}
         <div className={`glass-panel ${styles.card}`}>
           <h3>Datos de la Factura</h3>
