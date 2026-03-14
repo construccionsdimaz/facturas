@@ -193,3 +193,12 @@ h1 {
   flex-direction: column;
   gap: 2rem;
 }
+
+body.light-print {
+  background-color: white !important;
+  color: black !important;
+}
+
+body.light-print * {
+  color: inherit;
+}

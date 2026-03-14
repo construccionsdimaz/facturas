@@ -20,7 +20,7 @@ export default function RootLayout({
   if (isPrintPage) {
     return (
       <html lang="en">
-        <body className={inter.className} style={{ background: 'white', color: 'black' }}>
+        <body className={`${inter.className} light-print`}>
           {children}
         </body>
       </html>

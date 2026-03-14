@@ -32,7 +32,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
           </div>
           {data.companyLogo && (
             <div style={{ marginBottom: '32px' }}>
-              <img src={data.companyLogo} alt="Logo" style={{ objectFit: 'contain' }} />
+              <img src={data.companyLogo} alt="Logo" style={{ maxWidth: '450px', maxHeight: '180px', objectFit: 'contain' }} />
             </div>
           )}
           <div className={styles.companyInfo}>
