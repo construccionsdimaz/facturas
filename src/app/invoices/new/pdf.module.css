@@ -224,3 +224,28 @@
   color: #777;
   font-size: 12px;
 }
+
+.printWrapper {
+  background: white;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  padding: 0;
+}
+
+.printWrapper .pdfContainer {
+  width: 100%;
+  max-width: 100%;
+  box-shadow: none;
+  padding: 20mm; /* Standard print margin */
+}
+
+@media print {
+  .printWrapper {
+    padding: 0;
+    display: block;
+  }
+  .printWrapper .pdfContainer {
+    padding: 0;
+  }
+}

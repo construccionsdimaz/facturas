@@ -6,6 +6,7 @@ import jsPDF from 'jspdf';
 import InvoicePDFTemplate from '../new/InvoicePDFTemplate';
 
 interface InvoiceData {
+  id: string;
   number: string;
   issueDate: string;
   clientName: string;
@@ -29,7 +30,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
   const [isGenerating, setIsGenerating] = useState(false);
 
   const handlePrint = () => {
-    window.print();
+    window.open(`/invoices/${invoice.id}/print`, '_blank');
   };
 
   return (

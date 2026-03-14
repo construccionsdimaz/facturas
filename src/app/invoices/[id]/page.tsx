@@ -104,6 +104,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
       {/* PDF Preview + Download */}
       <InvoiceDetailClient invoice={{
+        id: invoice.id,
         number: invoice.number,
         issueDate: invoice.createdAt.toISOString(),
         clientName: invoice.client.name,

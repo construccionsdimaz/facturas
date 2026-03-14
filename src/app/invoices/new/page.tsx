@@ -208,19 +208,22 @@ export default function NewInvoice() {
         })),
         paymentMethod
       };
-      await fetch('/api/invoices', {
+      const res = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoiceData)
       });
+      const savedInvoice = await res.json();
       
-      // Call native print
-      window.print();
+      // Open print preview in new tab
+      if (savedInvoice.id) {
+        window.open(`/invoices/${savedInvoice.id}/print`, '_blank');
+      }
       
       // Auto-increment
       const num = parseInt(invoiceNumber) || 0;
       setInvoiceNumber((num + 1).toString().padStart(3, '0'));
-      setSaveSuccess('✓ Factura emitida e impresa');
+      setSaveSuccess('✓ Factura emitida - Previsualizando...');
       setTimeout(() => setSaveSuccess(''), 4000);
     } catch (error) {
        console.error("Error saving/printing", error);

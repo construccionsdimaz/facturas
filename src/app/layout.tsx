@@ -1,21 +1,32 @@
+"use client";
+
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
+import { usePathname } from "next/navigation";
 
 const inter = Inter({ subsets: ["latin"] });
-
-export const metadata: Metadata = {
-  title: "Next-Gen Invoicing",
-  description: "A premium B2B/B2C financial management center",
-};
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const pathname = usePathname();
+  const isPrintPage = pathname?.includes('/print');
+
+  if (isPrintPage) {
+    return (
+      <html lang="en">
+        <body className={inter.className} style={{ background: 'white', color: 'black' }}>
+          {children}
+        </body>
+      </html>
+    );
+  }
+
   return (
     <html lang="en">
       <body className={inter.className}>
