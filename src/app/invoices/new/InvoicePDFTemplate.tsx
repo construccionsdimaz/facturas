@@ -31,8 +31,8 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
             {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'E'}
           </div>
           {data.companyLogo && (
-            <div style={{ marginBottom: '16px' }}>
-              <img src={data.companyLogo} alt="Logo" style={{ maxWidth: '240px', maxHeight: '100px', objectFit: 'contain' }} />
+            <div style={{ marginBottom: '20px' }}>
+              <img src={data.companyLogo} alt="Logo" style={{ maxWidth: '320px', maxHeight: '140px', objectFit: 'contain' }} />
             </div>
           )}
           <div className={styles.companyInfo}>

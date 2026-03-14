@@ -28,39 +28,18 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
   const pdfRef = useRef<HTMLDivElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const handleDownload = async () => {
-    if (!pdfRef.current) return;
-    setIsGenerating(true);
-    try {
-      const canvas = await html2canvas(pdfRef.current, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: '#ffffff',
-      });
-
-      const imgData = canvas.toDataURL('image/png');
-      const pdf = new jsPDF('portrait', 'mm', 'a4');
-      const pdfWidth = pdf.internal.pageSize.getWidth();
-      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-      
-      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-      pdf.save(`${invoice.number}.pdf`);
-    } catch (error) {
-      console.error("Error generating PDF", error);
-    } finally {
-      setIsGenerating(false);
-    }
+  const handlePrint = () => {
+    window.print();
   };
 
   return (
     <div>
       <button
-        className="btn-primary"
-        onClick={handleDownload}
-        disabled={isGenerating}
+        className="btn-primary no-print"
+        onClick={handlePrint}
         style={{ padding: '8px 20px', marginBottom: '24px' }}
       >
-        {isGenerating ? 'Generando...' : '📄 Descargar PDF'}
+        📄 Imprimir / Descargar PDF
       </button>
 
       {/* Visible Preview Container */}
@@ -77,6 +56,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
         {/* The "Paper" sheet */}
         <div 
           ref={pdfRef} 
+          className="printable-invoice"
           style={{ 
             width: '800px', 
             background: 'white', 

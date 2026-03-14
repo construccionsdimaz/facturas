@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect } from 'react';
 import styles from './page.module.css';
-import jsPDF from 'jspdf';
 import InvoicePDFTemplate from './InvoicePDFTemplate';
 
 interface InvoiceItem {
@@ -77,12 +76,12 @@ export default function NewInvoice() {
       const year = new Date().getFullYear();
       const existingNumbers = (invoicesData || [])
         .map((inv: any) => {
-          const match = inv.number?.match(/FAC-\d{4}-(\d+)/);
-          return match ? parseInt(match[1]) : 0;
+          const match = inv.number?.match(/(\d+)/);
+          return match ? parseInt(match[0]) : 0;
         })
         .filter((n: number) => n > 0);
       const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-      setInvoiceNumber(`FAC-${year}-${nextNumber.toString().padStart(3, '0')}`);
+      setInvoiceNumber(nextNumber.toString().padStart(3, '0'));
       
       if (settingsData?.paymentMethod) {
         setPaymentMethod(settingsData.paymentMethod);
@@ -185,15 +184,16 @@ export default function NewInvoice() {
     }
   };
 
-  // Generate PDF + Save
-  const generatePDF = async () => {
-    if (!pdfRef.current || !selectedClientId) {
-      alert("Por favor selecciona un cliente antes de generar la factura.");
+  // Handle Print / Preview
+  const handlePrint = async () => {
+    if (!selectedClientId) {
+      alert("Por favor selecciona un cliente antes de imprimir.");
       return;
     }
-    setIsGenerating(true);
+    
+    // Save to DB first so the user doesn't lose data
+    setIsSaving(true);
     try {
-      // Save to DB first
       const invoiceData = {
         number: invoiceNumber,
         clientId: selectedClientId,
@@ -213,47 +213,26 @@ export default function NewInvoice() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoiceData)
       });
-
-      // Generate PDF
-      pdfRef.current.style.position = 'static';
-      pdfRef.current.style.top = '0';
-      pdfRef.current.style.left = '0';
       
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: 'a4',
-      });
-
-      await pdf.html(pdfRef.current, {
-        callback: function (doc) {
-          doc.save(`${invoiceNumber}.pdf`);
-        },
-        x: 0,
-        y: 0,
-        width: 800,
-        windowWidth: 800
-      });
-
-      pdfRef.current.style.position = 'absolute';
-      pdfRef.current.style.top = '-9999px';
-      pdfRef.current.style.left = '-9999px';
+      // Call native print
+      window.print();
       
       // Auto-increment
       const num = parseInt(invoiceNumber.split('-')[2]) || 0;
       setInvoiceNumber(`FAC-${new Date().getFullYear()}-${(num + 1).toString().padStart(3, '0')}`);
-      
+      setSaveSuccess('✓ Factura emitida e impresa');
+      setTimeout(() => setSaveSuccess(''), 4000);
     } catch (error) {
-       console.error("Error generating PDF", error);
+       console.error("Error saving/printing", error);
     } finally {
-       setIsGenerating(false);
+       setIsSaving(false);
     }
   };
 
   return (
     <div className={styles.invoiceCreator}>
-      {/* Hidden PDF Template */}
-      <div ref={pdfRef} style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
+      {/* Hidden PDF Template for printing */}
+      <div ref={pdfRef} className="printable-invoice" style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
         <InvoicePDFTemplate data={{
           number: invoiceNumber,
           issueDate: new Date().toISOString(),
@@ -289,11 +268,11 @@ export default function NewInvoice() {
             {isSaving ? 'Guardando...' : '💾 Guardar Borrador'}
           </button>
           <button 
-            className={`btn-primary ${styles.saveBtn}`} 
-            onClick={generatePDF}
-            disabled={isGenerating}
+            className={`btn-primary no-print ${styles.saveBtn}`} 
+            onClick={handlePrint}
+            disabled={isSaving}
           >
-            {isGenerating ? 'Generando...' : '📄 Descargar PDF'}
+            {isSaving ? 'Procesando...' : '📄 Imprimir / Descargar PDF'}
           </button>
         </div>
       </div>
