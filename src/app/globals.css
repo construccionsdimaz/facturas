@@ -193,3 +193,19 @@ h1 {
   flex-direction: column;
   gap: 2rem;
 }
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  
+  /* Remove page margins/headers/footers from browser settings if possible */
+  @page {
+    margin: 0;
+  }
+  
+  body {
+    margin: 0;
+    padding: 0;
+  }
+}

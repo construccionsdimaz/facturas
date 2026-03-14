@@ -130,9 +130,6 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         <div className={styles.thanks}>
           ¡Gracias por su confianza!
         </div>
-        <div className={styles.footerSmall}>
-          El pago se realizará en un plazo de 30 días. Para cualquier consulta, contacte con {data.companyName || 'nosotros'}.
-        </div>
       </div>
     </div>
   );
