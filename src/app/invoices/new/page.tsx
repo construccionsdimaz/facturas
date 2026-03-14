@@ -17,6 +17,7 @@ interface Client {
   name: string;
   email: string | null;
   address: string | null;
+  phone: string | null;
   taxId: string | null;
 }
 
@@ -48,9 +49,14 @@ export default function NewInvoice() {
   const [showQuickClient, setShowQuickClient] = useState(false);
   const [quickClientName, setQuickClientName] = useState('');
   const [quickClientEmail, setQuickClientEmail] = useState('');
+  const [quickClientPhone, setQuickClientPhone] = useState('');
   const [quickClientTaxId, setQuickClientTaxId] = useState('');
   const [quickClientAddress, setQuickClientAddress] = useState('');
   const [isCreatingClient, setIsCreatingClient] = useState(false);
+
+  // Client Search State
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
 
   // Load Initial Data + Sequential Invoice Number
   useEffect(() => {
@@ -86,6 +92,7 @@ export default function NewInvoice() {
         body: JSON.stringify({ 
           name: quickClientName, 
           email: quickClientEmail || undefined,
+          phone: quickClientPhone || undefined,
           taxId: quickClientTaxId || undefined,
           address: quickClientAddress || undefined
         })
@@ -94,8 +101,10 @@ export default function NewInvoice() {
       const newClient = await res.json();
       setClients(prev => [newClient, ...prev]);
       setSelectedClientId(newClient.id);
+      setClientSearch(newClient.name);
       setQuickClientName('');
       setQuickClientEmail('');
+      setQuickClientPhone('');
       setQuickClientTaxId('');
       setQuickClientAddress('');
       setShowQuickClient(false);
@@ -306,19 +315,68 @@ export default function NewInvoice() {
             
             <h3>Información del Cliente</h3>
             <div className={styles.formGroup}>
-              <label>Seleccionar Cliente</label>
+              <label>Buscar Cliente</label>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <select 
-                  className="input-modern" 
-                  value={selectedClientId} 
-                  onChange={(e) => setSelectedClientId(e.target.value)}
-                  style={{ flex: 1 }}
-                >
-                  <option value="">-- Elige un cliente --</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>{client.name}</option>
-                  ))}
-                </select>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <input
+                    type="text"
+                    className="input-modern"
+                    placeholder="🔍 Buscar por nombre, DNI, teléfono, email..."
+                    value={clientSearch}
+                    onChange={(e) => {
+                      setClientSearch(e.target.value);
+                      setShowClientDropdown(true);
+                      if (!e.target.value) setSelectedClientId('');
+                    }}
+                    onFocus={() => setShowClientDropdown(true)}
+                    onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
+                  />
+                  {showClientDropdown && clientSearch && (() => {
+                    const query = clientSearch.toLowerCase();
+                    const filtered = clients.filter(c =>
+                      c.name.toLowerCase().includes(query) ||
+                      (c.taxId && c.taxId.toLowerCase().includes(query)) ||
+                      (c.phone && c.phone.toLowerCase().includes(query)) ||
+                      (c.email && c.email.toLowerCase().includes(query))
+                    );
+                    return filtered.length > 0 ? (
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 50,
+                        background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
+                        borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                      }}>
+                        {filtered.map(c => (
+                          <div
+                            key={c.id}
+                            onMouseDown={() => {
+                              setSelectedClientId(c.id);
+                              setClientSearch(c.name);
+                              setShowClientDropdown(false);
+                            }}
+                            style={{
+                              padding: '10px 14px', cursor: 'pointer',
+                              borderBottom: '1px solid rgba(255,255,255,0.04)',
+                              transition: 'background 0.15s',
+                            }}
+                            onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                            onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <div style={{ fontWeight: 600, fontSize: '14px' }}>{c.name}</div>
+                            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                              {[c.taxId, c.phone, c.email].filter(Boolean).join(' · ') || 'Sin datos adicionales'}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null;
+                  })()}
+                  {selectedClientId && (
+                    <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>
+                      ✓ Cliente seleccionado: {clients.find(c => c.id === selectedClientId)?.name}
+                    </div>
+                  )}
+                </div>
                 <button 
                   className="btn-primary" 
                   onClick={() => setShowQuickClient(!showQuickClient)}
@@ -368,6 +426,18 @@ export default function NewInvoice() {
                   </div>
                   <div>
                     <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
+                      Teléfono
+                    </label>
+                    <input
+                      type="tel"
+                      className="input-modern"
+                      placeholder="Ej. 612 345 678"
+                      value={quickClientPhone}
+                      onChange={(e) => setQuickClientPhone(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
                       Correo Electrónico
                     </label>
                     <input
@@ -378,7 +448,7 @@ export default function NewInvoice() {
                       onChange={(e) => setQuickClientEmail(e.target.value)}
                     />
                   </div>
-                  <div>
+                  <div style={{ gridColumn: '1 / -1' }}>
                     <label style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '4px', display: 'block' }}>
                       Dirección
                     </label>
