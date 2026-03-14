@@ -57,7 +57,9 @@
   font-weight: 800;
   letter-spacing: 1px;
   margin: 0 0 16px 0;
-  color: #1a1a1a; /* Reset to dark text, no brand color background/color */
+  color: #1a1a1a;
+  background: none; /* Ensure no background */
+  padding: 0;
 }
 
 .metaGrid {

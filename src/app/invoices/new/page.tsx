@@ -44,7 +44,7 @@ export default function NewInvoice() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
-  const [brandColor, setBrandColor] = useState('#3b82f6'); 
+  const [brandColor, setBrandColor] = useState('#00509d'); 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');

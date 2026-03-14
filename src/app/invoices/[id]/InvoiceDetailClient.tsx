@@ -98,7 +98,7 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
             subtotal: invoice.subtotal,
             tax: invoice.tax,
             total: invoice.total,
-            brandColor: '#3b82f6',
+            brandColor: '#00509d',
             companyName: invoice.companyName,
             companyAddress: invoice.companyAddress,
             companyTaxId: invoice.companyTaxId,
