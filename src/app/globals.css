@@ -199,12 +199,13 @@ h1 {
     display: none !important;
   }
   
-  /* Remove page margins/headers/footers from browser settings if possible */
   @page {
-    margin: 0;
+    size: A4;
+    margin: 10mm;
   }
   
   body {
+    background: white !important;
     margin: 0;
     padding: 0;
   }

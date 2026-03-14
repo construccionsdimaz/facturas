@@ -201,12 +201,12 @@
 }
 
 .gdpr {
-  font-size: 10px;
+  font-size: 9px;
   color: #666;
   text-align: justify;
-  line-height: 1.4;
-  margin-bottom: 24px;
-  padding: 12px;
+  line-height: 1.3;
+  margin-bottom: 20px;
+  padding: 8px;
   background-color: #f9f9f9;
   border-radius: 4px;
 }
@@ -234,18 +234,23 @@
 }
 
 .printWrapper .pdfContainer {
-  width: 100%;
-  max-width: 100%;
-  box-shadow: none;
-  padding: 20mm; /* Standard print margin */
+  width: 210mm;
+  min-height: 297mm;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  padding: 15mm;
+  margin: 20px auto; /* 20px top/bottom for preview, auto left/right to center */
 }
 
 @media print {
   .printWrapper {
     padding: 0;
     display: block;
+    background: white;
   }
   .printWrapper .pdfContainer {
-    padding: 0;
+    width: 210mm;
+    padding: 15mm;
+    margin: 0;
+    box-shadow: none;
   }
 }
