@@ -40,6 +40,13 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           >
             {statusLabels[invoice.status] || invoice.status}
           </span>
+          {invoice.status === 'DRAFT' && (
+            <Link href={`/invoices/${id}/edit`}>
+              <button className="btn-secondary" style={{ padding: '8px 20px' }}>
+                ✏️ Editar
+              </button>
+            </Link>
+          )}
           <InvoiceDetailClient invoice={{
             number: invoice.number,
             issueDate: invoice.createdAt.toISOString(),

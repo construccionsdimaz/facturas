@@ -49,3 +49,41 @@ export async function PATCH(
     return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
   }
 }
+
+export async function PUT(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json();
+    const { number, clientId, subtotal, taxAmount, total, items } = body;
+
+    // Delete existing items then recreate
+    await db.invoiceItem.deleteMany({ where: { invoiceId: id } });
+
+    const updated = await db.invoice.update({
+      where: { id },
+      data: {
+        number,
+        clientId,
+        subtotal,
+        taxAmount,
+        total,
+        items: {
+          create: items.map((item: { description: string; quantity: number; price: number }) => ({
+            description: item.description,
+            quantity: item.quantity,
+            price: item.price,
+          })),
+        },
+      },
+      include: { items: true, client: true }
+    });
+
+    return NextResponse.json(updated);
+  } catch (error) {
+    console.error('Error updating invoice:', error);
+    return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
+  }
+}
