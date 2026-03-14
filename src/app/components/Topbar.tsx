@@ -7,7 +7,7 @@ export default function Topbar() {
         <span className={styles.searchIcon}>🔍</span>
         <input 
           type="text" 
-          placeholder="Search invoices, clients, or commands (Cmd + K)" 
+          placeholder="Buscar facturas, clientes o comandos (Cmd + K)" 
           className={`input-modern ${styles.searchInput}`}
         />
       </div>
@@ -18,7 +18,7 @@ export default function Topbar() {
           <span className={styles.badge}>3</span>
         </button>
         <button className="btn-primary">
-          + New Invoice
+          + Nueva Factura
         </button>
       </div>
     </header>

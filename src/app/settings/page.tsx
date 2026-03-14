@@ -49,7 +49,7 @@ export default function SettingsPage() {
       
     } catch (error) {
       console.error(error);
-      alert('Error saving settings');
+      alert('Error al guardar los ajustes');
     } finally {
       setIsSaving(false);
     }
@@ -59,8 +59,8 @@ export default function SettingsPage() {
     return (
       <div className={styles.settingsPage}>
         <div className={styles.header}>
-            <h1 className="text-gradient">Company Settings</h1>
-            <p className="loading-text">Loading...</p>
+            <h1 className="text-gradient">Ajustes de Empresa</h1>
+            <p className="loading-text">Cargando...</p>
         </div>
       </div>
     );
@@ -70,29 +70,29 @@ export default function SettingsPage() {
     <div className={styles.settingsPage}>
       <div className={styles.header}>
         <div>
-          <h1 className="text-gradient">Company Settings</h1>
-          <p className={styles.subtitle}>Customize your brand details for the invoices.</p>
+          <h1 className="text-gradient">Ajustes de Empresa</h1>
+          <p className={styles.subtitle}>Personaliza los datos de tu empresa para las facturas.</p>
         </div>
       </div>
 
       <div className={styles.layout}>
         <div className={styles.sidebarSection}>
           <ul className={styles.settingsNav}>
-            <li className={styles.active}>Company Profile</li>
-            <li className={styles.disabled}>Billing & Plans 🔒</li>
-            <li className={styles.disabled}>Team Members 🔒</li>
-            <li className={styles.disabled}>Integrations 🔒</li>
+            <li className={styles.active}>Perfil de Empresa</li>
+            <li className={styles.disabled}>Facturación y Planes 🔒</li>
+            <li className={styles.disabled}>Equipo 🔒</li>
+            <li className={styles.disabled}>Integraciones 🔒</li>
           </ul>
         </div>
 
         <div className={styles.mainSection}>
           <div className={`glass-panel ${styles.panel}`}>
-            <h2 className={styles.panelTitle}>Company Profile</h2>
-            <p className={styles.panelDesc}>These details will appear on the header of all your generated PDF invoices.</p>
+            <h2 className={styles.panelTitle}>Perfil de Empresa</h2>
+            <p className={styles.panelDesc}>Estos datos aparecerán en la cabecera de todas tus facturas PDF generadas.</p>
             
             <form onSubmit={handleSave} className={styles.form}>
               <div className={styles.formGroup}>
-                <label>Company/Brand Name</label>
+                <label>Nombre de la Empresa/Marca</label>
                 <input 
                   type="text" 
                   className="input-modern"
@@ -103,7 +103,7 @@ export default function SettingsPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Tax ID (CIF/NIF/EIN)</label>
+                <label>NIF/CIF</label>
                 <input 
                   type="text" 
                   className="input-modern"
@@ -114,20 +114,20 @@ export default function SettingsPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Registered Address</label>
+                <label>Dirección Fiscal</label>
                 <textarea 
                   className={`input-modern ${styles.textarea}`}
                   value={formData.companyAddress}
                   onChange={(e) => setFormData({...formData, companyAddress: e.target.value})}
-                  placeholder="123 Innovation Drive&#10;Tech City, TC 90210&#10;contact@nextgen.inc"
+                  placeholder="Calle Ejemplo 123&#10;Barcelona, 08001&#10;contacto@miempresa.com"
                   rows={4}
                 />
               </div>
 
               <div className={styles.formActions}>
-                {showSuccess && <span className={styles.successMsg}>✓ Profile saved successfully!</span>}
+                {showSuccess && <span className={styles.successMsg}>✓ Perfil guardado correctamente!</span>}
                 <button type="submit" className="btn-primary" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save Profile'}
+                  {isSaving ? 'Guardando...' : 'Guardar Perfil'}
                 </button>
               </div>
             </form>

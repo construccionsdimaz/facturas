@@ -48,7 +48,7 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
       
     } catch (error) {
       console.error(error);
-      alert('Error creating client. Check console.');
+      alert('Error al crear el cliente.');
     } finally {
       setIsLoading(false);
     }
@@ -59,34 +59,34 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
       {isAdding ? (
         <div className={`glass-panel ${styles.addClientForm}`}>
           <div className={styles.formHeader}>
-            <h2>Add New Client</h2>
+            <h2>Añadir Nuevo Cliente</h2>
             <button className={styles.closeBtn} onClick={() => setIsAdding(false)}>×</button>
           </div>
           <form onSubmit={handleAddClient}>
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
-                <label>Company/Client Name *</label>
+                <label>Nombre Empresa/Cliente *</label>
                 <input 
                   type="text" 
                   className="input-modern" 
                   required
                   value={formData.name}
                   onChange={e => setFormData({...formData, name: e.target.value})}
-                  placeholder="e.g. Acme Corporation"
+                  placeholder="Ej. Construcciones Dímaz S.L."
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Email Address</label>
+                <label>Correo Electrónico</label>
                 <input 
                   type="email" 
                   className="input-modern" 
                   value={formData.email}
                   onChange={e => setFormData({...formData, email: e.target.value})}
-                  placeholder="contact@acme.com"
+                  placeholder="contacto@empresa.com"
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Tax ID (CIF/NIF/VAT)</label>
+                <label>NIF/CIF</label>
                 <input 
                   type="text" 
                   className="input-modern" 
@@ -96,20 +96,20 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Billing Address</label>
+                <label>Dirección de Facturación</label>
                 <input 
                   type="text" 
                   className="input-modern" 
                   value={formData.address}
                   onChange={e => setFormData({...formData, address: e.target.value})}
-                  placeholder="123 Business Rd, City"
+                  placeholder="Calle Ejemplo 123, Ciudad"
                 />
               </div>
             </div>
             <div className={styles.formActions}>
-              <button type="button" className="btn-secondary" onClick={() => setIsAdding(false)}>Cancel</button>
+              <button type="button" className="btn-secondary" onClick={() => setIsAdding(false)}>Cancelar</button>
               <button type="submit" className="btn-primary" disabled={isLoading}>
-                {isLoading ? 'Saving...' : 'Save Client'}
+                {isLoading ? 'Guardando...' : 'Guardar Cliente'}
               </button>
             </div>
           </form>
@@ -117,9 +117,9 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
       ) : (
         <div className={styles.actionsBar}>
            <div className={styles.searchBox}>
-               <input type="text" className="input-modern" placeholder="Search clients..." />
+               <input type="text" className="input-modern" placeholder="Buscar clientes..." />
            </div>
-           <button className="btn-primary" onClick={() => setIsAdding(true)}>+ New Client</button>
+           <button className="btn-primary" onClick={() => setIsAdding(true)}>+ Nuevo Cliente</button>
         </div>
       )}
 
@@ -127,17 +127,17 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Client Details</th>
-              <th>Contact</th>
-              <th>Tax ID</th>
-              <th>Total Invoices</th>
-              <th>Added On</th>
+              <th>Datos del Cliente</th>
+              <th>Contacto</th>
+              <th>NIF/CIF</th>
+              <th>Facturas</th>
+              <th>Fecha Alta</th>
             </tr>
           </thead>
           <tbody>
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={5} className={styles.emptyState}>No clients found. Add your first client above.</td>
+                <td colSpan={5} className={styles.emptyState}>No se han encontrado clientes. Añade tu primer cliente arriba.</td>
               </tr>
             ) : clients.map((client) => (
               <tr key={client.id} className={styles.tableRow}>

@@ -25,7 +25,7 @@ interface CompanySettings {
 
 export default function NewInvoice() {
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: '1', description: 'Website Design', quantity: 1, price: 1500 }
+    { id: '1', description: 'Diseño Web', quantity: 1, price: 1500 }
   ]);
   
   // Database State
@@ -34,7 +34,7 @@ export default function NewInvoice() {
   
   // Form State
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState(`INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+  const [invoiceNumber, setInvoiceNumber] = useState(`FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
   const [brandColor, setBrandColor] = useState('#3b82f6'); 
   const [isGenerating, setIsGenerating] = useState(false);
   const pdfRef = useRef<HTMLDivElement>(null);
@@ -70,7 +70,7 @@ export default function NewInvoice() {
 
   const generatePDF = async () => {
     if (!pdfRef.current || !selectedClientId) {
-      alert("Please select a client before generating the invoice.");
+      alert("Por favor selecciona un cliente antes de generar la factura.");
       return;
     }
     setIsGenerating(true);
@@ -132,7 +132,7 @@ export default function NewInvoice() {
       pdfRef.current.style.left = '-9999px';
       
       // Auto-increment invoice number for next one
-      setInvoiceNumber(`INV-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+      setInvoiceNumber(`FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
       
     } catch (error) {
        console.error("Error generating PDF", error);
@@ -149,7 +149,7 @@ export default function NewInvoice() {
           number: invoiceNumber,
           issueDate: new Date().toISOString(),
           dueDate: '',
-          clientName: clients.find(c => c.id === selectedClientId)?.name || 'Unknown Client',
+          clientName: clients.find(c => c.id === selectedClientId)?.name || 'Cliente Desconocido',
           items: items,
           subtotal: subtotal,
           tax: tax,
@@ -163,8 +163,8 @@ export default function NewInvoice() {
 
       <div className={styles.header}>
         <div>
-          <h1 className="text-gradient">Create New Invoice</h1>
-          <p className={styles.subtitle}>Fill in the details below to generate a new invoice.</p>
+          <h1 className="text-gradient">Crear Nueva Factura</h1>
+          <p className={styles.subtitle}>Rellena los datos para generar una nueva factura.</p>
         </div>
         <div className={styles.actions}>
           <button 
@@ -172,7 +172,7 @@ export default function NewInvoice() {
             onClick={generatePDF}
             disabled={isGenerating}
           >
-            {isGenerating ? 'Generating PDF...' : 'Download PDF'}
+            {isGenerating ? 'Generando PDF...' : 'Descargar PDF'}
           </button>
         </div>
       </div>
@@ -181,10 +181,10 @@ export default function NewInvoice() {
         {/* Left Form Panel */}
         <div className={styles.formPanel}>
           <div className={`glass-panel ${styles.card}`}>
-            <h3>Invoice Details</h3>
+            <h3>Datos de la Factura</h3>
             <div className={styles.formRow}>
               <div className={styles.formGroup}>
-                <label>Invoice Number</label>
+                <label>Nº Factura</label>
                 <input 
                   type="text" 
                   className="input-modern" 
@@ -193,26 +193,26 @@ export default function NewInvoice() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Issue Date</label>
+                <label>Fecha Emisión</label>
                 <input type="date" className="input-modern" defaultValue={new Date().toISOString().split('T')[0]} />
               </div>
               <div className={styles.formGroup}>
-                <label>Due Date</label>
+                <label>Fecha Vencimiento</label>
                 <input type="date" className="input-modern" />
               </div>
             </div>
             
             <div className={styles.divider}></div>
             
-            <h3>Client Information</h3>
+            <h3>Información del Cliente</h3>
             <div className={styles.formGroup}>
-              <label>Select Client</label>
+              <label>Seleccionar Cliente</label>
               <select 
                 className="input-modern" 
                 value={selectedClientId} 
                 onChange={(e) => setSelectedClientId(e.target.value)}
               >
-                <option value="">-- Choose an existing client --</option>
+                <option value="">-- Elige un cliente existente --</option>
                 {clients.map(client => (
                   <option key={client.id} value={client.id}>{client.name}</option>
                 ))}
@@ -221,12 +221,12 @@ export default function NewInvoice() {
           </div>
 
           <div className={`glass-panel ${styles.card}`}>
-            <h3>Line Items</h3>
+            <h3>Conceptos</h3>
             <div className={styles.itemsTable}>
               <div className={styles.itemsHeader}>
-                <div className={styles.colDesc}>Description</div>
-                <div className={styles.colQty}>Qty</div>
-                <div className={styles.colPrice}>Price</div>
+                <div className={styles.colDesc}>Descripción</div>
+                <div className={styles.colQty}>Cant.</div>
+                <div className={styles.colPrice}>Precio</div>
                 <div className={styles.colTotal}>Total</div>
                 <div className={styles.colAction}></div>
               </div>
@@ -237,7 +237,7 @@ export default function NewInvoice() {
                     <input 
                       type="text" 
                       className="input-modern" 
-                      placeholder="Service or product description" 
+                      placeholder="Descripción del servicio o producto" 
                       value={item.description}
                       onChange={(e) => updateItem(item.id, 'description', e.target.value)}
                     />
@@ -262,7 +262,7 @@ export default function NewInvoice() {
                     />
                   </div>
                   <div className={styles.colTotal}>
-                    ${(item.quantity * item.price).toFixed(2)}
+                    {(item.quantity * item.price).toFixed(2)} €
                   </div>
                   <div className={styles.colAction}>
                     <button 
@@ -278,7 +278,7 @@ export default function NewInvoice() {
             </div>
 
             <button className={styles.addBtn} onClick={addItem}>
-              + Add Item
+              + Añadir Concepto
             </button>
           </div>
         </div>
@@ -286,26 +286,26 @@ export default function NewInvoice() {
         {/* Right Summary Panel */}
         <div className={styles.summaryPanel}>
           <div className={`glass-panel ${styles.summaryCard}`}>
-            <h3>Summary</h3>
+            <h3>Resumen</h3>
             <div className={styles.summaryRow}>
               <span>Subtotal</span>
-              <span>${subtotal.toFixed(2)}</span>
+              <span>{subtotal.toFixed(2)} €</span>
             </div>
             <div className={styles.summaryRow}>
               <span>Tax (21% IVA)</span>
-              <span>${tax.toFixed(2)}</span>
+              <span>{tax.toFixed(2)} €</span>
             </div>
             <div className={styles.divider}></div>
             <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
               <span>Total</span>
-              <span className="text-gradient">${total.toFixed(2)}</span>
+              <span className="text-gradient">{total.toFixed(2)} €</span>
             </div>
           </div>
 
           <div className={`glass-panel ${styles.brandCard}`}>
-             <h3>Brand Settings</h3>
+             <h3>Color de Marca</h3>
              <div className={styles.formGroup}>
-                <label>Theme Color</label>
+                <label>Color del Tema</label>
                 <div className={styles.colorPicker}>
                    {['#3b82f6', '#10b981', '#8b5cf6', '#f59e0b', '#ef4444'].map(color => (
                      <div 
