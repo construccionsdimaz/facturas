@@ -61,32 +61,39 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
 
       {/* Visible Preview */}
       <div style={{ 
-        marginTop: '24px',
+        marginTop: '16px',
         borderRadius: '12px',
-        overflow: 'hidden',
+        overflow: 'auto',
         border: '1px solid rgba(255,255,255,0.08)',
         boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-        transform: 'scale(0.75)',
-        transformOrigin: 'top left',
-        width: '133.33%', /* compensate for scale(0.75) -> 1/0.75 = 1.3333 */
+        background: '#e5e7eb',
+        padding: '32px',
+        maxHeight: '80vh',
       }}>
-        <div ref={pdfRef}>
-          <InvoicePDFTemplate data={{
-            number: invoice.number,
-            issueDate: invoice.issueDate,
-            dueDate: '',
-            clientName: invoice.clientName,
-            clientAddress: invoice.clientAddress,
-            clientTaxId: invoice.clientTaxId,
-            items: invoice.items,
-            subtotal: invoice.subtotal,
-            tax: invoice.tax,
-            total: invoice.total,
-            brandColor: '#3b82f6',
-            companyName: invoice.companyName,
-            companyAddress: invoice.companyAddress,
-            companyTaxId: invoice.companyTaxId,
-          }} />
+        <div style={{
+          margin: '0 auto',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+          borderRadius: '4px',
+          overflow: 'hidden',
+        }}>
+          <div ref={pdfRef}>
+            <InvoicePDFTemplate data={{
+              number: invoice.number,
+              issueDate: invoice.issueDate,
+              dueDate: '',
+              clientName: invoice.clientName,
+              clientAddress: invoice.clientAddress,
+              clientTaxId: invoice.clientTaxId,
+              items: invoice.items,
+              subtotal: invoice.subtotal,
+              tax: invoice.tax,
+              total: invoice.total,
+              brandColor: '#3b82f6',
+              companyName: invoice.companyName,
+              companyAddress: invoice.companyAddress,
+              companyTaxId: invoice.companyTaxId,
+            }} />
+          </div>
         </div>
       </div>
     </div>
