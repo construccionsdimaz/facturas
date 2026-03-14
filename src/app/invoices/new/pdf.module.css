@@ -1,0 +1,191 @@
+.pdfContainer {
+  width: 800px; /* Fixed width for A4 scale */
+  padding: 40px;
+  background-color: white; /* Forced white background for PDF */
+  color: #1a1a1a; /* Forced dark text */
+  font-family: 'Helvetica', sans-serif;
+  position: absolute;
+  top: -9999px; /* Hide from screen */
+  left: -9999px;
+  box-sizing: border-box;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+
+.brandDetails {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.logo {
+  width: 50px;
+  height: 50px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: bold;
+  font-size: 20px;
+  margin-bottom: 8px;
+}
+
+.companyName {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  color: #1a1a1a;
+}
+
+.companyInfo p {
+  margin: 2px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.invoiceMeta {
+  text-align: right;
+}
+
+.title {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin: 0 0 20px 0;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: auto auto;
+  gap: 8px 16px;
+  text-align: left;
+}
+
+.metaLabel {
+  color: #666;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.metaValue {
+  color: #1a1a1a;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.billToSection {
+  margin-bottom: 40px;
+}
+
+.billToHeader {
+  font-size: 14px;
+  font-weight: 700;
+  color: #666;
+  border-bottom: 2px solid;
+  padding-bottom: 8px;
+  margin-bottom: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.clientInfo h3 {
+  margin: 0 0 4px 0;
+  color: #1a1a1a;
+  font-size: 18px;
+}
+
+.clientInfo p {
+  margin: 2px 0;
+  color: #555;
+  font-size: 14px;
+}
+
+.itemsSection {
+  margin-bottom: 40px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  color: white;
+  text-align: left;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.table td {
+  padding: 12px;
+  font-size: 14px;
+  border-bottom: 1px solid #eaeaea;
+}
+
+.rowEven {
+  background-color: #fafafa;
+}
+
+.rowOdd {
+  background-color: white;
+}
+
+.colDesc { text-align: left; }
+.colQty { text-align: center; width: 10%; }
+.colPrice { text-align: right; width: 20%; }
+.colTotal { text-align: right; width: 20%; font-weight: 600;}
+
+.summarySection {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 60px;
+}
+
+.summaryBox {
+  width: 300px;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+}
+
+.summaryLabel {
+  color: #666;
+  font-size: 14px;
+}
+
+.summaryValue {
+  color: #1a1a1a;
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.summaryTotalRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0;
+  margin-top: 8px;
+  border-top: 2px solid;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.footer {
+  text-align: center;
+  color: #777;
+  font-size: 12px;
+  border-top: 1px solid #eaeaea;
+  padding-top: 20px;
+}
+
+.footer p {
+  margin: 4px 0;
+}

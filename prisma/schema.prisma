@@ -1,0 +1,84 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// User represents the company/owner of the app (you and your team)
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  role      String   @default("ADMIN") // ADMIN, ACCOUNTANT, etc
+  
+  // Company Profile Settings
+  companyName    String?
+  companyAddress String?
+  companyTaxId   String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  clients   Client[] // The clients that belong to this user
+  invoices  Invoice[]
+}
+
+// Client represents the people/companies you are billing
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  address   String?
+  taxId     String?  // NIF/CIF
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  invoices  Invoice[]
+}
+
+// Invoice record
+model Invoice {
+  id          String   @id @default(cuid())
+  number      String   @unique // INV-2026-001
+  issueDate   DateTime @default(now())
+  dueDate     DateTime?
+  status      String   @default("DRAFT") // DRAFT, PENDING, PAID, OVERDUE
+  
+  subtotal    Float    @default(0)
+  taxRate     Float    @default(21.0)
+  taxAmount   Float    @default(0)
+  total       Float    @default(0)
+  
+  currency    String   @default("EUR")
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  
+  items       InvoiceItem[]
+}
+
+// Individual items (concepts) within an invoice
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  description String
+  quantity    Int      @default(1)
+  price       Float    @default(0)
+  
+  invoiceId   String
+  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
