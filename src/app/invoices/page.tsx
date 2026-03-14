@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import styles from "./page.module.css";
 import Link from "next/link";
+import InvoiceStatusToggle from "./InvoiceStatusToggle";
 
 export const dynamic = 'force-dynamic';
 
@@ -59,9 +60,7 @@ export default async function InvoicesPage() {
                   {inv.total.toFixed(2)} €
                 </td>
                 <td>
-                  <span className={`badge badge-${inv.status === 'PAID' ? 'success' : inv.status === 'OVERDUE' ? 'danger' : 'warning'}`}>
-                    {inv.status === 'PAID' ? 'Pagada' : inv.status === 'OVERDUE' ? 'Vencida' : inv.status === 'DRAFT' ? 'Borrador' : 'Pendiente'}
-                  </span>
+                  <InvoiceStatusToggle invoiceId={inv.id} currentStatus={inv.status} />
                 </td>
                 <td className={styles.cellDate}>
                   {new Date(inv.createdAt).toLocaleDateString('es-ES')}

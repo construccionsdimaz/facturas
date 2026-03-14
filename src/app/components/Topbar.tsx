@@ -1,4 +1,5 @@
 import styles from './topbar.module.css';
+import Link from 'next/link';
 
 export default function Topbar() {
   return (
@@ -17,9 +18,11 @@ export default function Topbar() {
           <span className={styles.icon}>🔔</span>
           <span className={styles.badge}>3</span>
         </button>
-        <button className="btn-primary">
-          + Nueva Factura
-        </button>
+        <Link href="/invoices/new">
+          <button className="btn-primary">
+            + Nueva Factura
+          </button>
+        </Link>
       </div>
     </header>
   );

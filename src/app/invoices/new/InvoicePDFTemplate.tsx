@@ -5,6 +5,8 @@ interface InvoiceData {
   issueDate: string;
   dueDate: string;
   clientName: string;
+  clientAddress?: string;
+  clientTaxId?: string;
   items: { description: string; quantity: number; price: number }[];
   subtotal: number;
   tax: number;
@@ -22,25 +24,25 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
       <div className={styles.header}>
         <div className={styles.brandDetails}>
           <div className={styles.logo} style={{ backgroundColor: data.brandColor }}>
-            {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'NG'}
+            {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'E'}
           </div>
           <div className={styles.companyInfo}>
-            <h2 className={styles.companyName}>{data.companyName || 'Next-Gen Solutions'}</h2>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{data.companyAddress || '123 Innovation Drive\nTech City, TC 90210\ncontact@nextgen.inc'}</p>
-            {data.companyTaxId && <p>Tax ID: {data.companyTaxId}</p>}
+            <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
+            <p style={{ whiteSpace: 'pre-wrap' }}>{data.companyAddress || ''}</p>
+            {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
           </div>
         </div>
         <div className={styles.invoiceMeta}>
-          <h1 className={styles.title} style={{ color: data.brandColor }}>INVOICE</h1>
+          <h1 className={styles.title} style={{ color: data.brandColor }}>FACTURA</h1>
           <div className={styles.metaGrid}>
-            <div className={styles.metaLabel}>Invoice No:</div>
+            <div className={styles.metaLabel}>Nº Factura:</div>
             <div className={styles.metaValue}>{data.number}</div>
             
-            <div className={styles.metaLabel}>Date:</div>
-            <div className={styles.metaValue}>{new Date(data.issueDate).toLocaleDateString()}</div>
+            <div className={styles.metaLabel}>Fecha:</div>
+            <div className={styles.metaValue}>{new Date(data.issueDate).toLocaleDateString('es-ES')}</div>
             
-            <div className={styles.metaLabel}>Due Date:</div>
-            <div className={styles.metaValue}>{data.dueDate ? new Date(data.dueDate).toLocaleDateString() : 'Upon receipt'}</div>
+            <div className={styles.metaLabel}>Vencimiento:</div>
+            <div className={styles.metaValue}>{data.dueDate ? new Date(data.dueDate).toLocaleDateString('es-ES') : 'A la recepción'}</div>
           </div>
         </div>
       </div>
@@ -48,12 +50,12 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
       {/* Bill To */}
       <div className={styles.billToSection}>
         <div className={styles.billToHeader} style={{ borderBottomColor: data.brandColor }}>
-          Billed To
+          Facturado a
         </div>
         <div className={styles.clientInfo}>
-          <h3 className={styles.clientName}>{data.clientName || 'Client Name'}</h3>
-          <p>Client Address</p>
-          <p>Client City, ZIP</p>
+          <h3 className={styles.clientName}>{data.clientName || 'Nombre del Cliente'}</h3>
+          {data.clientAddress && <p style={{ whiteSpace: 'pre-wrap' }}>{data.clientAddress}</p>}
+          {data.clientTaxId && <p>NIF/CIF: {data.clientTaxId}</p>}
         </div>
       </div>
 
@@ -62,19 +64,19 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         <table className={styles.table}>
           <thead>
             <tr style={{ backgroundColor: data.brandColor }}>
-              <th className={styles.colDesc}>Description</th>
-              <th className={styles.colQty}>Qty</th>
-              <th className={styles.colPrice}>Price</th>
+              <th className={styles.colDesc}>Descripción</th>
+              <th className={styles.colQty}>Cant.</th>
+              <th className={styles.colPrice}>Precio</th>
               <th className={styles.colTotal}>Total</th>
             </tr>
           </thead>
           <tbody>
             {data.items.map((item, index) => (
               <tr key={index} className={index % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-                <td className={styles.colDesc}>{item.description || 'Item'}</td>
+                <td className={styles.colDesc}>{item.description || 'Concepto'}</td>
                 <td className={styles.colQty}>{item.quantity}</td>
-                <td className={styles.colPrice}>${item.price.toFixed(2)}</td>
-                <td className={styles.colTotal}>${(item.quantity * item.price).toFixed(2)}</td>
+                <td className={styles.colPrice}>{item.price.toFixed(2)} €</td>
+                <td className={styles.colTotal}>{(item.quantity * item.price).toFixed(2)} €</td>
               </tr>
             ))}
           </tbody>
@@ -86,23 +88,23 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         <div className={styles.summaryBox}>
           <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>Subtotal:</span>
-            <span className={styles.summaryValue}>${data.subtotal.toFixed(2)}</span>
+            <span className={styles.summaryValue}>{data.subtotal.toFixed(2)} €</span>
           </div>
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>Tax (21%):</span>
-            <span className={styles.summaryValue}>${data.tax.toFixed(2)}</span>
+            <span className={styles.summaryLabel}>IVA (21%):</span>
+            <span className={styles.summaryValue}>{data.tax.toFixed(2)} €</span>
           </div>
           <div className={styles.summaryTotalRow} style={{ color: data.brandColor, borderTopColor: data.brandColor }}>
-            <span className={styles.summaryLabel}>Total Due:</span>
-            <span className={styles.summaryValue}>${data.total.toFixed(2)}</span>
+            <span className={styles.summaryLabel}>Total:</span>
+            <span className={styles.summaryValue}>{data.total.toFixed(2)} €</span>
           </div>
         </div>
       </div>
 
       {/* Footer */}
       <div className={styles.footer}>
-        <p>Thank you for your business!</p>
-        <p>Payment is due within 30 days. Please make checks payable to {data.companyName || 'Next-Gen Solutions'}.</p>
+        <p>¡Gracias por su confianza!</p>
+        <p>El pago se realizará en un plazo de 30 días. Para cualquier consulta, contacte con {data.companyName || 'nosotros'}.</p>
       </div>
     </div>
   );

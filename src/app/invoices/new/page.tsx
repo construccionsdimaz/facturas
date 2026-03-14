@@ -15,6 +15,9 @@ interface InvoiceItem {
 interface Client {
   id: string;
   name: string;
+  email: string | null;
+  address: string | null;
+  taxId: string | null;
 }
 
 interface CompanySettings {
@@ -25,7 +28,7 @@ interface CompanySettings {
 
 export default function NewInvoice() {
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: '1', description: 'Diseño Web', quantity: 1, price: 1500 }
+    { id: '1', description: '', quantity: 1, price: 0 }
   ]);
   
   // Database State
@@ -34,21 +37,65 @@ export default function NewInvoice() {
   
   // Form State
   const [selectedClientId, setSelectedClientId] = useState('');
-  const [invoiceNumber, setInvoiceNumber] = useState(`FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+  const [invoiceNumber, setInvoiceNumber] = useState('');
   const [brandColor, setBrandColor] = useState('#3b82f6'); 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState('');
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  // Load Initial Data
+  // Quick Add Client State
+  const [showQuickClient, setShowQuickClient] = useState(false);
+  const [quickClientName, setQuickClientName] = useState('');
+  const [quickClientEmail, setQuickClientEmail] = useState('');
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
+
+  // Load Initial Data + Sequential Invoice Number
   useEffect(() => {
     Promise.all([
       fetch('/api/clients').then(res => res.json()),
-      fetch('/api/settings').then(res => res.json())
-    ]).then(([clientsData, settingsData]) => {
+      fetch('/api/settings').then(res => res.json()),
+      fetch('/api/invoices').then(res => res.json())
+    ]).then(([clientsData, settingsData, invoicesData]) => {
       setClients(clientsData || []);
       setSettings(settingsData || null);
+      
+      // Generate sequential invoice number
+      const year = new Date().getFullYear();
+      const existingNumbers = (invoicesData || [])
+        .map((inv: any) => {
+          const match = inv.number?.match(/FAC-\d{4}-(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        })
+        .filter((n: number) => n > 0);
+      const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
+      setInvoiceNumber(`FAC-${year}-${nextNumber.toString().padStart(3, '0')}`);
     }).catch(err => console.error("Error loading data", err));
   }, []);
+
+  // Quick Add Client
+  const handleQuickAddClient = async () => {
+    if (!quickClientName.trim()) return;
+    setIsCreatingClient(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: quickClientName, email: quickClientEmail })
+      });
+      if (!res.ok) throw new Error('Error');
+      const newClient = await res.json();
+      setClients(prev => [newClient, ...prev]);
+      setSelectedClientId(newClient.id);
+      setQuickClientName('');
+      setQuickClientEmail('');
+      setShowQuickClient(false);
+    } catch {
+      alert('Error al crear el cliente.');
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
 
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), description: '', quantity: 1, price: 0 }]);
@@ -65,27 +112,24 @@ export default function NewInvoice() {
   };
 
   const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-  const tax = subtotal * 0.21; // 21% IVA as default
+  const tax = subtotal * 0.21;
   const total = subtotal + tax;
 
-  const generatePDF = async () => {
-    if (!pdfRef.current || !selectedClientId) {
-      alert("Por favor selecciona un cliente antes de generar la factura.");
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+
+  // Save Invoice to DB only (no PDF)
+  const saveInvoice = async () => {
+    if (!selectedClientId) {
+      alert("Por favor selecciona un cliente antes de guardar.");
       return;
     }
-    setIsGenerating(true);
-
+    setIsSaving(true);
+    setSaveSuccess('');
     try {
-      // 1. Convert client to name for PDF
-      const selectedClient = clients.find(c => c.id === selectedClientId);
-
-      // 2. Save Invoice to Database via API
       const invoiceData = {
         number: invoiceNumber,
         clientId: selectedClientId,
-        // Using a dummy user ID for the demo since there's no auth session yet
-        // In a real app this comes securely from a middleware or NextAuth
-        userId: 'demo-user-bypass', 
+        userId: 'demo-user-bypass',
         subtotal,
         taxAmount: tax,
         total,
@@ -95,18 +139,53 @@ export default function NewInvoice() {
           price: item.price
         }))
       };
-
       const res = await fetch('/api/invoices', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(invoiceData)
       });
-      
-      if (!res.ok) {
-        console.error("Failed to save invoice to DB. Proceeding with PDF anyway for demo purposes.");
-      }
+      if (!res.ok) throw new Error('Error al guardar');
+      setSaveSuccess('✓ Factura guardada correctamente');
+      setTimeout(() => setSaveSuccess(''), 4000);
+      // Auto-increment for next
+      const num = parseInt(invoiceNumber.split('-')[2]) || 0;
+      setInvoiceNumber(`FAC-${new Date().getFullYear()}-${(num + 1).toString().padStart(3, '0')}`);
+    } catch {
+      alert("Error al guardar la factura.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-      // 3. Generate the actual PDF Document
+  // Generate PDF + Save
+  const generatePDF = async () => {
+    if (!pdfRef.current || !selectedClientId) {
+      alert("Por favor selecciona un cliente antes de generar la factura.");
+      return;
+    }
+    setIsGenerating(true);
+    try {
+      // Save to DB first
+      const invoiceData = {
+        number: invoiceNumber,
+        clientId: selectedClientId,
+        userId: 'demo-user-bypass',
+        subtotal,
+        taxAmount: tax,
+        total,
+        items: items.map(item => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price
+        }))
+      };
+      await fetch('/api/invoices', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(invoiceData)
+      });
+
+      // Generate PDF
       pdfRef.current.style.position = 'static';
       pdfRef.current.style.top = '0';
       pdfRef.current.style.left = '0';
@@ -131,8 +210,9 @@ export default function NewInvoice() {
       pdfRef.current.style.top = '-9999px';
       pdfRef.current.style.left = '-9999px';
       
-      // Auto-increment invoice number for next one
-      setInvoiceNumber(`FAC-${new Date().getFullYear()}-${Math.floor(Math.random() * 1000).toString().padStart(3, '0')}`);
+      // Auto-increment
+      const num = parseInt(invoiceNumber.split('-')[2]) || 0;
+      setInvoiceNumber(`FAC-${new Date().getFullYear()}-${(num + 1).toString().padStart(3, '0')}`);
       
     } catch (error) {
        console.error("Error generating PDF", error);
@@ -143,13 +223,15 @@ export default function NewInvoice() {
 
   return (
     <div className={styles.invoiceCreator}>
-      {/* Hidden PDF Template rendered with current state */}
+      {/* Hidden PDF Template */}
       <div ref={pdfRef} style={{ position: 'absolute', top: '-9999px', left: '-9999px' }}>
         <InvoicePDFTemplate data={{
           number: invoiceNumber,
           issueDate: new Date().toISOString(),
           dueDate: '',
-          clientName: clients.find(c => c.id === selectedClientId)?.name || 'Cliente Desconocido',
+          clientName: selectedClient?.name || '',
+          clientAddress: selectedClient?.address || '',
+          clientTaxId: selectedClient?.taxId || '',
           items: items,
           subtotal: subtotal,
           tax: tax,
@@ -167,12 +249,21 @@ export default function NewInvoice() {
           <p className={styles.subtitle}>Rellena los datos para generar una nueva factura.</p>
         </div>
         <div className={styles.actions}>
+          {saveSuccess && <span style={{ color: '#10b981', marginRight: '16px', fontWeight: 600 }}>{saveSuccess}</span>}
+          <button 
+            className={`btn-secondary ${styles.saveBtn}`}
+            onClick={saveInvoice}
+            disabled={isSaving}
+            style={{ marginRight: '12px' }}
+          >
+            {isSaving ? 'Guardando...' : '💾 Guardar Borrador'}
+          </button>
           <button 
             className={`btn-primary ${styles.saveBtn}`} 
             onClick={generatePDF}
             disabled={isGenerating}
           >
-            {isGenerating ? 'Generando PDF...' : 'Descargar PDF'}
+            {isGenerating ? 'Generando...' : '📄 Descargar PDF'}
           </button>
         </div>
       </div>
@@ -207,17 +298,69 @@ export default function NewInvoice() {
             <h3>Información del Cliente</h3>
             <div className={styles.formGroup}>
               <label>Seleccionar Cliente</label>
-              <select 
-                className="input-modern" 
-                value={selectedClientId} 
-                onChange={(e) => setSelectedClientId(e.target.value)}
-              >
-                <option value="">-- Elige un cliente existente --</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>{client.name}</option>
-                ))}
-              </select>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <select 
+                  className="input-modern" 
+                  value={selectedClientId} 
+                  onChange={(e) => setSelectedClientId(e.target.value)}
+                  style={{ flex: 1 }}
+                >
+                  <option value="">-- Elige un cliente --</option>
+                  {clients.map(client => (
+                    <option key={client.id} value={client.id}>{client.name}</option>
+                  ))}
+                </select>
+                <button 
+                  className="btn-primary" 
+                  onClick={() => setShowQuickClient(!showQuickClient)}
+                  style={{ padding: '8px 16px', fontSize: '14px', whiteSpace: 'nowrap' }}
+                >
+                  {showQuickClient ? '✕ Cerrar' : '+ Nuevo'}
+                </button>
+              </div>
             </div>
+
+            {/* Quick Add Client Inline */}
+            {showQuickClient && (
+              <div style={{ 
+                background: 'rgba(255,255,255,0.03)', 
+                border: '1px solid rgba(255,255,255,0.08)', 
+                borderRadius: '12px', 
+                padding: '16px', 
+                marginTop: '12px',
+                animation: 'fadeIn 0.2s ease'
+              }}>
+                <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+                  Crear cliente rápido (podrás completar los datos después en Clientes)
+                </p>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    className="input-modern"
+                    placeholder="Nombre del cliente *"
+                    value={quickClientName}
+                    onChange={(e) => setQuickClientName(e.target.value)}
+                    style={{ flex: 2, minWidth: '200px' }}
+                  />
+                  <input
+                    type="email"
+                    className="input-modern"
+                    placeholder="Email (opcional)"
+                    value={quickClientEmail}
+                    onChange={(e) => setQuickClientEmail(e.target.value)}
+                    style={{ flex: 1, minWidth: '150px' }}
+                  />
+                  <button
+                    className="btn-primary"
+                    onClick={handleQuickAddClient}
+                    disabled={isCreatingClient || !quickClientName.trim()}
+                    style={{ padding: '8px 20px' }}
+                  >
+                    {isCreatingClient ? 'Creando...' : 'Añadir'}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
 
           <div className={`glass-panel ${styles.card}`}>
@@ -292,7 +435,7 @@ export default function NewInvoice() {
               <span>{subtotal.toFixed(2)} €</span>
             </div>
             <div className={styles.summaryRow}>
-              <span>Tax (21% IVA)</span>
+              <span>IVA (21%)</span>
               <span>{tax.toFixed(2)} €</span>
             </div>
             <div className={styles.divider}></div>
