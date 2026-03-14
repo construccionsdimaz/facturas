@@ -47,24 +47,6 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
               </button>
             </Link>
           )}
-          <InvoiceDetailClient invoice={{
-            number: invoice.number,
-            issueDate: invoice.createdAt.toISOString(),
-            clientName: invoice.client.name,
-            clientAddress: invoice.client.address || '',
-            clientTaxId: invoice.client.taxId || '',
-            items: invoice.items.map(item => ({
-              description: item.description,
-              quantity: item.quantity,
-              price: item.price,
-            })),
-            subtotal: invoice.subtotal,
-            tax: invoice.taxAmount,
-            total: invoice.total,
-            companyName: invoice.user?.companyName || '',
-            companyAddress: invoice.user?.companyAddress || '',
-            companyTaxId: invoice.user?.companyTaxId || '',
-          }} />
         </div>
       </div>
 
@@ -120,45 +102,25 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      {/* Items Table */}
-      <div className={`glass-panel ${styles.card}`}>
-        <h3>Conceptos</h3>
-        <table className={styles.table}>
-          <thead>
-            <tr>
-              <th>Descripción</th>
-              <th style={{ textAlign: 'right' }}>Cant.</th>
-              <th style={{ textAlign: 'right' }}>Precio</th>
-              <th style={{ textAlign: 'right' }}>Total</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoice.items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.description}</td>
-                <td style={{ textAlign: 'right' }}>{item.quantity}</td>
-                <td style={{ textAlign: 'right' }}>{item.price.toFixed(2)} €</td>
-                <td style={{ textAlign: 'right', fontWeight: 600 }}>{(item.quantity * item.price).toFixed(2)} €</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-
-        <div className={styles.totals}>
-          <div className={styles.totalRow}>
-            <span>Subtotal</span>
-            <span>{invoice.subtotal.toFixed(2)} €</span>
-          </div>
-          <div className={styles.totalRow}>
-            <span>IVA (21%)</span>
-            <span>{invoice.taxAmount.toFixed(2)} €</span>
-          </div>
-          <div className={`${styles.totalRow} ${styles.grandTotal}`}>
-            <span>Total</span>
-            <span className="text-gradient">{invoice.total.toFixed(2)} €</span>
-          </div>
-        </div>
-      </div>
+      {/* PDF Preview + Download */}
+      <InvoiceDetailClient invoice={{
+        number: invoice.number,
+        issueDate: invoice.createdAt.toISOString(),
+        clientName: invoice.client.name,
+        clientAddress: invoice.client.address || '',
+        clientTaxId: invoice.client.taxId || '',
+        items: invoice.items.map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+        })),
+        subtotal: invoice.subtotal,
+        tax: invoice.taxAmount,
+        total: invoice.total,
+        companyName: invoice.user?.companyName || '',
+        companyAddress: invoice.user?.companyAddress || '',
+        companyTaxId: invoice.user?.companyTaxId || '',
+      }} />
     </div>
   );
 }

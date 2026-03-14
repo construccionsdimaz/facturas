@@ -4,9 +4,6 @@
   background-color: white; /* Forced white background for PDF */
   color: #1a1a1a; /* Forced dark text */
   font-family: 'Helvetica', sans-serif;
-  position: absolute;
-  top: -9999px; /* Hide from screen */
-  left: -9999px;
   box-sizing: border-box;
 }
 
