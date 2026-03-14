@@ -11,12 +11,14 @@
   display: flex;
   justify-content: space-between;
   margin-bottom: 40px;
+  gap: 30px;
 }
 
 .brandDetails {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  flex: 1;
 }
 
 .logo {
@@ -47,32 +49,34 @@
 
 .invoiceMeta {
   text-align: right;
+  min-width: 200px;
 }
 
 .title {
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 800;
-  letter-spacing: 2px;
-  margin: 0 0 20px 0;
+  letter-spacing: 1px;
+  margin: 0 0 16px 0;
 }
 
 .metaGrid {
   display: grid;
   grid-template-columns: auto auto;
-  gap: 8px 16px;
-  text-align: left;
+  gap: 6px 12px;
 }
 
 .metaLabel {
   color: #666;
   font-weight: 600;
-  font-size: 14px;
+  font-size: 13px;
+  text-align: left;
 }
 
 .metaValue {
   color: #1a1a1a;
   font-weight: 500;
-  font-size: 14px;
+  font-size: 13px;
+  text-align: right;
 }
 
 .billToSection {

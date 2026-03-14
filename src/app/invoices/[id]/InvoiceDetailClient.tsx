@@ -59,41 +59,46 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
         {isGenerating ? 'Generando...' : '📄 Descargar PDF'}
       </button>
 
-      {/* Visible Preview */}
+      {/* Visible Preview Container */}
       <div style={{ 
-        marginTop: '16px',
+        marginTop: '24px',
+        padding: '24px',
+        background: 'rgba(0,0,0,0.1)',
         borderRadius: '12px',
-        overflow: 'auto',
         border: '1px solid rgba(255,255,255,0.08)',
-        boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-        background: '#e5e7eb',
-        padding: '32px',
-        maxHeight: '80vh',
+        display: 'flex',
+        justifyContent: 'center',
+        overflowX: 'auto'
       }}>
-        <div style={{
-          margin: '0 auto',
-          boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
-          borderRadius: '4px',
-          overflow: 'hidden',
-        }}>
-          <div ref={pdfRef}>
-            <InvoicePDFTemplate data={{
-              number: invoice.number,
-              issueDate: invoice.issueDate,
-              dueDate: '',
-              clientName: invoice.clientName,
-              clientAddress: invoice.clientAddress,
-              clientTaxId: invoice.clientTaxId,
-              items: invoice.items,
-              subtotal: invoice.subtotal,
-              tax: invoice.tax,
-              total: invoice.total,
-              brandColor: '#3b82f6',
-              companyName: invoice.companyName,
-              companyAddress: invoice.companyAddress,
-              companyTaxId: invoice.companyTaxId,
-            }} />
-          </div>
+        {/* The "Paper" sheet */}
+        <div 
+          ref={pdfRef} 
+          style={{ 
+            width: '800px', 
+            background: 'white', 
+            boxShadow: '0 0 20px rgba(0,0,0,0.5)',
+            flexShrink: 0,
+            transform: 'scale(0.8)', /* Scaled down for screen comfort */
+            transformOrigin: 'top center',
+            marginBottom: '-160px' /* Compiling for scale reduction height gap */
+          }}
+        >
+          <InvoicePDFTemplate data={{
+            number: invoice.number,
+            issueDate: invoice.issueDate,
+            dueDate: '',
+            clientName: invoice.clientName,
+            clientAddress: invoice.clientAddress,
+            clientTaxId: invoice.clientTaxId,
+            items: invoice.items,
+            subtotal: invoice.subtotal,
+            tax: invoice.tax,
+            total: invoice.total,
+            brandColor: '#3b82f6',
+            companyName: invoice.companyName,
+            companyAddress: invoice.companyAddress,
+            companyTaxId: invoice.companyTaxId,
+          }} />
         </div>
       </div>
     </div>
