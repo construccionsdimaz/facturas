@@ -19,7 +19,10 @@ export async function GET() {
       companyName: user.companyName,
       companyAddress: user.companyAddress,
       companyTaxId: user.companyTaxId,
-      companyLogo: user.companyLogo
+      companyLogo: user.companyLogo,
+      paymentMethod: user.paymentMethod,
+      bankAccount: user.bankAccount,
+      dataProtection: user.dataProtection
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -30,7 +33,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { companyName, companyAddress, companyTaxId, companyLogo } = body;
+    const { companyName, companyAddress, companyTaxId, companyLogo, paymentMethod, bankAccount, dataProtection } = body;
 
     let user = await db.user.findFirst();
     
@@ -44,7 +47,10 @@ export async function PUT(request: Request) {
         companyName,
         companyAddress,
         companyTaxId,
-        companyLogo
+        companyLogo,
+        paymentMethod,
+        bankAccount,
+        dataProtection
       }
     });
 
@@ -52,7 +58,10 @@ export async function PUT(request: Request) {
         companyName: updatedUser.companyName,
         companyAddress: updatedUser.companyAddress,
         companyTaxId: updatedUser.companyTaxId,
-        companyLogo: updatedUser.companyLogo
+        companyLogo: updatedUser.companyLogo,
+        paymentMethod: updatedUser.paymentMethod,
+        bankAccount: updatedUser.bankAccount,
+        dataProtection: updatedUser.dataProtection
     });
   } catch (error) {
     console.error('Error updating settings:', error);

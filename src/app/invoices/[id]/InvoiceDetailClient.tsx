@@ -19,6 +19,9 @@ interface InvoiceData {
   companyAddress: string;
   companyTaxId: string;
   companyLogo: string;
+  paymentMethod: string;
+  bankAccount: string;
+  dataProtection: string;
 }
 
 export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData }) {
@@ -100,6 +103,9 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
             companyAddress: invoice.companyAddress,
             companyTaxId: invoice.companyTaxId,
             companyLogo: invoice.companyLogo,
+            paymentMethod: invoice.paymentMethod,
+            bankAccount: invoice.bankAccount,
+            dataProtection: invoice.dataProtection,
           }} />
         </div>
       </div>

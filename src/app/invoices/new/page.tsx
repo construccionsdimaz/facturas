@@ -26,6 +26,9 @@ interface CompanySettings {
   companyAddress: string;
   companyTaxId: string;
   companyLogo: string;
+  paymentMethod: string;
+  bankAccount: string;
+  dataProtection: string;
 }
 
 export default function NewInvoice() {

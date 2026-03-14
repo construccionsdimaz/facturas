@@ -121,6 +121,9 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         companyAddress: invoice.user?.companyAddress || '',
         companyTaxId: invoice.user?.companyTaxId || '',
         companyLogo: invoice.user?.companyLogo || '',
+        paymentMethod: invoice.user?.paymentMethod || '',
+        bankAccount: invoice.user?.bankAccount || '',
+        dataProtection: invoice.user?.dataProtection || '',
       }} />
     </div>
   );

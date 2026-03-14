@@ -16,6 +16,9 @@ interface InvoiceData {
   companyAddress?: string;
   companyTaxId?: string;
   companyLogo?: string;
+  paymentMethod?: string;
+  bankAccount?: string;
+  dataProtection?: string;
 }
 
 export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
@@ -107,10 +110,29 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* Footer / Legal */}
       <div className={styles.footer}>
-        <p>¡Gracias por su confianza!</p>
-        <p>El pago se realizará en un plazo de 30 días. Para cualquier consulta, contacte con {data.companyName || 'nosotros'}.</p>
+        <div className={styles.paymentInfo}>
+          {data.paymentMethod && (
+            <p><strong>Forma de pago:</strong> {data.paymentMethod}</p>
+          )}
+          {data.bankAccount && (
+            <p><strong>Cuenta de abono:</strong> {data.bankAccount}</p>
+          )}
+        </div>
+        
+        {data.dataProtection && (
+          <div className={styles.gdpr}>
+            {data.dataProtection}
+          </div>
+        )}
+
+        <div className={styles.thanks}>
+          ¡Gracias por su confianza!
+        </div>
+        <div className={styles.footerSmall}>
+          El pago se realizará en un plazo de 30 días. Para cualquier consulta, contacte con {data.companyName || 'nosotros'}.
+        </div>
       </div>
     </div>
   );

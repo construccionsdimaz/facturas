@@ -8,7 +8,10 @@ export default function SettingsPage() {
     companyName: '',
     companyAddress: '',
     companyTaxId: '',
-    companyLogo: ''
+    companyLogo: '',
+    paymentMethod: '',
+    bankAccount: '',
+    dataProtection: ''
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -22,7 +25,10 @@ export default function SettingsPage() {
           companyName: data.companyName || '',
           companyAddress: data.companyAddress || '',
           companyTaxId: data.companyTaxId || '',
-          companyLogo: data.companyLogo || ''
+          companyLogo: data.companyLogo || '',
+          paymentMethod: data.paymentMethod || '',
+          bankAccount: data.bankAccount || '',
+          dataProtection: data.dataProtection || ''
         });
         setIsLoading(false);
       })
@@ -181,6 +187,43 @@ export default function SettingsPage() {
                   placeholder="Calle Ejemplo 123&#10;Barcelona, 08001&#10;contacto@miempresa.com"
                   rows={4}
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                <div className={styles.formGroup}>
+                  <label>Forma de Pago (ej: Transferencia)</label>
+                  <input 
+                    type="text" 
+                    className="input-modern"
+                    value={formData.paymentMethod}
+                    onChange={(e) => setFormData({...formData, paymentMethod: e.target.value})}
+                    placeholder="Transferencia Bancaria"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Cuenta de Abono (IBAN)</label>
+                  <input 
+                    type="text" 
+                    className="input-modern"
+                    value={formData.bankAccount}
+                    onChange={(e) => setFormData({...formData, bankAccount: e.target.value})}
+                    placeholder="ES21 0000 0000 0000 0000 0000"
+                  />
+                </div>
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Texto Protección de Datos (RGPD)</label>
+                <textarea 
+                  className={`input-modern ${styles.textarea}`}
+                  value={formData.dataProtection}
+                  onChange={(e) => setFormData({...formData, dataProtection: e.target.value})}
+                  placeholder="PROTECCIÓN DE DATOS: De conformidad con lo dispuesto..."
+                  rows={6}
+                />
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                  Este texto aparecerá en letra pequeña en el pie de página de todas tus facturas.
+                </p>
               </div>
 
               <div className={styles.formActions}>

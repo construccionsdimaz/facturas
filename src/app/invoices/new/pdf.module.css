@@ -181,13 +181,43 @@
 }
 
 .footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid #eaeaea;
+}
+
+.paymentInfo {
+  margin-bottom: 20px;
+  font-size: 13px;
+  color: #1a1a1a;
+  text-align: left;
+}
+
+.paymentInfo p {
+  margin: 4px 0;
+}
+
+.gdpr {
+  font-size: 10px;
+  color: #666;
+  text-align: justify;
+  line-height: 1.4;
+  margin-bottom: 24px;
+  padding: 12px;
+  background-color: #f9f9f9;
+  border-radius: 4px;
+}
+
+.thanks {
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: #1a1a1a;
+}
+
+.footerSmall {
   text-align: center;
   color: #777;
   font-size: 12px;
-  border-top: 1px solid #eaeaea;
-  padding-top: 20px;
-}
-
-.footer p {
-  margin: 4px 0;
 }
