@@ -18,7 +18,8 @@ export async function GET() {
     return NextResponse.json({
       companyName: user.companyName,
       companyAddress: user.companyAddress,
-      companyTaxId: user.companyTaxId
+      companyTaxId: user.companyTaxId,
+      companyLogo: user.companyLogo
     });
   } catch (error) {
     console.error('Error fetching settings:', error);
@@ -29,7 +30,7 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { companyName, companyAddress, companyTaxId } = body;
+    const { companyName, companyAddress, companyTaxId, companyLogo } = body;
 
     let user = await db.user.findFirst();
     
@@ -42,14 +43,16 @@ export async function PUT(request: Request) {
       data: {
         companyName,
         companyAddress,
-        companyTaxId
+        companyTaxId,
+        companyLogo
       }
     });
 
     return NextResponse.json({
         companyName: updatedUser.companyName,
         companyAddress: updatedUser.companyAddress,
-        companyTaxId: updatedUser.companyTaxId
+        companyTaxId: updatedUser.companyTaxId,
+        companyLogo: updatedUser.companyLogo
     });
   } catch (error) {
     console.error('Error updating settings:', error);

@@ -15,6 +15,7 @@ interface InvoiceData {
   companyName?: string;
   companyAddress?: string;
   companyTaxId?: string;
+  companyLogo?: string;
 }
 
 export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
@@ -23,9 +24,14 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
       {/* Header */}
       <div className={styles.header}>
         <div className={styles.brandDetails}>
-          <div className={styles.logo} style={{ backgroundColor: data.brandColor }}>
+          <div className={styles.logo} style={{ backgroundColor: data.brandColor, display: data.companyLogo ? 'none' : 'flex' }}>
             {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'E'}
           </div>
+          {data.companyLogo && (
+            <div style={{ marginBottom: '12px' }}>
+              <img src={data.companyLogo} alt="Logo" style={{ maxWidth: '180px', maxHeight: '80px', objectFit: 'contain' }} />
+            </div>
+          )}
           <div className={styles.companyInfo}>
             <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
             <p style={{ whiteSpace: 'pre-wrap' }}>{data.companyAddress || ''}</p>
@@ -33,7 +39,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
           </div>
         </div>
         <div className={styles.invoiceMeta}>
-          <h1 className={styles.title} style={{ color: data.brandColor }}>FACTURA</h1>
+          <h1 className={styles.title}>FACTURA</h1>
           <div className={styles.metaGrid}>
             <div className={styles.metaLabel}>Nº Factura:</div>
             <div className={styles.metaValue}>{data.number}</div>

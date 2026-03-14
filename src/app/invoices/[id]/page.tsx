@@ -120,6 +120,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         companyName: invoice.user?.companyName || '',
         companyAddress: invoice.user?.companyAddress || '',
         companyTaxId: invoice.user?.companyTaxId || '',
+        companyLogo: invoice.user?.companyLogo || '',
       }} />
     </div>
   );

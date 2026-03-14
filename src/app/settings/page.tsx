@@ -7,7 +7,8 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     companyName: '',
     companyAddress: '',
-    companyTaxId: ''
+    companyTaxId: '',
+    companyLogo: ''
   });
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -20,7 +21,8 @@ export default function SettingsPage() {
         setFormData({
           companyName: data.companyName || '',
           companyAddress: data.companyAddress || '',
-          companyTaxId: data.companyTaxId || ''
+          companyTaxId: data.companyTaxId || '',
+          companyLogo: data.companyLogo || ''
         });
         setIsLoading(false);
       })
@@ -91,6 +93,63 @@ export default function SettingsPage() {
             <p className={styles.panelDesc}>Estos datos aparecerán en la cabecera de todas tus facturas PDF generadas.</p>
             
             <form onSubmit={handleSave} className={styles.form}>
+              <div className={styles.formGroup} style={{ marginBottom: '32px' }}>
+                <label>Logo de la Empresa</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '12px' }}>
+                  <div style={{ 
+                    width: '100px', 
+                    height: '100px', 
+                    borderRadius: '12px', 
+                    background: 'rgba(255,255,255,0.05)', 
+                    border: '1px dashed rgba(255,255,255,0.2)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    overflow: 'hidden',
+                    position: 'relative'
+                  }}>
+                    {formData.companyLogo ? (
+                      <img src={formData.companyLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                    ) : (
+                      <span style={{ fontSize: '24px', color: 'rgba(255,255,255,0.3)' }}>📷</span>
+                    )}
+                  </div>
+                  <div>
+                    <input 
+                      type="file" 
+                      id="logo-upload" 
+                      accept="image/*" 
+                      style={{ display: 'none' }} 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setFormData({...formData, companyLogo: reader.result as string});
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
+                    <label htmlFor="logo-upload" className="btn-secondary" style={{ cursor: 'pointer', padding: '8px 16px', fontSize: '14px' }}>
+                      Subir Imagen
+                    </label>
+                    <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
+                      PNG, JPG o SVG. Máx 500KB.
+                    </p>
+                    {formData.companyLogo && (
+                      <button 
+                        type="button" 
+                        onClick={() => setFormData({...formData, companyLogo: ''})}
+                        style={{ background: 'none', border: 'none', color: '#ff4d4d', fontSize: '12px', cursor: 'pointer', padding: 0, marginTop: '4px', display: 'block' }}
+                      >
+                        Eliminar logo
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className={styles.formGroup}>
                 <label>Nombre de la Empresa/Marca</label>
                 <input 

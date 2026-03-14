@@ -25,6 +25,7 @@ interface CompanySettings {
   companyName: string;
   companyAddress: string;
   companyTaxId: string;
+  companyLogo: string;
 }
 
 export default function NewInvoice() {
