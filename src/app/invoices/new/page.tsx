@@ -43,6 +43,7 @@ export default function NewInvoice() {
   // Form State
   const [selectedClientId, setSelectedClientId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
   const [brandColor, setBrandColor] = useState('#3b82f6'); 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,6 +83,10 @@ export default function NewInvoice() {
         .filter((n: number) => n > 0);
       const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
       setInvoiceNumber(`FAC-${year}-${nextNumber.toString().padStart(3, '0')}`);
+      
+      if (settingsData?.paymentMethod) {
+        setPaymentMethod(settingsData.paymentMethod);
+      }
     }).catch(err => console.error("Error loading data", err));
   }, []);
 
@@ -159,7 +164,8 @@ export default function NewInvoice() {
           description: item.description,
           quantity: item.quantity,
           price: item.price
-        }))
+        })),
+        paymentMethod
       };
       const res = await fetch('/api/invoices', {
         method: 'POST',
@@ -199,7 +205,8 @@ export default function NewInvoice() {
           description: item.description,
           quantity: item.quantity,
           price: item.price
-        }))
+        })),
+        paymentMethod
       };
       await fetch('/api/invoices', {
         method: 'POST',
@@ -261,7 +268,8 @@ export default function NewInvoice() {
           brandColor: brandColor,
           companyName: settings?.companyName,
           companyAddress: settings?.companyAddress,
-          companyTaxId: settings?.companyTaxId
+          companyTaxId: settings?.companyTaxId,
+          paymentMethod: paymentMethod // Pass the selected one
         }} />
       </div>
 
@@ -312,6 +320,17 @@ export default function NewInvoice() {
               <div className={styles.formGroup}>
                 <label>Fecha Vencimiento</label>
                 <input type="date" className="input-modern" />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Forma de Pago</label>
+                <select 
+                  className="input-modern" 
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  <option value="Efectivo">Efectivo</option>
+                </select>
               </div>
             </div>
             

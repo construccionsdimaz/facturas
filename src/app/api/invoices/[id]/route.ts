@@ -57,7 +57,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, paymentMethod } = body;
 
     // Delete existing items then recreate
     await db.invoiceItem.deleteMany({ where: { invoiceId: id } });
@@ -70,6 +70,7 @@ export async function PUT(
         subtotal,
         taxAmount,
         total,
+        paymentMethod,
         items: {
           create: items.map((item: { description: string; quantity: number; price: number }) => ({
             description: item.description,

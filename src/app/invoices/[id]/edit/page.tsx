@@ -30,6 +30,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
 
   // Client search
   const [clientSearch, setClientSearch] = useState('');
@@ -52,6 +53,9 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
           quantity: item.quantity,
           price: item.price,
         })));
+        if (invoice.paymentMethod) {
+          setPaymentMethod(invoice.paymentMethod);
+        }
         setClients(clientsData || []);
         setIsLoading(false);
       });
@@ -95,7 +99,8 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
             description: item.description,
             quantity: item.quantity,
             price: item.price,
-          }))
+          })),
+          paymentMethod
         })
       });
       if (!res.ok) throw new Error('Error');
@@ -160,6 +165,17 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                   value={invoiceNumber}
                   onChange={(e) => setInvoiceNumber(e.target.value)}
                 />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Forma de Pago</label>
+                <select 
+                  className="input-modern" 
+                  value={paymentMethod}
+                  onChange={(e) => setPaymentMethod(e.target.value)}
+                >
+                  <option value="Transferencia Bancaria">Transferencia Bancaria</option>
+                  <option value="Efectivo">Efectivo</option>
+                </select>
               </div>
             </div>
             
