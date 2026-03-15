@@ -52,6 +52,17 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
       {/* Company + Client side by side */}
       <div className={styles.partiesRow}>
         <div className={styles.partyBlock}>
+          <div className={styles.billToHeader} style={{ borderBottomColor: data.brandColor }}>
+            Facturado a
+          </div>
+          <div className={styles.clientInfo}>
+            <h3 className={styles.clientName}>{data.clientName || 'Nombre del Cliente'}</h3>
+            {data.clientAddress && <p style={{ whiteSpace: 'pre-wrap' }}>{data.clientAddress}</p>}
+            {data.clientTaxId && <p>NIF/CIF: {data.clientTaxId}</p>}
+          </div>
+        </div>
+
+        <div className={styles.partyBlock}>
           <div className={styles.brandDetails}>
             <div className={styles.logo} style={{ backgroundColor: data.brandColor, display: data.companyLogo ? 'none' : 'flex' }}>
               {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'E'}
@@ -92,17 +103,6 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
               </p>
               {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
             </div>
-          </div>
-        </div>
-
-        <div className={styles.partyBlock}>
-          <div className={styles.billToHeader} style={{ borderBottomColor: data.brandColor }}>
-            Facturado a
-          </div>
-          <div className={styles.clientInfo}>
-            <h3 className={styles.clientName}>{data.clientName || 'Nombre del Cliente'}</h3>
-            {data.clientAddress && <p style={{ whiteSpace: 'pre-wrap' }}>{data.clientAddress}</p>}
-            {data.clientTaxId && <p>NIF/CIF: {data.clientTaxId}</p>}
           </div>
         </div>
       </div>
