@@ -99,7 +99,6 @@
 
 .mainSection {
   flex-grow: 1;
-  max-grow: 1;
   width: 100%;
 }
 
