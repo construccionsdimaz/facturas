@@ -23,6 +23,9 @@ model User {
   companyAddress String?
   companyTaxId   String?
   companyLogo    String? 
+  logoZoom       Float    @default(1)
+  logoX          Float    @default(0)
+  logoY          Float    @default(0)
   paymentMethod  String?
   bankAccount    String?
   dataProtection String? @db.Text

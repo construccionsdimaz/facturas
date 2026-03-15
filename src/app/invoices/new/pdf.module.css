@@ -239,21 +239,26 @@
   background-color: white;
   box-shadow: 0 0 15px rgba(0,0,0,0.1);
   padding: 15mm;
-  margin: 0 auto; /* Center horizontally in preview */
+  margin: 0 auto !important; /* Force center in preview */
   box-sizing: border-box;
   position: relative;
+  overflow: hidden; /* Prevent internal elements from pushing out */
 }
 
 @media print {
   .printWrapper {
-    padding: 0;
+    padding: 0 !important;
+    margin: 0 !important;
     display: block;
     background: white;
   }
   .printWrapper .pdfContainer {
     width: 210mm;
-    margin: 0;
-    box-shadow: none;
+    margin: 0 !important;
     padding: 15mm;
+    box-shadow: none;
+    position: absolute;
+    top: 0;
+    left: 0;
   }
 }

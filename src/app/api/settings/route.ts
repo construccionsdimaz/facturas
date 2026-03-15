@@ -20,6 +20,9 @@ export async function GET() {
       companyAddress: user.companyAddress,
       companyTaxId: user.companyTaxId,
       companyLogo: user.companyLogo,
+      logoZoom: user.logoZoom,
+      logoX: user.logoX,
+      logoY: user.logoY,
       paymentMethod: user.paymentMethod,
       bankAccount: user.bankAccount,
       dataProtection: user.dataProtection
@@ -33,7 +36,11 @@ export async function GET() {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { companyName, companyAddress, companyTaxId, companyLogo, paymentMethod, bankAccount, dataProtection } = body;
+    const { 
+      companyName, companyAddress, companyTaxId, companyLogo, 
+      logoZoom, logoX, logoY,
+      paymentMethod, bankAccount, dataProtection 
+    } = body;
 
     let user = await db.user.findFirst();
     
@@ -48,6 +55,9 @@ export async function PUT(request: Request) {
         companyAddress,
         companyTaxId,
         companyLogo,
+        logoZoom,
+        logoX,
+        logoY,
         paymentMethod,
         bankAccount,
         dataProtection
@@ -59,6 +69,9 @@ export async function PUT(request: Request) {
         companyAddress: updatedUser.companyAddress,
         companyTaxId: updatedUser.companyTaxId,
         companyLogo: updatedUser.companyLogo,
+        logoZoom: updatedUser.logoZoom,
+        logoX: updatedUser.logoX,
+        logoY: updatedUser.logoY,
         paymentMethod: updatedUser.paymentMethod,
         bankAccount: updatedUser.bankAccount,
         dataProtection: updatedUser.dataProtection

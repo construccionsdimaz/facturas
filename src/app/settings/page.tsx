@@ -9,6 +9,9 @@ export default function SettingsPage() {
     companyAddress: '',
     companyTaxId: '',
     companyLogo: '',
+    logoZoom: 1,
+    logoX: 0,
+    logoY: 0,
     paymentMethod: '',
     bankAccount: '',
     dataProtection: ''
@@ -26,6 +29,9 @@ export default function SettingsPage() {
           companyAddress: data.companyAddress || '',
           companyTaxId: data.companyTaxId || '',
           companyLogo: data.companyLogo || '',
+          logoZoom: data.logoZoom || 1,
+          logoX: data.logoX || 0,
+          logoY: data.logoY || 0,
           paymentMethod: data.paymentMethod || '',
           bankAccount: data.bankAccount || '',
           dataProtection: data.dataProtection || ''
@@ -138,7 +144,7 @@ export default function SettingsPage() {
                       }}
                     />
                     <label htmlFor="logo-upload" className="btn-secondary" style={{ cursor: 'pointer', padding: '8px 16px', fontSize: '14px' }}>
-                      Subir Imagen
+                      {formData.companyLogo ? 'Cambiar Logo' : 'Subir Imagen'}
                     </label>
                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '8px' }}>
                       PNG, JPG o SVG. Máx 500KB.
@@ -146,7 +152,7 @@ export default function SettingsPage() {
                     {formData.companyLogo && (
                       <button 
                         type="button" 
-                        onClick={() => setFormData({...formData, companyLogo: ''})}
+                        onClick={() => setFormData({...formData, companyLogo: '', logoZoom: 1, logoX: 0, logoY: 0})}
                         style={{ background: 'none', border: 'none', color: '#ff4d4d', fontSize: '12px', cursor: 'pointer', padding: 0, marginTop: '4px', display: 'block' }}
                       >
                         Eliminar logo
@@ -154,6 +160,87 @@ export default function SettingsPage() {
                     )}
                   </div>
                 </div>
+
+                {formData.companyLogo && (
+                  <div className={styles.cropperContainer}>
+                    <div>
+                      <h3 className={styles.cropperLabel}>Ajuste y Recorte del Logo</h3>
+                      <p style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Desliza para ajustar cómo se verá el logo en la factura.</p>
+                    </div>
+
+                    <div className={styles.cropperPreviewContainer}>
+                      <div style={{ 
+                        width: '100%', 
+                        height: '100%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center',
+                        overflow: 'hidden'
+                      }}>
+                        <img 
+                          src={formData.companyLogo} 
+                          alt="Preview" 
+                          style={{ 
+                            transform: `scale(${formData.logoZoom}) translate(${formData.logoX}px, ${formData.logoY}px)`,
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                            transition: 'none'
+                          }} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className={styles.controlsGrid}>
+                      <div className={styles.controlItem}>
+                        <label>Zoom ({formData.logoZoom.toFixed(1)}x)</label>
+                        <input 
+                          type="range" 
+                          min="1" 
+                          max="5" 
+                          step="0.1" 
+                          value={formData.logoZoom}
+                          onChange={(e) => setFormData({...formData, logoZoom: parseFloat(e.target.value)})}
+                          className={styles.rangeInput}
+                        />
+                      </div>
+                      <div className={styles.controlItem}>
+                        <label>Posición Horizontal ({formData.logoX}px)</label>
+                        <input 
+                          type="range" 
+                          min="-200" 
+                          max="200" 
+                          step="1" 
+                          value={formData.logoX}
+                          onChange={(e) => setFormData({...formData, logoX: parseInt(e.target.value)})}
+                          className={styles.rangeInput}
+                        />
+                      </div>
+                      <div className={styles.controlItem}>
+                        <label>Posición Vertical ({formData.logoY}px)</label>
+                        <input 
+                          type="range" 
+                          min="-200" 
+                          max="200" 
+                          step="1" 
+                          value={formData.logoY}
+                          onChange={(e) => setFormData({...formData, logoY: parseInt(e.target.value)})}
+                          className={styles.rangeInput}
+                        />
+                      </div>
+                      <div className={styles.controlItem} style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+                        <button 
+                          type="button" 
+                          className="btn-secondary"
+                          style={{ fontSize: '12px', padding: '4px 12px' }}
+                          onClick={() => setFormData({...formData, logoZoom: 1, logoX: 0, logoY: 0})}
+                        >
+                          Resetear
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className={styles.formGroup}>

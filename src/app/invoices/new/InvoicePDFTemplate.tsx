@@ -16,6 +16,9 @@ interface InvoiceData {
   companyAddress?: string;
   companyTaxId?: string;
   companyLogo?: string;
+  logoZoom?: number;
+  logoX?: number;
+  logoY?: number;
   paymentMethod?: string;
   bankAccount?: string;
   dataProtection?: string;
@@ -49,7 +52,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
                     height: 'auto', 
                     maxWidth: 'none', 
                     maxHeight: 'none', 
-                    transform: 'scale(1.2)', 
+                    transform: `scale(${data.logoZoom || 1}) translate(${data.logoX || 0}px, ${data.logoY || 0}px)`, 
                     transformOrigin: 'left center',
                     objectFit: 'contain' 
                   }} 
