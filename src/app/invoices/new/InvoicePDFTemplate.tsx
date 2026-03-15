@@ -30,51 +30,12 @@ interface InvoiceData {
 export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
   return (
     <div className={styles.pdfContainer} id="pdf-invoice-template">
-      {/* Header */}
-      <div className={styles.header}>
-        <div className={styles.brandDetails}>
-          <div className={styles.logo} style={{ backgroundColor: data.brandColor, display: data.companyLogo ? 'none' : 'flex' }}>
-            {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'E'}
-          </div>
-          {data.companyLogo && (
-            <div style={{ marginBottom: '12px' }}>
-              <div style={{ 
-                width: '100%', 
-                maxWidth: '500px',
-                maxHeight: '200px',
-                overflow: 'hidden', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center' 
-              }}>
-                <img 
-                  src={data.companyLogo} 
-                  alt="Logo" 
-                  style={{ 
-                    width: 'auto', 
-                    height: 'auto', 
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    transform: `scale(${data.logoZoom || 1}) translate(${data.logoX || 0}px, ${data.logoY || 0}px)`, 
-                    transformOrigin: 'center',
-                    objectFit: 'contain' 
-                  }} 
-                />
-              </div>
-            </div>
-          )}
-          <div className={styles.companyInfo}>
-            <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
-            <p style={{ whiteSpace: 'pre-wrap' }}>
-              {data.companyAddress && `${data.companyAddress}`}
-              {(data.companyZip || data.companyCity) && `\n${[data.companyZip, data.companyCity].filter(Boolean).join(' ')}`}
-              {data.companyProvince && `, ${data.companyProvince}`}
-            </p>
-            {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
-          </div>
+      {/* Header: Title + Meta */}
+      <div className={styles.headerTop}>
+        <div className={styles.headerTopLeft}>
+          <h1 className={styles.title}>FACTURA</h1>
         </div>
         <div className={styles.invoiceMeta}>
-          <h1 className={styles.title}>FACTURA</h1>
           <div className={styles.metaGrid}>
             <div className={styles.metaLabel}>Nº Factura:</div>
             <div className={styles.metaValue}>{data.number}</div>
@@ -88,15 +49,61 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         </div>
       </div>
 
-      {/* Bill To */}
-      <div className={styles.billToSection}>
-        <div className={styles.billToHeader} style={{ borderBottomColor: data.brandColor }}>
-          Facturado a
+      {/* Company + Client side by side */}
+      <div className={styles.partiesRow}>
+        <div className={styles.partyBlock}>
+          <div className={styles.brandDetails}>
+            <div className={styles.logo} style={{ backgroundColor: data.brandColor, display: data.companyLogo ? 'none' : 'flex' }}>
+              {data.companyName ? data.companyName.charAt(0).toUpperCase() : 'E'}
+            </div>
+            {data.companyLogo && (
+              <div style={{ marginBottom: '12px' }}>
+                <div style={{ 
+                  width: '100%', 
+                  maxWidth: '300px',
+                  maxHeight: '120px',
+                  overflow: 'hidden', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'flex-start' 
+                }}>
+                  <img 
+                    src={data.companyLogo} 
+                    alt="Logo" 
+                    style={{ 
+                      width: 'auto', 
+                      height: 'auto', 
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      transform: `scale(${data.logoZoom || 1}) translate(${data.logoX || 0}px, ${data.logoY || 0}px)`, 
+                      transformOrigin: 'center',
+                      objectFit: 'contain' 
+                    }} 
+                  />
+                </div>
+              </div>
+            )}
+            <div className={styles.companyInfo}>
+              <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
+              <p style={{ whiteSpace: 'pre-wrap' }}>
+                {data.companyAddress && `${data.companyAddress}`}
+                {(data.companyZip || data.companyCity) && `\n${[data.companyZip, data.companyCity].filter(Boolean).join(' ')}`}
+                {data.companyProvince && `, ${data.companyProvince}`}
+              </p>
+              {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
+            </div>
+          </div>
         </div>
-        <div className={styles.clientInfo}>
-          <h3 className={styles.clientName}>{data.clientName || 'Nombre del Cliente'}</h3>
-          {data.clientAddress && <p style={{ whiteSpace: 'pre-wrap' }}>{data.clientAddress}</p>}
-          {data.clientTaxId && <p>NIF/CIF: {data.clientTaxId}</p>}
+
+        <div className={styles.partyBlock}>
+          <div className={styles.billToHeader} style={{ borderBottomColor: data.brandColor }}>
+            Facturado a
+          </div>
+          <div className={styles.clientInfo}>
+            <h3 className={styles.clientName}>{data.clientName || 'Nombre del Cliente'}</h3>
+            {data.clientAddress && <p style={{ whiteSpace: 'pre-wrap' }}>{data.clientAddress}</p>}
+            {data.clientTaxId && <p>NIF/CIF: {data.clientTaxId}</p>}
+          </div>
         </div>
       </div>
 

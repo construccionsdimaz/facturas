@@ -9,18 +9,36 @@
   -webkit-print-color-adjust: exact;
 }
 
-.header {
+/* Top row: FACTURA title + invoice meta */
+.headerTop {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 40px;
+  align-items: flex-start;
+  margin-bottom: 30px;
   gap: 30px;
+}
+
+.headerTopLeft {
+  flex: 1;
+}
+
+/* Side-by-side company + client */
+.partiesRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
+  margin-bottom: 30px;
+}
+
+.partyBlock {
+  flex: 1;
+  min-width: 0;
 }
 
 .brandDetails {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  flex: 1;
+  gap: 8px;
 }
 
 .logo {
@@ -33,11 +51,11 @@
   color: white;
   font-weight: bold;
   font-size: 20px;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .companyName {
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 700;
   margin: 0;
   color: #1a1a1a;
@@ -46,7 +64,7 @@
 .companyInfo p {
   margin: 2px 0;
   color: #555;
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .invoiceMeta {
@@ -58,9 +76,9 @@
   font-size: 32px;
   font-weight: 800;
   letter-spacing: 1px;
-  margin: 0 0 16px 0;
+  margin: 0;
   color: #1a1a1a;
-  background: none !important; /* Force no background */
+  background: none !important;
   box-shadow: none !important;
   padding: 0;
 }
@@ -83,10 +101,6 @@
   font-weight: 500;
   font-size: 13px;
   text-align: right;
-}
-
-.billToSection {
-  margin-bottom: 40px;
 }
 
 .billToHeader {
