@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import styles from './page.module.css';
 import InvoiceStatusToggle from './InvoiceStatusToggle';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 type Invoice = {
   id: string;
@@ -19,11 +20,19 @@ type Invoice = {
 export default function InvoiceListManager({ initialInvoices }: { initialInvoices: Invoice[] }) {
   const [invoices, setInvoices] = useState(initialInvoices);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; id: string; number: string }>({
+    isOpen: false,
+    id: '',
+    number: ''
+  });
 
-  const handleDelete = async (id: string, number: string) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar la factura ${number}? Esta acción no se puede deshacer.`)) {
-      return;
-    }
+  const handleDeleteClick = (id: string, number: string) => {
+    setModalConfig({ isOpen: true, id, number });
+  };
+
+  const confirmDelete = async () => {
+    const { id } = modalConfig;
+    setModalConfig({ ...modalConfig, isOpen: false });
 
     setIsDeleting(id);
     try {
@@ -93,7 +102,7 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
               <td style={{ textAlign: 'right' }}>
                 <button 
                   className={styles.deleteBtn}
-                  onClick={() => handleDelete(inv.id, inv.number)}
+                  onClick={() => handleDeleteClick(inv.id, inv.number)}
                   disabled={isDeleting === inv.id}
                   title="Eliminar factura"
                 >
@@ -104,6 +113,15 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
           ))}
         </tbody>
       </table>
+
+      <ConfirmationModal 
+        isOpen={modalConfig.isOpen}
+        title="Eliminar Factura"
+        message={`¿Estás seguro de que deseas eliminar la factura "${modalConfig.number}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        onConfirm={confirmDelete}
+        onCancel={() => setModalConfig({ ...modalConfig, isOpen: false })}
+      />
     </div>
   );
 }

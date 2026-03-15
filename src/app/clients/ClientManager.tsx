@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import styles from './page.module.css';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 type Client = {
   id: string;
@@ -18,6 +19,11 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
   const [isAdding, setIsAdding] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; id: string; name: string }>({
+    isOpen: false,
+    id: '',
+    name: ''
+  });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -82,10 +88,13 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
     setIsAdding(false);
   };
 
-  const handleDeleteClient = async (id: string, name: string) => {
-    if (!confirm(`¿Estás seguro de que deseas eliminar al cliente "${name}"? Esta acción no se puede deshacer.`)) {
-      return;
-    }
+  const handleDeleteClick = (id: string, name: string) => {
+    setModalConfig({ isOpen: true, id, name });
+  };
+
+  const confirmDeleteClient = async () => {
+    const { id } = modalConfig;
+    setModalConfig({ ...modalConfig, isOpen: false });
 
     setIsLoading(true);
     try {
@@ -230,7 +239,7 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                       </button>
                       <button 
                         className={styles.deleteBtn}
-                        onClick={() => handleDeleteClient(client.id, client.name)}
+                        onClick={() => handleDeleteClick(client.id, client.name)}
                         disabled={isLoading}
                         title="Eliminar cliente"
                       >
@@ -243,6 +252,15 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
           </tbody>
         </table>
       </div>
+
+      <ConfirmationModal 
+        isOpen={modalConfig.isOpen}
+        title="Eliminar Cliente"
+        message={`¿Estás seguro de que deseas eliminar al cliente "${modalConfig.name}"? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        onConfirm={confirmDeleteClient}
+        onCancel={() => setModalConfig({ ...modalConfig, isOpen: false })}
+      />
     </div>
   );
 }
