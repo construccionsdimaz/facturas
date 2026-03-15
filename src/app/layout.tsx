@@ -1,46 +1,42 @@
-"use client";
-
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Sidebar from "./components/Sidebar";
-import Topbar from "./components/Topbar";
-import { usePathname } from "next/navigation";
+import ClientLayoutWrapper from "./ClientLayoutWrapper";
 
 const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "Facturas Dimaz",
+  description: "Gestión de facturas profesional",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Dimaz",
+  },
+  formatDetection: {
+    telephone: false,
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#00509d",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const pathname = usePathname();
-  const isPrintPage = pathname?.includes('/print');
-
-  if (isPrintPage) {
-    return (
-      <html lang="en">
-        <body className={inter.className}>
-          {children}
-        </body>
-      </html>
-    );
-  }
-
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="app-container">
-          <div className="no-print">
-            <Sidebar />
-          </div>
-          <div className="main-content">
-            <div className="no-print">
-              <Topbar />
-            </div>
-            {children}
-          </div>
-        </div>
+        <ClientLayoutWrapper>
+          {children}
+        </ClientLayoutWrapper>
       </body>
     </html>
   );
