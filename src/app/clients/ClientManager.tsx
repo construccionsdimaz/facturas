@@ -16,6 +16,7 @@ type Client = {
 export default function ClientManager({ initialClients }: { initialClients: Client[] }) {
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   // Form State
@@ -26,43 +27,101 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
     taxId: ''
   });
 
-  const handleAddClient = async (e: React.FormEvent) => {
+  const handleSaveClient = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
+      if (editingClient) {
+        // Update existing client
+        const res = await fetch(`/api/clients/${editingClient.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
 
-      if (!res.ok) throw new Error('Failed to create client');
-      
-      const newClient = await res.json();
-      setClients([newClient, ...clients]);
+        if (!res.ok) throw new Error('Failed to update client');
+        
+        const updatedClient = await res.json();
+        setClients(clients.map(c => c.id === updatedClient.id ? { ...c, ...updatedClient } : c));
+        setEditingClient(null);
+      } else {
+        // Create new client
+        const res = await fetch('/api/clients', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData)
+        });
+
+        if (!res.ok) throw new Error('Failed to create client');
+        
+        const newClient = await res.json();
+        setClients([newClient, ...clients]);
+        setIsAdding(false);
+      }
       
       // Reset form
       setFormData({ name: '', email: '', address: '', taxId: '' });
-      setIsAdding(false);
       
     } catch (error) {
       console.error(error);
-      alert('Error al crear el cliente.');
+      alert('Error al guardar el cliente.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handleEditClick = (client: Client) => {
+    setFormData({
+      name: client.name,
+      email: client.email || '',
+      address: client.address || '',
+      taxId: client.taxId || ''
+    });
+    setEditingClient(client);
+    setIsAdding(false);
+  };
+
+  const handleDeleteClient = async (id: string, name: string) => {
+    if (!confirm(`¿Estás seguro de que deseas eliminar al cliente "${name}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/clients/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to delete client');
+      }
+
+      setClients(clients.filter(c => c.id !== id));
+    } catch (error: any) {
+      console.error(error);
+      alert(error.message || 'Error al eliminar el cliente.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const closeForm = () => {
+    setIsAdding(false);
+    setEditingClient(null);
+    setFormData({ name: '', email: '', address: '', taxId: '' });
+  };
+
   return (
     <div className={styles.managerContainer}>
-      {isAdding ? (
+      {(isAdding || editingClient) ? (
         <div className={`glass-panel ${styles.addClientForm}`}>
           <div className={styles.formHeader}>
-            <h2>Añadir Nuevo Cliente</h2>
-            <button className={styles.closeBtn} onClick={() => setIsAdding(false)}>×</button>
+            <h2>{editingClient ? 'Editar Cliente' : 'Añadir Nuevo Cliente'}</h2>
+            <button className={styles.closeBtn} onClick={closeForm}>×</button>
           </div>
-          <form onSubmit={handleAddClient}>
+          <form onSubmit={handleSaveClient}>
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
                 <label>Nombre Empresa/Cliente *</label>
@@ -107,9 +166,9 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
               </div>
             </div>
             <div className={styles.formActions}>
-              <button type="button" className="btn-secondary" onClick={() => setIsAdding(false)}>Cancelar</button>
+              <button type="button" className="btn-secondary" onClick={closeForm}>Cancelar</button>
               <button type="submit" className="btn-primary" disabled={isLoading}>
-                {isLoading ? 'Guardando...' : 'Guardar Cliente'}
+                {isLoading ? 'Guardando...' : (editingClient ? 'Actualizar Cliente' : 'Guardar Cliente')}
               </button>
             </div>
           </form>
@@ -132,12 +191,13 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
               <th>NIF/CIF</th>
               <th>Facturas</th>
               <th>Fecha Alta</th>
+              <th style={{ textAlign: 'right' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={5} className={styles.emptyState}>No se han encontrado clientes. Añade tu primer cliente arriba.</td>
+                <td colSpan={6} className={styles.emptyState}>No se han encontrado clientes. Añade tu primer cliente arriba.</td>
               </tr>
             ) : clients.map((client) => (
               <tr key={client.id} className={styles.tableRow}>
@@ -158,6 +218,25 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                 </td>
                 <td className={styles.cellDate}>
                   {new Date(client.createdAt).toLocaleDateString()}
+                </td>
+                <td style={{ textAlign: 'right' }}>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                      <button 
+                        className={styles.editBtn} 
+                        onClick={() => handleEditClick(client)}
+                        title="Editar cliente"
+                      >
+                        ✏️
+                      </button>
+                      <button 
+                        className={styles.deleteBtn}
+                        onClick={() => handleDeleteClient(client.id, client.name)}
+                        disabled={isLoading}
+                        title="Eliminar cliente"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                 </td>
               </tr>
             ))}
