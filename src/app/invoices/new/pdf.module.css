@@ -226,7 +226,7 @@
 }
 
 .printWrapper {
-  background-color: #f0f2f5; /* Light gray to contrast the white sheet */
+  background-color: #f0f2f5 !important; /* Light gray base */
   min-height: 100vh;
   display: flex;
   justify-content: center;
@@ -240,10 +240,10 @@
   color: #1a1a1a !important;
   box-shadow: 0 0 15px rgba(0,0,0,0.1);
   padding: 15mm;
-  margin: 0 auto !important; /* Force center in preview */
+  margin: 0 auto !important;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden; /* Prevent internal elements from pushing out */
+  overflow: hidden;
 }
 
 @media print {
@@ -251,7 +251,7 @@
     padding: 0 !important;
     margin: 0 !important;
     display: block;
-    background: white;
+    background: white !important;
   }
   .printWrapper .pdfContainer {
     width: 210mm;
