@@ -23,6 +23,9 @@ interface Client {
 interface CompanySettings {
   companyName: string;
   companyAddress: string;
+  companyCity: string;
+  companyZip: string;
+  companyProvince: string;
   companyTaxId: string;
   companyLogo: string;
   logoZoom?: number;
@@ -253,6 +256,9 @@ export default function NewInvoice() {
           brandColor: brandColor,
           companyName: settings?.companyName,
           companyAddress: settings?.companyAddress,
+          companyCity: settings?.companyCity,
+          companyZip: settings?.companyZip,
+          companyProvince: settings?.companyProvince,
           companyTaxId: settings?.companyTaxId,
           companyLogo: settings?.companyLogo,
           logoZoom: settings?.logoZoom,

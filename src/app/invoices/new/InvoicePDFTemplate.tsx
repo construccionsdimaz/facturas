@@ -14,6 +14,9 @@ interface InvoiceData {
   brandColor: string;
   companyName?: string;
   companyAddress?: string;
+  companyCity?: string;
+  companyZip?: string;
+  companyProvince?: string;
   companyTaxId?: string;
   companyLogo?: string;
   logoZoom?: number;
@@ -62,7 +65,11 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
           )}
           <div className={styles.companyInfo}>
             <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
-            <p style={{ whiteSpace: 'pre-wrap' }}>{data.companyAddress || ''}</p>
+            <p style={{ whiteSpace: 'pre-wrap' }}>
+              {data.companyAddress && `${data.companyAddress}`}
+              {(data.companyZip || data.companyCity) && `\n${[data.companyZip, data.companyCity].filter(Boolean).join(' ')}`}
+              {data.companyProvince && `, ${data.companyProvince}`}
+            </p>
             {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
           </div>
         </div>

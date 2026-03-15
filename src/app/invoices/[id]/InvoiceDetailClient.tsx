@@ -18,6 +18,9 @@ interface InvoiceData {
   total: number;
   companyName: string;
   companyAddress: string;
+  companyCity: string;
+  companyZip: string;
+  companyProvince: string;
   companyTaxId: string;
   companyLogo: string;
   logoZoom?: number;
@@ -85,6 +88,9 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
             brandColor: '#00509d',
             companyName: invoice.companyName,
             companyAddress: invoice.companyAddress,
+            companyCity: invoice.companyCity,
+            companyZip: invoice.companyZip,
+            companyProvince: invoice.companyProvince,
             companyTaxId: invoice.companyTaxId,
             companyLogo: invoice.companyLogo,
             logoZoom: invoice.logoZoom,

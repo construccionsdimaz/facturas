@@ -7,6 +7,9 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({
     companyName: '',
     companyAddress: '',
+    companyCity: '',
+    companyZip: '',
+    companyProvince: '',
     companyTaxId: '',
     companyLogo: '',
     logoZoom: 1,
@@ -27,6 +30,9 @@ export default function SettingsPage() {
         setFormData({
           companyName: data.companyName || '',
           companyAddress: data.companyAddress || '',
+          companyCity: data.companyCity || '',
+          companyZip: data.companyZip || '',
+          companyProvince: data.companyProvince || '',
           companyTaxId: data.companyTaxId || '',
           companyLogo: data.companyLogo || '',
           logoZoom: data.logoZoom || 1,
@@ -266,14 +272,47 @@ export default function SettingsPage() {
               </div>
 
               <div className={styles.formGroup}>
-                <label>Dirección Fiscal</label>
-                <textarea 
-                  className={`input-modern ${styles.textarea}`}
+                <label>Dirección Fiscal (Calle, nº, piso)</label>
+                <input 
+                  type="text" 
+                  className="input-modern"
                   value={formData.companyAddress}
                   onChange={(e) => setFormData({...formData, companyAddress: e.target.value})}
-                  placeholder="Calle Ejemplo 123&#10;Barcelona, 08001&#10;contacto@miempresa.com"
-                  rows={4}
+                  placeholder="Calle Ejemplo 123, 2º 1ª"
                 />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '20px' }}>
+                <div className={styles.formGroup}>
+                  <label>Población</label>
+                  <input 
+                    type="text" 
+                    className="input-modern"
+                    value={formData.companyCity}
+                    onChange={(e) => setFormData({...formData, companyCity: e.target.value})}
+                    placeholder="Barcelona"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Cód. Postal</label>
+                  <input 
+                    type="text" 
+                    className="input-modern"
+                    value={formData.companyZip}
+                    onChange={(e) => setFormData({...formData, companyZip: e.target.value})}
+                    placeholder="08001"
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Provincia</label>
+                  <input 
+                    type="text" 
+                    className="input-modern"
+                    value={formData.companyProvince}
+                    onChange={(e) => setFormData({...formData, companyProvince: e.target.value})}
+                    placeholder="Barcelona"
+                  />
+                </div>
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>

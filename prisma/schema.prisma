@@ -21,6 +21,9 @@ model User {
   // Company Profile Settings
   companyName    String?
   companyAddress String?
+  companyCity    String?
+  companyZip     String?
+  companyProvince String?
   companyTaxId   String?
   companyLogo    String? 
   logoZoom       Float    @default(1)

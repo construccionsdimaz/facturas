@@ -18,6 +18,9 @@ export async function GET() {
     return NextResponse.json({
       companyName: user.companyName,
       companyAddress: user.companyAddress,
+      companyCity: user.companyCity,
+      companyZip: user.companyZip,
+      companyProvince: user.companyProvince,
       companyTaxId: user.companyTaxId,
       companyLogo: user.companyLogo,
       logoZoom: user.logoZoom,
@@ -37,7 +40,7 @@ export async function PUT(request: Request) {
   try {
     const body = await request.json();
     const { 
-      companyName, companyAddress, companyTaxId, companyLogo, 
+      companyName, companyAddress, companyCity, companyZip, companyProvince, companyTaxId, companyLogo, 
       logoZoom, logoX, logoY,
       paymentMethod, bankAccount, dataProtection 
     } = body;
@@ -53,6 +56,9 @@ export async function PUT(request: Request) {
       data: {
         companyName,
         companyAddress,
+        companyCity,
+        companyZip,
+        companyProvince,
         companyTaxId,
         companyLogo,
         logoZoom,
@@ -67,6 +73,9 @@ export async function PUT(request: Request) {
     return NextResponse.json({
         companyName: updatedUser.companyName,
         companyAddress: updatedUser.companyAddress,
+        companyCity: updatedUser.companyCity,
+        companyZip: updatedUser.companyZip,
+        companyProvince: updatedUser.companyProvince,
         companyTaxId: updatedUser.companyTaxId,
         companyLogo: updatedUser.companyLogo,
         logoZoom: updatedUser.logoZoom,
