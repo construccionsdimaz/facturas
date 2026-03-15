@@ -1,5 +1,11 @@
-// Minimal Service Worker for PWA installation support
+const CACHE_NAME = 'dimaz-v1';
+
 self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(CACHE_NAME).then((cache) => {
+      return cache.addAll(['/']);
+    })
+  );
   self.skipWaiting();
 });
 
@@ -8,6 +14,9 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass-through for now, but required for PWA 'Install' prompt
-  event.respondWith(fetch(event.request));
+  event.respondWith(
+    caches.match(event.request).then((response) => {
+      return response || fetch(event.request);
+    })
+  );
 });
