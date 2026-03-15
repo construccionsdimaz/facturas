@@ -5,6 +5,8 @@
   color: #1a1a1a; /* Forced dark text */
   font-family: 'Helvetica', sans-serif;
   box-sizing: border-box;
+  print-color-adjust: exact;
+  -webkit-print-color-adjust: exact;
 }
 
 .header {
