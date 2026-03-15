@@ -9,6 +9,15 @@
   margin-bottom: 32px;
 }
 
+@media (max-width: 640px) {
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+    margin-bottom: 24px;
+  }
+}
+
 .subtitle {
   color: var(--text-muted);
   margin-top: 4px;
@@ -16,12 +25,14 @@
 
 .tableContainer {
   padding: 0;
-  overflow: hidden;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px;
 }
 
 .table thead th {
