@@ -186,12 +186,25 @@ h1 {
   min-height: 100vh;
 }
 
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+}
+
 .main-content {
   flex: 1;
   padding: 2rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    padding: 1rem;
+    gap: 1.5rem;
+  }
 }
 
 @media print {

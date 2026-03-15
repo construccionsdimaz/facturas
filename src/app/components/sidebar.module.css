@@ -9,6 +9,19 @@
   top: 1rem;
 }
 
+@media (max-width: 768px) {
+  .sidebar {
+    width: auto;
+    height: auto;
+    margin: 1rem 1rem 0 1rem;
+    position: static;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.75rem 1rem;
+  }
+}
+
 .logo {
   display: flex;
   align-items: center;
@@ -30,11 +43,29 @@
   letter-spacing: 0.5px;
 }
 
+@media (max-width: 768px) {
+  .logo {
+    margin-bottom: 0;
+  }
+  .logo h2 {
+    display: none;
+  }
+}
+
 .nav {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
   flex: 1;
+}
+
+@media (max-width: 768px) {
+  .nav {
+    flex-direction: row;
+    gap: 0.25rem;
+    overflow-x: auto;
+    padding-bottom: 0;
+  }
 }
 
 .navItem {
@@ -59,6 +90,17 @@
   border-right: 3px solid var(--accent-primary);
 }
 
+@media (max-width: 768px) {
+  .navItem {
+    padding: 0.5rem;
+    font-size: 0.8rem;
+  }
+  .navItem.active {
+    border-right: none;
+    border-bottom: 3px solid var(--accent-primary);
+  }
+}
+
 .icon {
   font-size: 1.25rem;
 }
@@ -67,6 +109,12 @@
   margin-top: auto;
   padding-top: 1rem;
   border-top: 1px solid var(--border-subtle);
+}
+
+@media (max-width: 768px) {
+  .bottom {
+    display: none;
+  }
 }
 
 .userProfile {
