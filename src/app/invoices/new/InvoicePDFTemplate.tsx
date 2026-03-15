@@ -42,7 +42,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
                 overflow: 'hidden', 
                 display: 'flex', 
                 alignItems: 'center', 
-                justifyContent: 'flex-start' 
+                justifyContent: 'center' 
               }}>
                 <img 
                   src={data.companyLogo} 
@@ -53,7 +53,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
                     maxWidth: 'none', 
                     maxHeight: 'none', 
                     transform: `scale(${data.logoZoom || 1}) translate(${data.logoX || 0}px, ${data.logoY || 0}px)`, 
-                    transformOrigin: 'left center',
+                    transformOrigin: 'center',
                     objectFit: 'contain' 
                   }} 
                 />
