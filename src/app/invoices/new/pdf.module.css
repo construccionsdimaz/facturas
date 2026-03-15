@@ -145,8 +145,8 @@
 
 .colDesc { text-align: left; }
 .colQty { text-align: center; width: 10%; }
-.colPrice { text-align: right; width: 20%; }
-.colTotal { text-align: right; width: 20%; font-weight: 600;}
+.colPrice { text-align: center; width: 20%; }
+.colTotal { text-align: center; width: 20%; font-weight: 600;}
 
 .summarySection {
   display: flex;
