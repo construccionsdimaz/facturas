@@ -20,6 +20,9 @@ interface InvoiceData {
   companyAddress: string;
   companyTaxId: string;
   companyLogo: string;
+  logoZoom?: number;
+  logoX?: number;
+  logoY?: number;
   paymentMethod: string;
   bankAccount: string;
   dataProtection: string;
@@ -84,6 +87,9 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
             companyAddress: invoice.companyAddress,
             companyTaxId: invoice.companyTaxId,
             companyLogo: invoice.companyLogo,
+            logoZoom: invoice.logoZoom,
+            logoX: invoice.logoX,
+            logoY: invoice.logoY,
             paymentMethod: invoice.paymentMethod,
             bankAccount: invoice.bankAccount,
             dataProtection: invoice.dataProtection,
