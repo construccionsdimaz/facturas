@@ -113,7 +113,7 @@ export default function SettingsPage() {
             <form onSubmit={handleSave} className={styles.form}>
               <div className={styles.formGroup} style={{ marginBottom: '32px' }}>
                 <label>Logo de la Empresa</label>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '20px', marginTop: '12px' }}>
+                <div className={styles.logoUploadContainer}>
                   <div style={{ 
                     width: '100px', 
                     height: '100px', 
@@ -124,7 +124,8 @@ export default function SettingsPage() {
                     alignItems: 'center',
                     justifyContent: 'center',
                     overflow: 'hidden',
-                    position: 'relative'
+                    position: 'relative',
+                    flexShrink: 0
                   }}>
                     {formData.companyLogo ? (
                       <img src={formData.companyLogo} alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
@@ -282,7 +283,7 @@ export default function SettingsPage() {
                 />
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '20px' }}>
+              <div className={styles.grid3}>
                 <div className={styles.formGroup}>
                   <label>Población</label>
                   <input 
@@ -315,7 +316,7 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+              <div className={styles.grid2}>
                 <div className={styles.formGroup}>
                   <label>Forma de Pago (ej: Transferencia)</label>
                   <input 
