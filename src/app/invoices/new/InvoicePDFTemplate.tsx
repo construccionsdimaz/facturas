@@ -37,8 +37,6 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
             <div style={{ marginBottom: '32px' }}>
               <div style={{ 
                 width: '100%', 
-                maxWidth: '450px', 
-                maxHeight: '180px', 
                 overflow: 'hidden', 
                 display: 'flex', 
                 alignItems: 'center', 
@@ -50,8 +48,6 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
                   style={{ 
                     width: 'auto', 
                     height: 'auto', 
-                    maxWidth: 'none', 
-                    maxHeight: 'none', 
                     transform: `scale(${data.logoZoom || 1}) translate(${data.logoX || 0}px, ${data.logoY || 0}px)`, 
                     transformOrigin: 'center',
                     objectFit: 'contain' 
