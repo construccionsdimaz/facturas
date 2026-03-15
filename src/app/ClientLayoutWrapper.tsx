@@ -3,6 +3,7 @@
 import { usePathname } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
+import { useEffect } from "react";
 
 export default function ClientLayoutWrapper({
   children,
@@ -11,6 +12,15 @@ export default function ClientLayoutWrapper({
 }) {
   const pathname = usePathname();
   const isPrintPage = pathname?.includes('/print');
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/sw.js')
+        .then((registration) => console.log('SW registered:', registration))
+        .catch((error) => console.error('SW registration failed:', error));
+    }
+  }, []);
 
   if (isPrintPage) {
     return <>{children}</>;
