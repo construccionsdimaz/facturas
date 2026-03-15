@@ -63,15 +63,6 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
               </div>
             </div>
           )}
-          <div className={styles.companyInfo}>
-            <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
-            <p style={{ whiteSpace: 'pre-wrap' }}>
-              {data.companyAddress && `${data.companyAddress}`}
-              {(data.companyZip || data.companyCity) && `\n${[data.companyZip, data.companyCity].filter(Boolean).join(' ')}`}
-              {data.companyProvince && `, ${data.companyProvince}`}
-            </p>
-            {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
-          </div>
         </div>
         <div className={styles.invoiceMeta}>
           <h1 className={styles.title}>FACTURA</h1>
@@ -88,9 +79,20 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         </div>
       </div>
 
-      {/* Bill To — below header, on the left */}
-      <div className={styles.billToRow}>
-        <div className={styles.billToBlock}>
+      {/* Company details + Client details side by side */}
+      <div className={styles.detailsRow}>
+        <div className={styles.detailsBlock}>
+          <div className={styles.companyInfo}>
+            <h2 className={styles.companyName}>{data.companyName || 'Mi Empresa'}</h2>
+            <p style={{ whiteSpace: 'pre-wrap' }}>
+              {data.companyAddress && `${data.companyAddress}`}
+              {(data.companyZip || data.companyCity) && `\n${[data.companyZip, data.companyCity].filter(Boolean).join(' ')}`}
+              {data.companyProvince && `, ${data.companyProvince}`}
+            </p>
+            {data.companyTaxId && <p>NIF/CIF: {data.companyTaxId}</p>}
+          </div>
+        </div>
+        <div className={styles.detailsBlock}>
           <div className={styles.billToHeader} style={{ borderBottomColor: data.brandColor }}>
             Facturado a
           </div>

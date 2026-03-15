@@ -17,13 +17,17 @@
   gap: 30px;
 }
 
-/* Bill To row below header */
-.billToRow {
+/* Company details + Client details side by side */
+.detailsRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 40px;
   margin-bottom: 30px;
 }
 
-.billToBlock {
-  max-width: 50%;
+.detailsBlock {
+  flex: 1;
+  min-width: 0;
 }
 
 .brandDetails {
