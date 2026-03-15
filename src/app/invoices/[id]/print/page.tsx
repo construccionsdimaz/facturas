@@ -73,6 +73,9 @@ export default function PrintInvoicePage() {
           companyAddress: settings?.companyAddress || invoice.companyAddress,
           companyTaxId: settings?.companyTaxId || invoice.companyTaxId,
           companyLogo: settings?.companyLogo || invoice.companyLogo,
+          logoZoom: settings?.logoZoom,
+          logoX: settings?.logoX,
+          logoY: settings?.logoY,
           paymentMethod: invoice.paymentMethod || settings?.paymentMethod,
           bankAccount: settings?.bankAccount,
           dataProtection: settings?.dataProtection

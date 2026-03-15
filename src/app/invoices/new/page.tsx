@@ -25,6 +25,9 @@ interface CompanySettings {
   companyAddress: string;
   companyTaxId: string;
   companyLogo: string;
+  logoZoom?: number;
+  logoX?: number;
+  logoY?: number;
   paymentMethod: string;
   bankAccount: string;
   dataProtection: string;
@@ -251,7 +254,13 @@ export default function NewInvoice() {
           companyName: settings?.companyName,
           companyAddress: settings?.companyAddress,
           companyTaxId: settings?.companyTaxId,
-          paymentMethod: paymentMethod // Pass the selected one
+          companyLogo: settings?.companyLogo,
+          logoZoom: settings?.logoZoom,
+          logoX: settings?.logoX,
+          logoY: settings?.logoY,
+          paymentMethod: paymentMethod,
+          bankAccount: settings?.bankAccount,
+          dataProtection: settings?.dataProtection
         }} />
       </div>
 
