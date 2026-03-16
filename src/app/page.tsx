@@ -21,32 +21,39 @@ export default async function Home() {
   // Calculate monthly revenue for the last 7 months
   const months = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
   const now = new Date();
-  const monthlyDataMap: Record<string, number> = {};
   
-  // Initialize last 7 months with 0
+  // Create an array of the last 7 months in chronological order
+  const last7Months = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const monthKey = `${months[d.getMonth()]} ${d.getFullYear() % 100}`;
-    monthlyDataMap[monthKey] = 0;
+    last7Months.push({
+      date: d,
+      name: `${months[d.getMonth()]} ${d.getFullYear() % 100}`,
+      total: 0,
+      month: d.getMonth(),
+      year: d.getFullYear()
+    });
   }
 
   allInvoices.forEach((inv: any) => {
-    const d = new Date(inv.issueDate || inv.createdAt);
-    const monthKey = `${months[d.getMonth()]} ${d.getFullYear() % 100}`;
-    if (monthKey in monthlyDataMap) {
-      monthlyDataMap[monthKey] += inv.total;
+    const invDate = new Date(inv.issueDate || inv.createdAt);
+    const m = invDate.getMonth();
+    const y = invDate.getFullYear();
+    
+    const monthData = last7Months.find(d => d.month === m && d.year === y);
+    if (monthData) {
+      monthData.total += inv.total;
     }
   });
 
-  const monthlyData = Object.entries(monthlyDataMap).map(([name, total]) => ({ name, total }));
+  const monthlyData = last7Months.map(({ name, total }) => ({ name, total }));
 
-  // Calculate MoM growth
-  const currentMonthKey = `${months[now.getMonth()]} ${now.getFullYear() % 100}`;
-  const prevMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevMonthKey = `${months[prevMonth.getMonth()]} ${prevMonth.getFullYear() % 100}`;
+  // Calculate MoM growth using the last two items in our chronological array
+  const currentMonthData = last7Months[last7Months.length - 1];
+  const prevMonthData = last7Months[last7Months.length - 2];
   
-  const currentMonthRevenue = monthlyDataMap[currentMonthKey] || 0;
-  const prevMonthRevenue = monthlyDataMap[prevMonthKey] || 0;
+  const currentMonthRevenue = currentMonthData.total;
+  const prevMonthRevenue = prevMonthData.total;
   const growth = prevMonthRevenue > 0 
     ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 
     : 0;

@@ -43,15 +43,22 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export function RevenueChart({ monthlyData }: DashboardChartsProps) {
   return (
-    <div style={{ width: '100%', height: 120 }}>
+    <div style={{ width: '100%', height: 180, marginTop: '1rem' }}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={monthlyData}>
+        <AreaChart data={monthlyData} margin={{ top: 10, right: 10, left: 0, bottom: 20 }}>
           <defs>
             <linearGradient id="colorTotal" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.3}/>
               <stop offset="95%" stopColor="#3b82f6" stopOpacity={0}/>
             </linearGradient>
           </defs>
+          <XAxis 
+            dataKey="name" 
+            axisLine={false} 
+            tickLine={false} 
+            tick={{ fill: 'rgba(255, 255, 255, 0.4)', fontSize: 10 }}
+            dy={10}
+          />
           <Tooltip content={<CustomTooltip />} />
           <Area 
             type="monotone" 
@@ -70,11 +77,21 @@ export function RevenueChart({ monthlyData }: DashboardChartsProps) {
 
 export function StatusDistributionChart({ data }: { data: { name: string, value: number, color: string }[] }) {
   return (
-    <div style={{ width: '100%', height: 60 }}>
+    <div style={{ width: '100%', height: 100, marginTop: '1rem' }}>
        <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical">
+        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+          <XAxis type="number" hide />
+          <YAxis 
+            type="category" 
+            dataKey="name" 
+            hide={false} 
+            axisLine={false} 
+            tickLine={false}
+            tick={{ fill: 'rgba(255, 255, 255, 0.6)', fontSize: 11 }}
+            width={80}
+          />
           <Tooltip cursor={{fill: 'transparent'}} content={<CustomTooltip />} />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={12}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
