@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface EstimateData {
   id: string;
@@ -32,6 +33,7 @@ interface EstimateData {
 
 export default function EstimateDetailClient({ estimate }: { estimate: EstimateData }) {
   const [isConverting, setIsConverting] = useState(false);
+  const [showConvertModal, setShowConvertModal] = useState(false);
   const router = useRouter();
 
   const handlePrint = () => {
@@ -39,8 +41,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   };
 
   const handleConvertToInvoice = async () => {
-    if (!confirm('¿Estás seguro de que deseas convertir este presupuesto en una factura?')) return;
-    
+    setShowConvertModal(false);
     setIsConverting(true);
     try {
       const res = await fetch(`/api/estimates/${estimate.id}/convert`, {
@@ -53,7 +54,6 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
       }
       
       const invoice = await res.json();
-      alert('Presupuesto convertido en factura correctamente');
       router.push(`/invoices/${invoice.id}`);
     } catch (error: any) {
       console.error(error);
@@ -77,7 +77,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
         {estimate.status !== 'CONVERTED' && (
           <button
             className="btn-success"
-            onClick={handleConvertToInvoice}
+            onClick={() => setShowConvertModal(true)}
             disabled={isConverting}
             style={{ padding: '8px 20px', backgroundColor: '#10b981', border: 'none', color: 'white', fontWeight: 600, borderRadius: '8px', cursor: 'pointer' }}
           >
@@ -93,6 +93,16 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             : 'Puedes previsualizar el presupuesto e imprimirlo, o convertirlo directamente en factura cuando el cliente lo acepte.'}
         </p>
       </div>
+
+      <ConfirmationModal 
+        isOpen={showConvertModal}
+        title="Convertir a Factura"
+        message={`¿Estás seguro de que deseas convertir el presupuesto ${estimate.number} en una factura? El estado del presupuesto pasará a "Convertido".`}
+        confirmLabel="Convertir ahora"
+        onConfirm={handleConvertToInvoice}
+        onCancel={() => setShowConvertModal(false)}
+        type="info"
+      />
     </div>
   );
 }
