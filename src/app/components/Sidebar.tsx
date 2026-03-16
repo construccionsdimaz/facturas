@@ -27,6 +27,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <Link href="/invoices" className={`${styles.navItem} ${pathname.startsWith('/invoices') ? styles.active : ''}`}>
           <span className={styles.icon}>📄</span> Facturas
         </Link>
+        <Link href="/estimates" className={`${styles.navItem} ${pathname.startsWith('/estimates') ? styles.active : ''}`}>
+          <span className={styles.icon}>📋</span> Presupuestos
+        </Link>
         <Link href="/clients" className={`${styles.navItem} ${pathname.startsWith('/clients') ? styles.active : ''}`}>
           <span className={styles.icon}>👥</span> Clientes
         </Link>

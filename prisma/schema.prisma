@@ -6,9 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("POSTGRES_PRISMA_URL")
-  directUrl = env("POSTGRES_URL_NON_POOLING")
+  provider = "postgresql"
+  url      = env("POSTGRES_URL_NON_POOLING")
 }
 
 // User represents the company/owner of the app (you and your team)
@@ -31,13 +30,14 @@ model User {
   logoY          Float    @default(0)
   paymentMethod  String?
   bankAccount    String?
-  dataProtection String? @db.Text
+  dataProtection String?
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
   clients   Client[] // The clients that belong to this user
   invoices  Invoice[]
+  estimates Estimate[]
 }
 
 // Client represents the people/companies you are billing
@@ -54,6 +54,7 @@ model Client {
   userId    String
   user      User     @relation(fields: [userId], references: [id])
   invoices  Invoice[]
+  estimates Estimate[]
 }
 
 // Invoice record
@@ -94,4 +95,45 @@ model InvoiceItem {
   
   invoiceId   String
   invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+// Estimate record (Presupuesto)
+model Estimate {
+  id          String   @id @default(cuid())
+  number      String   @unique // PRE-2026-001
+  issueDate   DateTime @default(now())
+  validUntil  DateTime?
+  status      String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, CONVERTED
+  
+  subtotal    Float    @default(0)
+  taxRate     Float    @default(21.0)
+  taxAmount   Float    @default(0)
+  total       Float    @default(0)
+  
+  currency    String   @default("EUR")
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  
+  items       EstimateItem[]
+  
+  invoiceId   String?  @unique // Link to the invoice if converted
+}
+
+// Individual items (concepts) within an estimate
+model EstimateItem {
+  id          String   @id @default(cuid())
+  description String
+  quantity    Int      @default(1)
+  price       Float    @default(0)
+  
+  estimateId  String
+  estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
 }
