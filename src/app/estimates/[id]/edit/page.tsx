@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import styles from '../../new/page.module.css';
+import styles from '@/app/invoices/new/page.module.css';
 
 interface EstimateItem {
   id: string;

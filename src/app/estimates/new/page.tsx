@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from 'react';
-import styles from '../../invoices/new/page.module.css';
-import EstimatePDFTemplate from '../EstimatePDFTemplate';
+import styles from '@/app/invoices/new/page.module.css';
+import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 
 interface EstimateItem {
   id: string;
