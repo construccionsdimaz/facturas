@@ -65,16 +65,18 @@ export default async function Home() {
     .filter((inv: any) => inv.status !== 'PAID')
     .reduce((sum: number, inv: any) => sum + inv.total, 0);
 
-  // Status distribution for the bar chart
-  const statusCounts = allInvoices.reduce((acc: any, inv: any) => {
-    acc[inv.status] = (acc[inv.status] || 0) + 1;
+  // Status distribution for the bar chart (by AMOUNT)
+  const statusAmounts = allInvoices.reduce((acc: any, inv: any) => {
+    // Standardize to uppercase for matching
+    const status = (inv.status || 'DRAFT').toUpperCase();
+    acc[status] = (acc[status] || 0) + inv.total;
     return acc;
   }, {});
 
   const statusDistribution = [
-    { name: 'Pagado', value: statusCounts['PAID'] || 0, color: '#10b981' },
-    { name: 'Pendiente', value: (statusCounts['PENDING'] || 0) + (statusCounts['SENT'] || 0), color: '#f59e0b' },
-    { name: 'Vencido', value: statusCounts['OVERDUE'] || 0, color: '#ef4444' }
+    { name: 'Pagado', value: statusAmounts['PAID'] || 0, color: '#10b981' },
+    { name: 'Pendiente', value: (statusAmounts['PENDING'] || 0) + (statusAmounts['DRAFT'] || 0) + (statusAmounts['SENT'] || 0), color: '#f59e0b' },
+    { name: 'Vencido', value: statusAmounts['OVERDUE'] || 0, color: '#ef4444' }
   ];
 
   return (

@@ -77,9 +77,9 @@ export function RevenueChart({ monthlyData }: DashboardChartsProps) {
 
 export function StatusDistributionChart({ data }: { data: { name: string, value: number, color: string }[] }) {
   return (
-    <div style={{ width: '100%', height: 100, marginTop: '1rem' }}>
+    <div style={{ width: '100%', height: 120, marginTop: '1rem' }}>
        <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+        <BarChart data={data} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
           <XAxis type="number" hide />
           <YAxis 
             type="category" 
@@ -87,11 +87,11 @@ export function StatusDistributionChart({ data }: { data: { name: string, value:
             hide={false} 
             axisLine={false} 
             tickLine={false}
-            tick={{ fill: 'rgba(255, 255, 255, 0.6)', fontSize: 11 }}
-            width={80}
+            tick={{ fill: 'rgba(255, 255, 255, 0.7)', fontSize: 12, fontWeight: 500 }}
+            width={100}
           />
           <Tooltip cursor={{fill: 'transparent'}} content={<CustomTooltip />} />
-          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={12}>
+          <Bar dataKey="value" radius={[0, 4, 4, 0]} barSize={16}>
             {data.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
             ))}
