@@ -23,6 +23,8 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [filterYear, setFilterYear] = useState<string>('all');
   const [filterQuarter, setFilterQuarter] = useState<string>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
   
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; id: string; number: string }>({
     isOpen: false,
@@ -69,8 +71,18 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
 
   // Filter logic
   const filteredEstimates = estimates.filter(est => {
-    const yearMatch = filterYear === 'all' || getYear(est.issueDate) === filterYear;
-    const quarterMatch = filterQuarter === 'all' || getQuarter(est.issueDate).toString() === filterQuarter;
+    const date = new Date(est.issueDate);
+    
+    // Primary filter: Manual Date Range
+    if (startDate || endDate) {
+      if (startDate && date < new Date(startDate)) return false;
+      if (endDate && date > new Date(endDate)) return false;
+      return true;
+    }
+    
+    // Fallback filter: Year/Quarter
+    const yearMatch = filterYear === 'all' || date.getFullYear().toString() === filterYear;
+    const quarterMatch = filterQuarter === 'all' || (Math.floor(date.getMonth() / 3) + 1).toString() === filterQuarter;
     return yearMatch && quarterMatch;
   });
 
@@ -112,7 +124,11 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <select 
               className={styles.selectModern} 
               value={filterYear}
-              onChange={(e) => setFilterYear(e.target.value)}
+              onChange={(e) => {
+                setFilterYear(e.target.value);
+                setStartDate('');
+                setEndDate('');
+              }}
             >
               <option value="all">Todos los años</option>
               {availableYears.map(year => (
@@ -125,7 +141,11 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <select 
               className={styles.selectModern} 
               value={filterQuarter}
-              onChange={(e) => setFilterQuarter(e.target.value)}
+              onChange={(e) => {
+                setFilterQuarter(e.target.value);
+                setStartDate('');
+                setEndDate('');
+              }}
             >
               <option value="all">Todos los trimestres</option>
               <option value="1">1er Trimestre (T1)</option>
@@ -134,6 +154,49 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
               <option value="4">4to Trimestre (T4)</option>
             </select>
           </div>
+          <div className={styles.filterGroup}>
+            <label>Desde</label>
+            <input 
+              type="date" 
+              className={styles.inputModern} 
+              value={startDate}
+              onChange={(e) => {
+                setStartDate(e.target.value);
+                setFilterYear('all');
+                setFilterQuarter('all');
+              }}
+            />
+          </div>
+          <div className={styles.filterGroup}>
+            <label>Hasta</label>
+            <input 
+              type="date" 
+              className={styles.inputModern} 
+              value={endDate}
+              onChange={(e) => {
+                setEndDate(e.target.value);
+                setFilterYear('all');
+                setFilterQuarter('all');
+              }}
+            />
+          </div>
+          {(startDate || endDate || filterYear !== 'all' || filterQuarter !== 'all') && (
+            <div className={styles.filterGroup}>
+              <label>&nbsp;</label>
+              <button 
+                className="btn-secondary" 
+                style={{ padding: '8px 16px', fontSize: '13px' }}
+                onClick={() => {
+                  setFilterYear('all');
+                  setFilterQuarter('all');
+                  setStartDate('');
+                  setEndDate('');
+                }}
+              >
+                Limpiar
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Summary Stats */}

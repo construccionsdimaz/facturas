@@ -172,6 +172,34 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+.inputModern {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: white;
+  padding: 9px 16px;
+  border-radius: 8px;
+  outline: none;
+  cursor: text;
+  min-width: 140px;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.inputModern:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.inputModern::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.6;
+}
+
+.inputModern::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
 .statsGrid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
