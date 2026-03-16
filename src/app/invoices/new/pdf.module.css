@@ -1,12 +1,45 @@
 .pdfContainer {
-  width: 800px; /* Fixed width for A4 scale */
+  width: 800px;
+  max-width: 100%;
   padding: 40px;
-  background-color: white; /* Forced white background for PDF */
-  color: #1a1a1a; /* Forced dark text */
+  background-color: white;
+  color: #1a1a1a;
   font-family: 'Helvetica', sans-serif;
   box-sizing: border-box;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
+  margin: 0 auto;
+}
+
+@media (max-width: 840px) {
+  .pdfContainer {
+    width: 100%;
+    padding: 20px;
+    font-size: 12px;
+  }
+  
+  .header {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .invoiceMeta {
+    text-align: left;
+    min-width: 0;
+  }
+
+  .metaValue {
+    text-align: left;
+  }
+
+  .detailsRow {
+    flex-direction: column;
+    gap: 20px;
+  }
+
+  .summaryBox {
+    width: 100%;
+  }
 }
 
 /* Header: Logo+Company left, FACTURA+meta right */
@@ -247,7 +280,7 @@
 
 .printWrapper .pdfContainer {
   width: 210mm;
-  min-height: 297mm;
+  min-height: 296mm; /* Slightly less than 297mm to avoid overflow */
   background-color: white !important;
   color: #1a1a1a !important;
   box-shadow: 0 0 15px rgba(0,0,0,0.1);
@@ -255,7 +288,6 @@
   margin: 0 auto !important;
   box-sizing: border-box;
   position: relative;
-  overflow: hidden;
 }
 
 .editBtn, .deleteBtn {
@@ -292,13 +324,14 @@
     margin: 0 !important;
     display: block;
     background: white !important;
+    min-height: auto !important;
   }
   .printWrapper .pdfContainer {
     width: 210mm;
     margin: 0 !important;
     padding: 15mm;
     box-shadow: none;
-    position: absolute;
+    position: relative;
     top: 0;
     left: 0;
   }

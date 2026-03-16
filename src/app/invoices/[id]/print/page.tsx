@@ -37,7 +37,7 @@ export default function PrintInvoicePage() {
   if (!invoice) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Factura no encontrada.</div>;
 
   return (
-    <div style={{ background: 'white', minHeight: '100vh' }}>
+    <div className="print-root" style={{ background: 'white' }}>
       <div className="no-print" style={{ 
         padding: '20px', 
         background: '#f8fafc', 
