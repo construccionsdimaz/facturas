@@ -148,10 +148,20 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
               }}
             >
               <option value="all">Todos los trimestres</option>
-              <option value="1">1er Trimestre (T1)</option>
-              <option value="2">2do Trimestre (T2)</option>
-              <option value="3">3er Trimestre (T3)</option>
-              <option value="4">4to Trimestre (T4)</option>
+              {[1, 2, 3, 4].filter(q => {
+                if (filterYear === 'all') return true;
+                const now = new Date();
+                const currentYear = now.getFullYear();
+                const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+                
+                if (parseInt(filterYear) < currentYear) return true;
+                if (parseInt(filterYear) === currentYear) return q <= currentQuarter;
+                return true;
+              }).map(q => (
+                <option key={q} value={q.toString()}>
+                  {q}º Trimestre (T{q})
+                </option>
+              ))}
             </select>
           </div>
           <div className={styles.filterGroup}>
