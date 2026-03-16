@@ -2,14 +2,28 @@
   width: 800px;
   max-width: none;
   padding: 40px;
-  background-color: white;
-  color: #1a1a1a;
+  background-color: white !important;
+  color: #1a1a1a !important;
   font-family: 'Helvetica', sans-serif;
   box-sizing: border-box;
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
   margin: 0 auto;
   transform-origin: top center;
+}
+
+.pdfContainer h1, 
+.pdfContainer h2, 
+.pdfContainer h3, 
+.pdfContainer h4, 
+.pdfContainer p, 
+.pdfContainer span, 
+.pdfContainer div,
+.pdfContainer td,
+.pdfContainer th {
+  -webkit-text-fill-color: initial !important;
+  background-clip: border-box !important;
+  -webkit-background-clip: border-box !important;
 }
 
 @media (max-width: 840px) {
@@ -84,7 +98,8 @@
   font-weight: 800;
   letter-spacing: 1px;
   margin: 0 0 16px 0;
-  color: #1a1a1a;
+  color: #1a1a1a !important;
+  -webkit-text-fill-color: #1a1a1a !important;
   background: none !important;
   box-shadow: none !important;
   padding: 0;
