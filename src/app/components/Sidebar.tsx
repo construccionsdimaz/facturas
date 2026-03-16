@@ -16,7 +16,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
     <aside className={`glass-panel ${styles.sidebar} ${isOpen ? styles.mobileOpen : ''}`}>
       <div className={styles.logo}>
         <div className={styles.logoIcon}></div>
-        <h2>Next-Gen</h2>
+        <h2>Dímaz</h2>
         <button className={styles.closeBtn} onClick={onClose}>✕</button>
       </div>
       

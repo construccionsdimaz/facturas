@@ -6,7 +6,7 @@ import ClientLayoutWrapper from "./ClientLayoutWrapper";
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
-  title: "Facturas Dimaz",
+  title: "Facturación Dímaz",
   description: "Gestión de facturas profesional",
   manifest: "/manifest.json",
   icons: {
