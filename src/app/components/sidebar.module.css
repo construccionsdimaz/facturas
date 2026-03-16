@@ -11,14 +11,25 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    width: auto;
+    width: 100%;
     height: auto;
-    margin: 1rem 1rem 0 1rem;
-    position: static;
+    margin: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    padding: 0.75rem 1rem;
+    justify-content: center;
+    padding: 0.5rem 0.25rem;
+    z-index: 1000;
+    border-radius: 20px 20px 0 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: none;
+    background: rgba(10, 10, 11, 0.8) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
   }
 }
 
@@ -45,9 +56,6 @@
 
 @media (max-width: 768px) {
   .logo {
-    margin-bottom: 0;
-  }
-  .logo h2 {
     display: none;
   }
 }
@@ -62,9 +70,9 @@
 @media (max-width: 768px) {
   .nav {
     flex-direction: row;
-    gap: 0.25rem;
-    overflow-x: auto;
-    padding-bottom: 0;
+    gap: 0;
+    width: 100%;
+    justify-content: space-around;
   }
 }
 
@@ -92,12 +100,21 @@
 
 @media (max-width: 768px) {
   .navItem {
-    padding: 0.5rem;
-    font-size: 0.8rem;
+    flex-direction: column;
+    gap: 4px;
+    padding: 8px 12px;
+    font-size: 10px;
+    flex: 1;
+    text-align: center;
+    justify-content: center;
   }
   .navItem.active {
     border-right: none;
-    border-bottom: 3px solid var(--accent-primary);
+    border-top: 3px solid var(--accent-primary);
+    background: transparent;
+  }
+  .icon {
+    font-size: 1.25rem;
   }
 }
 

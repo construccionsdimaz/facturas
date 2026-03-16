@@ -31,7 +31,7 @@ export default function ClientLayoutWrapper({
       <div className="no-print">
         <Sidebar />
       </div>
-      <div className="main-content">
+      <div className="main-content" style={{ paddingBottom: 'calc(80px + 2rem)' }}>
         <div className="no-print">
           <Topbar />
         </div>
