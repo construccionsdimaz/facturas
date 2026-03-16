@@ -4,6 +4,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import styles from '../invoices/page.module.css';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import CustomSelect from '@/components/CustomSelect';
 
 type Estimate = {
   id: string;
@@ -147,48 +148,45 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
         <div className={styles.filterBar}>
           <div className={styles.filterGroup}>
             <label>Filtrar por Año</label>
-            <select 
-              className={styles.selectModern} 
+            <CustomSelect
               value={stagedYear}
-              onChange={(e) => {
-                setStagedYear(e.target.value);
+              onChange={(val) => {
+                setStagedYear(val);
                 setStagedStartDate('');
                 setStagedEndDate('');
               }}
-            >
-              <option value="all">Todos los años</option>
-              {availableYears.map(year => (
-                <option key={year} value={year}>{year}</option>
-              ))}
-            </select>
+              options={[
+                { value: 'all', label: 'Todos los años' },
+                ...availableYears.map(year => ({ value: year, label: year }))
+              ]}
+            />
           </div>
           <div className={styles.filterGroup}>
             <label>Filtrar por Trimestre</label>
-            <select 
-              className={styles.selectModern} 
+            <CustomSelect
               value={stagedQuarter}
-              onChange={(e) => {
-                setStagedQuarter(e.target.value);
+              onChange={(val) => {
+                setStagedQuarter(val);
                 setStagedStartDate('');
                 setStagedEndDate('');
               }}
-            >
-              <option value="all">Todos los trimestres</option>
-              {[1, 2, 3, 4].filter(q => {
-                if (stagedYear === 'all') return true;
-                const now = new Date();
-                const currentYear = now.getFullYear();
-                const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
-                
-                if (parseInt(stagedYear) < currentYear) return true;
-                if (parseInt(stagedYear) === currentYear) return q <= currentQuarter;
-                return true;
-              }).map(q => (
-                <option key={q} value={q.toString()}>
-                  {q}º Trimestre (T{q})
-                </option>
-              ))}
-            </select>
+              options={[
+                { value: 'all', label: 'Todos los trimestres' },
+                ...[1, 2, 3, 4].filter(q => {
+                  if (stagedYear === 'all') return true;
+                  const now = new Date();
+                  const currentYear = now.getFullYear();
+                  const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
+                  
+                  if (parseInt(stagedYear) < currentYear) return true;
+                  if (parseInt(stagedYear) === currentYear) return q <= currentQuarter;
+                  return true;
+                }).map(q => ({
+                  value: q.toString(),
+                  label: `${q}º Trimestre (T${q})`
+                }))
+              ]}
+            />
           </div>
           <div className={styles.filterGroup}>
             <label>Desde</label>
