@@ -1,6 +1,6 @@
 .pdfContainer {
   width: 800px;
-  max-width: 100%;
+  max-width: none;
   padding: 40px;
   background-color: white;
   color: #1a1a1a;
@@ -9,36 +9,14 @@
   print-color-adjust: exact;
   -webkit-print-color-adjust: exact;
   margin: 0 auto;
+  transform-origin: top center;
 }
 
 @media (max-width: 840px) {
+  /* Using scaling instead of changing internal layout */
   .pdfContainer {
-    width: 100%;
-    padding: 20px;
-    font-size: 12px;
-  }
-  
-  .header {
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .invoiceMeta {
-    text-align: left;
-    min-width: 0;
-  }
-
-  .metaValue {
-    text-align: left;
-  }
-
-  .detailsRow {
-    flex-direction: column;
-    gap: 20px;
-  }
-
-  .summaryBox {
-    width: 100%;
+    transform: scale(calc(100vw / 840));
+    margin-bottom: calc(-800px * (1 - (100vw / 840))); /* Compacting vertical space taken by scaled element */
   }
 }
 
