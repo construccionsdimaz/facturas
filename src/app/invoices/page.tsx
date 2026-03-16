@@ -18,7 +18,8 @@ export default async function InvoicesPage() {
   // Convert dates to ISO strings for client component
   const serializedInvoices = invoices.map((inv: any) => ({
     ...inv,
-    createdAt: inv.createdAt.toISOString()
+    createdAt: inv.createdAt.toISOString(),
+    issueDate: inv.issueDate ? inv.issueDate.toISOString() : inv.createdAt.toISOString()
   }));
 
   return (
