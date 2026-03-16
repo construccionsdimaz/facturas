@@ -49,58 +49,10 @@ export default function InvoiceDetailClient({ invoice }: { invoice: InvoiceData 
         📄 Imprimir / Descargar PDF
       </button>
 
-      {/* Visible Preview Container */}
-      <div style={{ 
-        marginTop: '24px',
-        padding: '24px',
-        background: 'rgba(0,0,0,0.1)',
-        borderRadius: '12px',
-        border: '1px solid rgba(255,255,255,0.08)',
-        display: 'flex',
-        justifyContent: 'center',
-        overflowX: 'auto'
-      }}>
-        {/* The "Paper" sheet */}
-        <div 
-          ref={pdfRef} 
-          className="printable-invoice"
-          style={{ 
-            width: '800px', 
-            background: 'white', 
-            boxShadow: '0 0 20px rgba(0,0,0,0.5)',
-            flexShrink: 0,
-            transform: 'scale(0.8)', /* Scaled down for screen comfort */
-            transformOrigin: 'top center',
-            marginBottom: '-160px' /* Compiling for scale reduction height gap */
-          }}
-        >
-          <InvoicePDFTemplate data={{
-            number: invoice.number,
-            issueDate: invoice.issueDate,
-            dueDate: '',
-            clientName: invoice.clientName,
-            clientAddress: invoice.clientAddress,
-            clientTaxId: invoice.clientTaxId,
-            items: invoice.items,
-            subtotal: invoice.subtotal,
-            tax: invoice.tax,
-            total: invoice.total,
-            brandColor: '#00509d',
-            companyName: invoice.companyName,
-            companyAddress: invoice.companyAddress,
-            companyCity: invoice.companyCity,
-            companyZip: invoice.companyZip,
-            companyProvince: invoice.companyProvince,
-            companyTaxId: invoice.companyTaxId,
-            companyLogo: invoice.companyLogo,
-            logoZoom: invoice.logoZoom,
-            logoX: invoice.logoX,
-            logoY: invoice.logoY,
-            paymentMethod: invoice.paymentMethod,
-            bankAccount: invoice.bankAccount,
-            dataProtection: invoice.dataProtection,
-          }} />
-        </div>
+      <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+        <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
+          La factura se ha generado correctamente. Puedes verla, descargarla o imprimirla usando el botón de arriba.
+        </p>
       </div>
     </div>
   );
