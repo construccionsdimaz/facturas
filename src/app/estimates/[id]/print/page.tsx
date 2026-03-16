@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import EstimatePDFTemplate from '../../EstimatePDFTemplate';
-import styles from '../../../invoices/new/pdf.module.css';
+import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
+import styles from '@/app/invoices/new/pdf.module.css';
 
 export default function PrintEstimatePage() {
   const params = useParams();
