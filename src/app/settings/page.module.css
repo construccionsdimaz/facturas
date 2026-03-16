@@ -15,6 +15,12 @@
   margin-bottom: 40px;
 }
 
+@media (max-width: 768px) {
+  .header h1 {
+    font-size: 1.75rem;
+  }
+}
+
 .subtitle {
   color: var(--text-muted);
   margin-top: 8px;
@@ -62,6 +68,9 @@
     overflow-x: auto;
     padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
+    width: 100vw;
+    margin: 0 -20px;
+    padding: 0 20px 8px 20px;
   }
 }
 
@@ -77,7 +86,7 @@
 .settingsNav li.active {
   background: rgba(255, 255, 255, 0.05);
   color: var(--text-color);
-  border-left: 3px solid var(--brand-blue);
+  border-left: 3px solid var(--accent-primary);
   border-radius: 0 8px 8px 0;
 }
 
@@ -88,7 +97,7 @@
   
   .settingsNav li.active {
     border-left: none;
-    border-bottom: 3px solid var(--brand-blue);
+    border-bottom: 3px solid var(--accent-primary);
     border-radius: 8px 8px 0 0;
   }
 }
@@ -125,7 +134,7 @@
   color: var(--text-muted);
   margin-bottom: 32px;
   font-size: 14px;
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-subtle);
   padding-bottom: 24px;
 }
 
@@ -159,7 +168,7 @@
   gap: 16px;
   margin-top: 16px;
   padding-top: 24px;
-  border-top: 1px solid var(--border-color);
+  border-top: 1px solid var(--border-subtle);
 }
 
 @media (max-width: 640px) {
@@ -188,7 +197,7 @@
 .cropperContainer {
   margin-top: 24px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--border-subtle);
   border-radius: 12px;
   padding: 24px;
   display: flex;
@@ -244,7 +253,7 @@
 
 .rangeInput {
   width: 100%;
-  accent-color: var(--brand-blue);
+  accent-color: var(--accent-primary);
   cursor: pointer;
 }
 
