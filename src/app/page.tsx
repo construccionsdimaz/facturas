@@ -56,7 +56,11 @@ export default async function Home() {
   const prevMonthRevenue = prevMonthData.total;
   const growth = prevMonthRevenue > 0 
     ? ((currentMonthRevenue - prevMonthRevenue) / prevMonthRevenue) * 100 
-    : 0;
+    : (currentMonthRevenue > 0 ? 100 : 0);
+
+  const growthLabel = prevMonthRevenue === 0 && currentMonthRevenue > 0 
+    ? 'Nuevo' 
+    : `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}% MoM`;
 
   const recentInvoices = allInvoices.slice(0, 5);
   const totalRevenue = allInvoices.reduce((sum: number, inv: any) => sum + inv.total, 0);
@@ -93,7 +97,7 @@ export default async function Home() {
           <div className={styles.metricHeader}>
             <span className={styles.metricTitle}>Ingresos Últimos 7 Meses</span>
             <span className={growth >= 0 ? styles.trendUp : styles.trendDown}>
-              {growth >= 0 ? '+' : ''}{growth.toFixed(1)}% MoM
+              {growthLabel}
             </span>
           </div>
           <div className={styles.metricValue}>{currentMonthRevenue.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} €</div>
