@@ -165,16 +165,18 @@
   cursor: pointer;
   min-width: 140px;
   transition: all 0.2s ease;
+  color-scheme: dark;
 }
 
 .selectModern:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(59, 130, 246, 0.1);
+  color-scheme: dark;
 }
 
 .selectModern option {
-  background-color: #15151a;
+  background-color: #0f172a; /* Deeper blue-black */
   color: white;
 }
 
@@ -189,12 +191,14 @@
   min-width: 140px;
   transition: all 0.2s ease;
   font-family: inherit;
+  color-scheme: dark;
 }
 
 .inputModern:focus {
   border-color: var(--accent-primary);
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(59, 130, 246, 0.1);
+  color-scheme: dark;
 }
 
 .inputModern::-webkit-calendar-picker-indicator {

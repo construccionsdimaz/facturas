@@ -221,10 +221,10 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <div style={{ display: 'flex', gap: '8px' }}>
               <button 
                 className="btn-primary" 
-                style={{ padding: '9px 20px', fontSize: '14px' }}
+                style={{ padding: '9px 24px', fontSize: '14px', fontWeight: '600' }}
                 onClick={handleApplyFilters}
               >
-                Filtrar
+                🔍 Filtrar
               </button>
               {(stagedYear !== 'all' || stagedQuarter !== 'all' || stagedStartDate || stagedEndDate || appliedYear !== 'all' || appliedQuarter !== 'all' || appliedStartDate || appliedEndDate) && (
                 <button 
