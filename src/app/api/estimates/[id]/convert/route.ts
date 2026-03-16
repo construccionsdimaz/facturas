@@ -28,10 +28,23 @@ export async function POST(
       orderBy: { createdAt: 'desc' },
     });
     
-    let nextNumber = 'INV-2026-001';
+    let nextNumber = '001';
     if (lastInvoice) {
-      const lastNum = parseInt(lastInvoice.number.split('-').pop() || '0');
-      nextNumber = `INV-2026-${(lastNum + 1).toString().padStart(3, '0')}`;
+      const lastNumString = lastInvoice.number;
+      const match = lastNumString.match(/(\d+)(?!.*\d)/); // Finds the last group of digits
+      
+      if (match) {
+        const fullMatch = match[0];
+        const numValue = parseInt(fullMatch);
+        const nextValue = (numValue + 1).toString().padStart(fullMatch.length, '0');
+        nextNumber = lastNumString.substring(0, match.index) + nextValue + lastNumString.substring(match.index! + fullMatch.length);
+      } else {
+        // Fallback if no numbers found
+        nextNumber = lastNumString + '-1';
+      }
+    } else {
+      // Fallback if no invoices exist
+      nextNumber = '001';
     }
 
     // 3. Create the invoice

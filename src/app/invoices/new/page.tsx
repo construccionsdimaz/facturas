@@ -78,16 +78,24 @@ export default function NewInvoice() {
       setClients(clientsData || []);
       setSettings(settingsData || null);
       
-      // Generate sequential invoice number
-      const year = new Date().getFullYear();
-      const existingNumbers = (invoicesData || [])
-        .map((inv: any) => {
-          const matches = inv.number?.match(/\d+/g);
-          return matches ? parseInt(matches[matches.length - 1]) : 0;
-        })
-        .filter((n: number) => n > 0);
-      const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
-      setInvoiceNumber(nextNumber.toString().padStart(3, '0'));
+      // Generate sequential invoice number (Smart logic)
+      if (invoicesData && invoicesData.length > 0) {
+        const lastInv = invoicesData[0];
+        const lastNumString = lastInv.number;
+        const match = lastNumString.match(/(\d+)(?!.*\d)/);
+        
+        if (match) {
+          const fullMatch = match[0];
+          const numValue = parseInt(fullMatch);
+          const nextValue = (numValue + 1).toString().padStart(fullMatch.length, '0');
+          const next = lastNumString.substring(0, match.index) + nextValue + lastNumString.substring(match.index! + fullMatch.length);
+          setInvoiceNumber(next);
+        } else {
+          setInvoiceNumber(lastNumString + '-1');
+        }
+      } else {
+        setInvoiceNumber('001');
+      }
       
       if (settingsData?.paymentMethod) {
         setPaymentMethod(settingsData.paymentMethod);
