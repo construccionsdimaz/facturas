@@ -21,10 +21,18 @@ type Estimate = {
 export default function EstimateListManager({ initialEstimates }: { initialEstimates: Estimate[] }) {
   const [estimates, setEstimates] = useState(initialEstimates);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
-  const [filterYear, setFilterYear] = useState<string>('all');
-  const [filterQuarter, setFilterQuarter] = useState<string>('all');
-  const [startDate, setStartDate] = useState<string>('');
-  const [endDate, setEndDate] = useState<string>('');
+  
+  // Staged filters (what the user sees in the inputs)
+  const [stagedYear, setStagedYear] = useState<string>('all');
+  const [stagedQuarter, setStagedQuarter] = useState<string>('all');
+  const [stagedStartDate, setStagedStartDate] = useState<string>('');
+  const [stagedEndDate, setStagedEndDate] = useState<string>('');
+  
+  // Applied filters (what actually filters the list)
+  const [appliedYear, setAppliedYear] = useState<string>('all');
+  const [appliedQuarter, setAppliedQuarter] = useState<string>('all');
+  const [appliedStartDate, setAppliedStartDate] = useState<string>('');
+  const [appliedEndDate, setAppliedEndDate] = useState<string>('');
   
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; id: string; number: string }>({
     isOpen: false,
@@ -57,6 +65,24 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
     }
   };
 
+  const handleApplyFilters = () => {
+    setAppliedYear(stagedYear);
+    setAppliedQuarter(stagedQuarter);
+    setAppliedStartDate(stagedStartDate);
+    setAppliedEndDate(stagedEndDate);
+  };
+
+  const handleClearFilters = () => {
+    setStagedYear('all');
+    setStagedQuarter('all');
+    setStagedStartDate('');
+    setStagedEndDate('');
+    setAppliedYear('all');
+    setAppliedQuarter('all');
+    setAppliedStartDate('');
+    setAppliedEndDate('');
+  };
+
   // Helper to get year from date
   const getYear = (dateStr: string | Date) => new Date(dateStr).getFullYear().toString();
   
@@ -74,15 +100,15 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
     const date = new Date(est.issueDate);
     
     // Primary filter: Manual Date Range
-    if (startDate || endDate) {
-      if (startDate && date < new Date(startDate)) return false;
-      if (endDate && date > new Date(endDate)) return false;
+    if (appliedStartDate || appliedEndDate) {
+      if (appliedStartDate && date < new Date(appliedStartDate)) return false;
+      if (appliedEndDate && date > new Date(appliedEndDate)) return false;
       return true;
     }
     
     // Fallback filter: Year/Quarter
-    const yearMatch = filterYear === 'all' || date.getFullYear().toString() === filterYear;
-    const quarterMatch = filterQuarter === 'all' || (Math.floor(date.getMonth() / 3) + 1).toString() === filterQuarter;
+    const yearMatch = appliedYear === 'all' || date.getFullYear().toString() === appliedYear;
+    const quarterMatch = appliedQuarter === 'all' || (Math.floor(date.getMonth() / 3) + 1).toString() === appliedQuarter;
     return yearMatch && quarterMatch;
   });
 
@@ -123,11 +149,11 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <label>Filtrar por Año</label>
             <select 
               className={styles.selectModern} 
-              value={filterYear}
+              value={stagedYear}
               onChange={(e) => {
-                setFilterYear(e.target.value);
-                setStartDate('');
-                setEndDate('');
+                setStagedYear(e.target.value);
+                setStagedStartDate('');
+                setStagedEndDate('');
               }}
             >
               <option value="all">Todos los años</option>
@@ -140,22 +166,22 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <label>Filtrar por Trimestre</label>
             <select 
               className={styles.selectModern} 
-              value={filterQuarter}
+              value={stagedQuarter}
               onChange={(e) => {
-                setFilterQuarter(e.target.value);
-                setStartDate('');
-                setEndDate('');
+                setStagedQuarter(e.target.value);
+                setStagedStartDate('');
+                setStagedEndDate('');
               }}
             >
               <option value="all">Todos los trimestres</option>
               {[1, 2, 3, 4].filter(q => {
-                if (filterYear === 'all') return true;
+                if (stagedYear === 'all') return true;
                 const now = new Date();
                 const currentYear = now.getFullYear();
                 const currentQuarter = Math.floor(now.getMonth() / 3) + 1;
                 
-                if (parseInt(filterYear) < currentYear) return true;
-                if (parseInt(filterYear) === currentYear) return q <= currentQuarter;
+                if (parseInt(stagedYear) < currentYear) return true;
+                if (parseInt(stagedYear) === currentYear) return q <= currentQuarter;
                 return true;
               }).map(q => (
                 <option key={q} value={q.toString()}>
@@ -169,11 +195,11 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <input 
               type="date" 
               className={styles.inputModern} 
-              value={startDate}
+              value={stagedStartDate}
               onChange={(e) => {
-                setStartDate(e.target.value);
-                setFilterYear('all');
-                setFilterQuarter('all');
+                setStagedStartDate(e.target.value);
+                setStagedYear('all');
+                setStagedQuarter('all');
               }}
             />
           </div>
@@ -182,31 +208,35 @@ export default function EstimateListManager({ initialEstimates }: { initialEstim
             <input 
               type="date" 
               className={styles.inputModern} 
-              value={endDate}
+              value={stagedEndDate}
               onChange={(e) => {
-                setEndDate(e.target.value);
-                setFilterYear('all');
-                setFilterQuarter('all');
+                setStagedEndDate(e.target.value);
+                setStagedYear('all');
+                setStagedQuarter('all');
               }}
             />
           </div>
-          {(startDate || endDate || filterYear !== 'all' || filterQuarter !== 'all') && (
-            <div className={styles.filterGroup}>
-              <label>&nbsp;</label>
+          <div className={styles.filterGroup}>
+            <label>&nbsp;</label>
+            <div style={{ display: 'flex', gap: '8px' }}>
               <button 
-                className="btn-secondary" 
-                style={{ padding: '8px 16px', fontSize: '13px' }}
-                onClick={() => {
-                  setFilterYear('all');
-                  setFilterQuarter('all');
-                  setStartDate('');
-                  setEndDate('');
-                }}
+                className="btn-primary" 
+                style={{ padding: '9px 20px', fontSize: '14px' }}
+                onClick={handleApplyFilters}
               >
-                Limpiar
+                Filtrar
               </button>
+              {(stagedYear !== 'all' || stagedQuarter !== 'all' || stagedStartDate || stagedEndDate || appliedYear !== 'all' || appliedQuarter !== 'all' || appliedStartDate || appliedEndDate) && (
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding: '8px 16px', fontSize: '13px' }}
+                  onClick={handleClearFilters}
+                >
+                  Limpiar
+                </button>
+              )}
             </div>
-          )}
+          </div>
         </div>
 
         {/* Summary Stats */}
