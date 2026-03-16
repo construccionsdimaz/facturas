@@ -23,7 +23,7 @@ export default async function Home() {
   const now = new Date();
   
   // Create an array of the last 7 months in chronological order
-  const last7Months = [];
+  const last7Months: { date: Date, name: string, total: number, month: number, year: number }[] = [];
   for (let i = 6; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     last7Months.push({
