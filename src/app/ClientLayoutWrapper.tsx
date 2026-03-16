@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Sidebar from "./components/Sidebar";
 import Topbar from "./components/Topbar";
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 
 export default function ClientLayoutWrapper({
   children,
@@ -12,6 +12,12 @@ export default function ClientLayoutWrapper({
 }) {
   const pathname = usePathname();
   const isPrintPage = pathname?.includes('/print');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+
+  useEffect(() => {
+    // Close mobile menu on route change
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -29,14 +35,28 @@ export default function ClientLayoutWrapper({
   return (
     <div className="app-container">
       <div className="no-print">
-        <Sidebar />
+        <Sidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
       </div>
-      <div className="main-content" style={{ paddingBottom: '100px' }}>
+      <div className="main-content">
         <div className="no-print">
-          <Topbar />
+          <Topbar onMenuClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} />
         </div>
         {children}
       </div>
+      {/* Mobile Backdrop */}
+      {isMobileMenuOpen && (
+        <div 
+          className="no-print"
+          onClick={() => setIsMobileMenuOpen(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(4px)',
+            zIndex: 998,
+          }}
+        />
+      )}
     </div>
   );
 }

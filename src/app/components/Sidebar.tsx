@@ -4,15 +4,20 @@ import styles from './sidebar.module.css';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-export default function Sidebar() {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname();
 
   return (
-    <aside className={`glass-panel ${styles.sidebar}`}>
+    <aside className={`glass-panel ${styles.sidebar} ${isOpen ? styles.mobileOpen : ''}`}>
       <div className={styles.logo}>
-        {/* Placeholder for real logo */}
         <div className={styles.logoIcon}></div>
         <h2>Next-Gen</h2>
+        <button className={styles.closeBtn} onClick={onClose}>✕</button>
       </div>
       
       <nav className={styles.nav}>

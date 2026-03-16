@@ -11,24 +11,20 @@
 
 @media (max-width: 768px) {
   .sidebar {
-    width: 100vw;
-    height: 70px;
-    margin: 0;
     position: fixed;
-    bottom: 0;
+    top: 0;
+    left: -280px; /* Hidden by default */
+    width: 280px;
+    height: 100vh;
+    margin: 0;
+    z-index: 999;
+    transition: left 0.3s ease;
+    border-radius: 0 16px 16px 0;
+    background: var(--bg-main) !important;
+  }
+
+  .sidebar.mobileOpen {
     left: 0;
-    right: 0;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    padding: 0 10px;
-    z-index: 9999;
-    border-radius: 20px 20px 0 0;
-    border: none;
-    background: rgba(10, 10, 11, 0.85) !important;
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 -5px 20px rgba(0,0,0,0.5);
   }
 }
 
@@ -55,7 +51,24 @@
 
 @media (max-width: 768px) {
   .logo {
-    display: none;
+    justify-content: space-between;
+    margin-bottom: 2rem;
+  }
+  .logo h2 {
+    display: block;
+    font-size: 1.1rem;
+  }
+}
+
+.closeBtn {
+  display: none;
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+}
+
+@media (max-width: 768px) {
+  .closeBtn {
+    display: block;
   }
 }
 
@@ -68,10 +81,9 @@
 
 @media (max-width: 768px) {
   .nav {
-    flex-direction: row;
-    gap: 0;
+    flex-direction: column;
+    gap: 0.5rem;
     width: 100%;
-    justify-content: space-around;
   }
 }
 
@@ -99,21 +111,16 @@
 
 @media (max-width: 768px) {
   .navItem {
-    flex-direction: column;
-    gap: 4px;
-    padding: 8px 12px;
-    font-size: 10px;
-    flex: 1;
-    text-align: center;
-    justify-content: center;
+    padding: 0.875rem 1rem;
+    font-size: 0.95rem;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 1rem;
   }
   .navItem.active {
-    border-right: none;
-    border-top: 3px solid var(--accent-primary);
-    background: transparent;
-  }
-  .icon {
-    font-size: 1.25rem;
+    border-right: 3px solid var(--accent-primary);
+    border-top: none;
+    background: rgba(59, 130, 246, 0.1);
   }
 }
 
@@ -129,7 +136,7 @@
 
 @media (max-width: 768px) {
   .bottom {
-    display: none;
+    display: flex;
   }
 }
 

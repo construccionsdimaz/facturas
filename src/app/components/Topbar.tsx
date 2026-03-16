@@ -1,9 +1,17 @@
 import styles from './topbar.module.css';
 import Link from 'next/link';
 
-export default function Topbar() {
+interface TopbarProps {
+  onMenuClick?: () => void;
+}
+
+export default function Topbar({ onMenuClick }: TopbarProps) {
   return (
     <header className={`glass-panel ${styles.topbar}`}>
+      <button className={styles.menuBtn} onClick={onMenuClick}>
+        <span>☰</span>
+      </button>
+      
       <div className={styles.searchContainer}>
         <span className={styles.searchIcon}>🔍</span>
         <input 
@@ -20,7 +28,7 @@ export default function Topbar() {
         </button>
         <Link href="/invoices/new">
           <button className="btn-primary">
-            + Nueva Factura
+            + <span className={styles.newLabel}>Nueva Factura</span>
           </button>
         </Link>
       </div>
