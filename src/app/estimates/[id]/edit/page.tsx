@@ -31,6 +31,7 @@ export default function EditEstimatePage() {
   const [estimateNumber, setEstimateNumber] = useState('');
   const [validUntil, setValidUntil] = useState('');
   const [status, setStatus] = useState('DRAFT');
+  const [language, setLanguage] = useState('ES');
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState('');
@@ -52,6 +53,7 @@ export default function EditEstimatePage() {
       setClientSearch(estimate.client?.name || '');
       setValidUntil(estimate.validUntil ? estimate.validUntil.split('T')[0] : '');
       setStatus(estimate.status);
+      if (estimate.language) setLanguage(estimate.language);
       setItems(estimate.items.map((item: any) => ({
         id: item.id,
         description: item.description,
@@ -102,7 +104,8 @@ export default function EditEstimatePage() {
             description: item.description,
             quantity: item.quantity,
             price: item.price,
-          }))
+          })),
+          language
         })
       });
       if (!res.ok) throw new Error('Error');
@@ -169,6 +172,10 @@ export default function EditEstimatePage() {
                 />
               </div>
               <div className={styles.formGroup}>
+                <label>Fecha Emisión</label>
+                <input type="date" className="input-modern" disabled defaultValue={new Date().toISOString().split('T')[0]} />
+              </div>
+              <div className={styles.formGroup}>
                 <label>Válido hasta</label>
                 <input 
                   type="date" 
@@ -177,6 +184,9 @@ export default function EditEstimatePage() {
                   onChange={(e) => setValidUntil(e.target.value)}
                 />
               </div>
+            </div>
+            
+            <div className={styles.formRow} style={{ marginTop: '1.5rem' }}>
               <div className={styles.formGroup}>
                 <label>Estado</label>
                 <select 
@@ -191,6 +201,19 @@ export default function EditEstimatePage() {
                   <option value="CONVERTED" disabled>Convertido</option>
                 </select>
               </div>
+              <div className={styles.formGroup}>
+                <label>Idioma PDF</label>
+                <select 
+                  className="input-modern" 
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                >
+                  <option value="ES">Español</option>
+                  <option value="CA">Català</option>
+                  <option value="EN">English</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}></div>
             </div>
           </div>
 

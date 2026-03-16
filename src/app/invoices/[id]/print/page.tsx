@@ -61,6 +61,7 @@ export default function PrintInvoicePage() {
           number: invoice.number,
           issueDate: invoice.createdAt || new Date().toISOString(),
           dueDate: invoice.dueDate || '',
+          language: invoice.language,
           clientName: invoice.client?.name || '',
           clientAddress: invoice.client?.address || '',
           clientTaxId: invoice.client?.taxId || '',

@@ -23,7 +23,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { number, clientId, userId, subtotal, taxAmount, total, items, paymentMethod } = body;
+    const { number, clientId, userId, subtotal, taxAmount, total, items, paymentMethod, language } = body;
 
     // Resolve Demo User (since there's no NextAuth session yet)
     let user = await db.user.findFirst();
@@ -49,6 +49,7 @@ export async function POST(request: Request) {
         taxAmount,
         total,
         paymentMethod,
+        language: language || 'ES',
         items: {
           create: items.map((item: any) => ({
             description: item.description,

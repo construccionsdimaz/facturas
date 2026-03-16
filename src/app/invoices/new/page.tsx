@@ -49,6 +49,7 @@ export default function NewInvoice() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [invoiceNumber, setInvoiceNumber] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
+  const [language, setLanguage] = useState('ES');
   const [brandColor, setBrandColor] = useState('#00509d'); 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -173,6 +174,7 @@ export default function NewInvoice() {
         subtotal,
         taxAmount: tax,
         total,
+        language,
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -215,6 +217,7 @@ export default function NewInvoice() {
         subtotal,
         taxAmount: tax,
         total,
+        language,
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -254,6 +257,7 @@ export default function NewInvoice() {
           number: invoiceNumber,
           issueDate: new Date().toISOString(),
           dueDate: '',
+          language: language,
           clientName: selectedClient?.name || '',
           clientAddress: selectedClient?.address || '',
           clientTaxId: selectedClient?.taxId || '',
@@ -326,6 +330,9 @@ export default function NewInvoice() {
                 <label>Fecha Vencimiento</label>
                 <input type="date" className="input-modern" />
               </div>
+            </div>
+            
+            <div className={styles.formRow} style={{ marginTop: '1.5rem' }}>
               <div className={styles.formGroup}>
                 <label>Forma de Pago</label>
                 <select 
@@ -337,6 +344,19 @@ export default function NewInvoice() {
                   <option value="Efectivo">Efectivo</option>
                 </select>
               </div>
+              <div className={styles.formGroup}>
+                <label>Idioma PDF</label>
+                <select 
+                  className="input-modern" 
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                >
+                  <option value="ES">Español</option>
+                  <option value="CA">Català</option>
+                  <option value="EN">English</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}></div> {/* Empty space to keep layout balanced */}
             </div>
             
             <div className={styles.divider}></div>

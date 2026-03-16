@@ -33,7 +33,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, status, validUntil } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, status, validUntil, language } = body;
 
     // Delete existing items and create new ones for simplicity
     await db.estimateItem.deleteMany({
@@ -49,6 +49,7 @@ export async function PUT(
         taxAmount,
         total,
         status,
+        language,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
           create: items.map((item: any) => ({

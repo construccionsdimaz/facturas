@@ -56,6 +56,7 @@ export default function PrintEstimatePage() {
           number: estimate.number,
           issueDate: estimate.issueDate || new Date().toISOString(),
           validUntil: estimate.validUntil,
+          language: estimate.language,
           clientName: estimate.client?.name || '',
           clientAddress: estimate.client?.address || '',
           clientTaxId: estimate.client?.taxId || '',

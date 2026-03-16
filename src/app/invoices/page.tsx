@@ -26,7 +26,7 @@ export default async function InvoicesPage() {
     <div className={styles.invoicesPage}>
       <div className={styles.header}>
         <div>
-          <h1 className="text-gradient">Facturas</h1>
+          <h1 className="text-gradient">Facturas <span style={{ fontSize: '12px', opacity: 0.5 }}>v1.1</span></h1>
           <p className={styles.subtitle}>Gestiona todas tus facturas emitidas.</p>
         </div>
         <Link href="/invoices/new">

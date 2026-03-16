@@ -30,7 +30,10 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   const [isSaving, setIsSaving] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [issueDate, setIssueDate] = useState('');
+  const [dueDate, setDueDate] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
+  const [language, setLanguage] = useState('ES');
 
   // Client search
   const [clientSearch, setClientSearch] = useState('');
@@ -53,6 +56,11 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
           quantity: item.quantity,
           price: item.price,
         })));
+        setIssueDate(invoice.issueDate ? invoice.issueDate.split('T')[0] : '');
+        setDueDate(invoice.dueDate ? invoice.dueDate.split('T')[0] : '');
+        if (invoice.language) {
+          setLanguage(invoice.language);
+        }
         if (invoice.paymentMethod) {
           setPaymentMethod(invoice.paymentMethod);
         }
@@ -100,7 +108,10 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
             quantity: item.quantity,
             price: item.price,
           })),
-          paymentMethod
+          paymentMethod,
+          language,
+          issueDate,
+          dueDate
         })
       });
       if (!res.ok) throw new Error('Error');
@@ -167,6 +178,27 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                 />
               </div>
               <div className={styles.formGroup}>
+                <label>Fecha Emisión</label>
+                <input 
+                  type="date" 
+                  className="input-modern" 
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Fecha Vencimiento</label>
+                <input 
+                  type="date" 
+                  className="input-modern" 
+                  value={dueDate}
+                  onChange={(e) => setDueDate(e.target.value)}
+                />
+              </div>
+            </div>
+            
+            <div className={styles.formRow} style={{ marginTop: '1.5rem' }}>
+              <div className={styles.formGroup}>
                 <label>Forma de Pago</label>
                 <select 
                   className="input-modern" 
@@ -177,6 +209,19 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                   <option value="Efectivo">Efectivo</option>
                 </select>
               </div>
+              <div className={styles.formGroup}>
+                <label>Idioma PDF</label>
+                <select 
+                  className="input-modern" 
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                >
+                  <option value="ES">Español</option>
+                  <option value="CA">Català</option>
+                  <option value="EN">English</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}></div>
             </div>
             
             <div className={styles.divider}></div>

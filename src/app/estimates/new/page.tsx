@@ -49,7 +49,9 @@ export default function NewEstimate() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [estimateNumber, setEstimateNumber] = useState('');
   const [validUntil, setValidUntil] = useState('');
-  const [brandColor, setBrandColor] = useState('#8b5cf6'); // Purple for estimates to distinguish from blue invoices
+  const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
+  const [language, setLanguage] = useState('ES');
+  const [brandColor, setBrandColor] = useState('#8b5cf6'); 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
   const pdfRef = useRef<HTMLDivElement>(null);
@@ -116,6 +118,8 @@ export default function NewEstimate() {
         subtotal,
         taxAmount: tax,
         total,
+        language,
+        issueDate: issueDate || undefined,
         validUntil: validUntil || undefined,
         items: items.map(item => ({
           description: item.description,
@@ -152,6 +156,7 @@ export default function NewEstimate() {
           number: estimateNumber,
           issueDate: new Date().toISOString(),
           validUntil: validUntil,
+          language: language,
           clientName: selectedClient?.name || '',
           clientAddress: selectedClient?.address || '',
           clientTaxId: selectedClient?.taxId || '',
@@ -209,7 +214,12 @@ export default function NewEstimate() {
               </div>
               <div className={styles.formGroup}>
                 <label>Fecha Emisión</label>
-                <input type="date" className="input-modern" defaultValue={new Date().toISOString().split('T')[0]} />
+                <input 
+                  type="date" 
+                  className="input-modern" 
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)}
+                />
               </div>
               <div className={styles.formGroup}>
                 <label>Válido hasta</label>
@@ -220,6 +230,28 @@ export default function NewEstimate() {
                   onChange={(e) => setValidUntil(e.target.value)}
                 />
               </div>
+            </div>
+            
+            <div className={styles.formRow} style={{ marginTop: '1.5rem' }}>
+              <div className={styles.formGroup}>
+                <label>Estado</label>
+                <select className="input-modern" disabled defaultValue="DRAFT">
+                  <option value="DRAFT">Borrador</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}>
+                <label>Idioma PDF</label>
+                <select 
+                  className="input-modern" 
+                  value={language}
+                  onChange={(e) => setLanguage(e.target.value)}
+                >
+                  <option value="ES">Español</option>
+                  <option value="CA">Català</option>
+                  <option value="EN">English</option>
+                </select>
+              </div>
+              <div className={styles.formGroup}></div>
             </div>
             
             <div className={styles.divider}></div>

@@ -71,6 +71,7 @@ model Invoice {
   total       Float    @default(0)
   
   currency    String   @default("EUR")
+  language    String   @default("ES") // ES, CA, EN
   notes       String?
   paymentMethod String?
   
@@ -111,6 +112,7 @@ model Estimate {
   total       Float    @default(0)
   
   currency    String   @default("EUR")
+  language    String   @default("ES") // ES, CA, EN
   notes       String?
   
   createdAt   DateTime @default(now())

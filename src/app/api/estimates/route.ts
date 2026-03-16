@@ -23,7 +23,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, validUntil } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, validUntil, language } = body;
 
     // Resolve Demo User
     let user = await db.user.findFirst();
@@ -48,6 +48,7 @@ export async function POST(request: Request) {
         subtotal,
         taxAmount,
         total,
+        language: language || 'ES',
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
           create: items.map((item: any) => ({
