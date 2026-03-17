@@ -21,7 +21,9 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
     }
   });
 
-  if (!project) return <div>Obra no encontrada</div>;
+  const clients = await db.client.findMany({
+    orderBy: { name: 'asc' }
+  });
 
   return (
     <div className={styles.projectsPage}>
@@ -37,7 +39,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         </div>
       </div>
 
-      <ProjectDetailClient project={project as any} />
+      <ProjectDetailClient project={project as any} clients={clients} />
     </div>
   );
 }

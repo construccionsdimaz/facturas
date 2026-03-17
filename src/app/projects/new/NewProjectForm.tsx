@@ -14,6 +14,10 @@ export default function NewProjectForm({ clients }: { clients: any[] }) {
     clientId: ''
   });
 
+  // Search state
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.name || !formData.clientId) {
@@ -62,17 +66,67 @@ export default function NewProjectForm({ clients }: { clients: any[] }) {
 
           <div className={styles.filterGroup}>
             <label>Cliente vinculada *</label>
-            <select 
-              className={styles.inputModern}
-              value={formData.clientId}
-              onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-              required
-            >
-              <option value="">Selecciona un cliente...</option>
-              {clients.map(c => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
+            <div style={{ position: 'relative' }}>
+              <input
+                type="text"
+                className={styles.inputModern}
+                placeholder="🔍 Buscar por nombre, DNI, teléfono..."
+                value={clientSearch}
+                onChange={(e) => {
+                  setClientSearch(e.target.value);
+                  setShowClientDropdown(true);
+                  if (!e.target.value) setFormData({ ...formData, clientId: '' });
+                }}
+                onFocus={() => setShowClientDropdown(true)}
+                onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
+                required={!formData.clientId}
+              />
+              {showClientDropdown && clientSearch && (() => {
+                const query = clientSearch.toLowerCase();
+                const filtered = clients.filter(c =>
+                  c.name.toLowerCase().includes(query) ||
+                  (c.taxId && c.taxId.toLowerCase().includes(query)) ||
+                  (c.phone && c.phone.toLowerCase().includes(query)) ||
+                  (c.email && c.email.toLowerCase().includes(query))
+                );
+                return filtered.length > 0 ? (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                    background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                  }}>
+                    {filtered.map(c => (
+                      <div
+                        key={c.id}
+                        onMouseDown={() => {
+                          setFormData({ ...formData, clientId: c.id });
+                          setClientSearch(c.name);
+                          setShowClientDropdown(false);
+                        }}
+                        style={{
+                          padding: '10px 14px', cursor: 'pointer',
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
+                          transition: 'background 0.15s',
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                      >
+                        <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{c.name}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                          {[c.taxId, c.phone, c.email].filter(Boolean).join(' · ') || 'Sin datos adicionales'}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : null;
+              })()}
+              {formData.clientId && (
+                <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>
+                  ✓ Cliente seleccionado: {clients.find(c => c.id === formData.clientId)?.name}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className={styles.filterGroup}>

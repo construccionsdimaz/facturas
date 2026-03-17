@@ -10,6 +10,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 interface ProjectDetailClientProps {
   project: {
     id: string;
+    clientId: string;
     name: string;
     description: string | null;
     address: string | null;
@@ -17,10 +18,11 @@ interface ProjectDetailClientProps {
     client: { name: string };
     invoices: any[];
     estimates: any[];
-  }
+  };
+  clients: any[];
 }
 
-export default function ProjectDetailClient({ project: initialProject }: ProjectDetailClientProps) {
+export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [activeTab, setActiveTab] = useState<'invoices' | 'estimates'>('invoices');
@@ -30,7 +32,12 @@ export default function ProjectDetailClient({ project: initialProject }: Project
   const [editedName, setEditedName] = useState(project.name);
   const [editedDescription, setEditedDescription] = useState(project.description || '');
   const [editedAddress, setEditedAddress] = useState(project.address || '');
+  const [editedClientId, setEditedClientId] = useState(project.clientId);
   const [isSaving, setIsSaving] = useState(false);
+
+  // Search state
+  const [clientSearch, setClientSearch] = useState(project.client.name);
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
 
   // Delete state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -39,6 +46,11 @@ export default function ProjectDetailClient({ project: initialProject }: Project
   const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
 
   const handleUpdate = async () => {
+    if (!editedName || !editedClientId) {
+      alert("Por favor rellena el nombre y selecciona un cliente.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch(`/api/projects/${project.id}`, {
@@ -48,11 +60,16 @@ export default function ProjectDetailClient({ project: initialProject }: Project
           name: editedName,
           description: editedDescription,
           address: editedAddress,
-          status: project.status
+          status: project.status,
+          clientId: editedClientId
         })
       });
       if (!res.ok) throw new Error('Failed to update');
       const updated = await res.json();
+      
+      // Update local state with the new client data that might come back from API
+      // Or just refresh the page since it's cleaner to get the full include data
+      router.refresh(); 
       setProject({ ...project, ...updated });
       setIsEditing(false);
     } catch (error) {
@@ -120,7 +137,72 @@ export default function ProjectDetailClient({ project: initialProject }: Project
           <h3>Editar Información de la Obra</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
             <div className={styles.formGroup}>
-              <label>Nombre de la Obra</label>
+              <label>Cliente Vinculado *</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  className="input-modern"
+                  placeholder="🔍 Buscar por nombre, DNI, teléfono..."
+                  value={clientSearch}
+                  onChange={(e) => {
+                    setClientSearch(e.target.value);
+                    setShowClientDropdown(true);
+                    if (!e.target.value) setEditedClientId('');
+                  }}
+                  onFocus={() => setShowClientDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
+                  required={!editedClientId}
+                />
+                {showClientDropdown && clientSearch && (() => {
+                  const query = clientSearch.toLowerCase();
+                  const filtered = clients.filter(c =>
+                    c.name.toLowerCase().includes(query) ||
+                    (c.taxId && c.taxId.toLowerCase().includes(query)) ||
+                    (c.phone && c.phone.toLowerCase().includes(query)) ||
+                    (c.email && c.email.toLowerCase().includes(query))
+                  );
+                  return filtered.length > 0 ? (
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                      background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
+                      borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                    }}>
+                      {filtered.map(c => (
+                        <div
+                          key={c.id}
+                          onMouseDown={() => {
+                            setEditedClientId(c.id);
+                            setClientSearch(c.name);
+                            setShowClientDropdown(false);
+                          }}
+                          style={{
+                            padding: '10px 14px', cursor: 'pointer',
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text-primary)' }}>{c.name}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>
+                            {[c.taxId, c.phone, c.email].filter(Boolean).join(' · ') || 'Sin datos adicionales'}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
+                {editedClientId && (
+                  <div style={{ fontSize: '12px', color: '#10b981', marginTop: '4px' }}>
+                    ✓ Cliente seleccionado: {clients.find(c => c.id === editedClientId)?.name}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.formGroup}>
+              <label>Nombre de la Obra *</label>
               <input 
                 type="text" 
                 className="input-modern" 
