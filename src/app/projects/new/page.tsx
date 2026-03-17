@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import NewProjectForm from "./NewProjectForm";
 
+export const dynamic = 'force-dynamic';
+
 export default async function NewProjectPage() {
   const clients = await db.client.findMany({
     orderBy: { name: 'asc' }
