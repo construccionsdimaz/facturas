@@ -7,7 +7,7 @@ import ProjectsListClient from "@/app/projects/ProjectsListClient";
 export const dynamic = 'force-dynamic';
 
 export default async function ProjectsPage() {
-  const projects = await db.project.findMany({
+  const projects = await (db as any).project.findMany({
     include: {
       client: true,
       _count: {

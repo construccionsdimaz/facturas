@@ -7,7 +7,7 @@ import ProjectDetailClient from "@/app/projects/[id]/ProjectDetailClient";
 export const dynamic = 'force-dynamic';
 
 export default async function ProjectDetailPage({ params }: { params: { id: string } }) {
-  const project = await db.project.findUnique({
+  const project = await (db as any).project.findUnique({
     where: { id: params.id },
     include: {
       client: true,
