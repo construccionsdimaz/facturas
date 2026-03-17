@@ -61,7 +61,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
             </div>
             <div>
               <span className={styles.label}>Fecha Emisión</span>
-              <span className={styles.value}>{new Date(invoice.createdAt).toLocaleDateString('es-ES')}</span>
+              <span className={styles.value}>{new Date(invoice.issueDate).toLocaleDateString('es-ES')}</span>
             </div>
             <div>
               <span className={styles.label}>Total</span>
@@ -106,7 +106,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
       <InvoiceDetailClient invoice={{
         id: invoice.id,
         number: invoice.number,
-        issueDate: invoice.createdAt.toISOString(),
+        issueDate: invoice.issueDate.toISOString(),
         clientName: invoice.client.name,
         clientAddress: invoice.client.address || '',
         clientTaxId: invoice.client.taxId || '',

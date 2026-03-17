@@ -59,7 +59,7 @@ export default function PrintInvoicePage() {
       <div className={styles.printWrapper}>
         <InvoicePDFTemplate data={{
           number: invoice.number,
-          issueDate: invoice.createdAt || new Date().toISOString(),
+          issueDate: invoice.issueDate || new Date().toISOString(),
           dueDate: invoice.dueDate || '',
           language: invoice.language,
           clientName: invoice.client?.name || '',
