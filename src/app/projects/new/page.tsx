@@ -1,5 +1,5 @@
 import { db } from "@/lib/db";
-import NewProjectForm from "./NewProjectForm";
+import NewProjectForm from "@/app/projects/new/NewProjectForm";
 
 export const dynamic = 'force-dynamic';
 
