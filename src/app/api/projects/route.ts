@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 export async function GET() {
   try {
     // For now, we fetch all projects. In a fully multi-user app, we'd filter by userId.
-    const projects = await db.project.findMany({
+    const projects = await (db as any).project.findMany({
       include: {
         client: true,
         _count: {
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     const user = await db.user.findFirst();
     if (!user) throw new Error('No user found');
 
-    const project = await db.project.create({
+    const project = await (db as any).project.create({
       data: {
         name,
         description,

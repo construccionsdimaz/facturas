@@ -14,8 +14,25 @@ export default function ProjectsListClient({ initialProjects }: { initialProject
     p.client.name.toLowerCase().includes(search.toLowerCase())
   );
 
+  const totalActive = projects.filter(p => p.status === 'ACTIVE').length;
+
   return (
     <>
+      <div className="metricsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '32px' }}>
+        <div className="glass-panel" style={{ padding: '20px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>Total Obras</div>
+          <div style={{ fontSize: '24px', fontWeight: '700' }}>{projects.length}</div>
+        </div>
+        <div className="glass-panel" style={{ padding: '20px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>Obras Activas</div>
+          <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--success-main)' }}>{totalActive}</div>
+        </div>
+        <div className="glass-panel" style={{ padding: '20px' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', textTransform: 'uppercase' }}>Obras Finalizadas</div>
+          <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--warning-main)' }}>{projects.length - totalActive}</div>
+        </div>
+      </div>
+
       <div className={styles.controlsSection}>
         <div className={styles.filterBar}>
           <div className={styles.filterGroup} style={{ flex: 1 }}>

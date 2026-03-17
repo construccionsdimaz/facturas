@@ -19,9 +19,13 @@ type Invoice = {
   client: {
     name: string;
   };
+  projectId?: string | null;
+  project?: {
+    name: string;
+  } | null;
 };
 
-export default function InvoiceListManager({ initialInvoices }: { initialInvoices: Invoice[] }) {
+export default function InvoiceListManager({ initialInvoices, allProjects = [] }: { initialInvoices: Invoice[], allProjects?: { id: string, name: string }[] }) {
   const [invoices, setInvoices] = useState(initialInvoices);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   
@@ -30,12 +34,14 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
   const [stagedQuarter, setStagedQuarter] = useState<string>('all');
   const [stagedStartDate, setStagedStartDate] = useState<string>('');
   const [stagedEndDate, setStagedEndDate] = useState<string>('');
+  const [stagedProject, setStagedProject] = useState<string>('all');
   
   // Applied filters (what actually filters the list)
   const [appliedYear, setAppliedYear] = useState<string>('all');
   const [appliedQuarter, setAppliedQuarter] = useState<string>('all');
   const [appliedStartDate, setAppliedStartDate] = useState<string>('');
   const [appliedEndDate, setAppliedEndDate] = useState<string>('');
+  const [appliedProject, setAppliedProject] = useState<string>('all');
   
   const [modalConfig, setModalConfig] = useState<{ isOpen: boolean; id: string; number: string }>({
     isOpen: false,
@@ -73,6 +79,7 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
     setAppliedQuarter(stagedQuarter);
     setAppliedStartDate(stagedStartDate);
     setAppliedEndDate(stagedEndDate);
+    setAppliedProject(stagedProject);
   };
 
   const handleClearFilters = () => {
@@ -80,10 +87,12 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
     setStagedQuarter('all');
     setStagedStartDate('');
     setStagedEndDate('');
+    setStagedProject('all');
     setAppliedYear('all');
     setAppliedQuarter('all');
     setAppliedStartDate('');
     setAppliedEndDate('');
+    setAppliedProject('all');
   };
 
   // Helper to get year from date
@@ -112,7 +121,8 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
     // Fallback filter: Year/Quarter
     const yearMatch = appliedYear === 'all' || date.getFullYear().toString() === appliedYear;
     const quarterMatch = appliedQuarter === 'all' || (Math.floor(date.getMonth() / 3) + 1).toString() === appliedQuarter;
-    return yearMatch && quarterMatch;
+    const projectMatch = appliedProject === 'all' || inv.projectId === appliedProject;
+    return yearMatch && quarterMatch && projectMatch;
   });
 
   // Calculate totals for the filtered set
@@ -170,6 +180,17 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
             />
           </div>
           <div className={styles.filterGroup}>
+            <label>Filtrar por Obra</label>
+            <CustomSelect
+              value={stagedProject}
+              onChange={(val) => setStagedProject(val)}
+              options={[
+                { value: 'all', label: 'Todas las obras' },
+                ...allProjects.map(p => ({ value: p.id, label: p.name }))
+              ]}
+            />
+          </div>
+          <div className={styles.filterGroup}>
             <label>Desde</label>
             <input 
               type="date" 
@@ -205,7 +226,7 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
               >
                 🔍 Filtrar
               </button>
-              {(stagedYear !== 'all' || stagedQuarter !== 'all' || stagedStartDate || stagedEndDate || appliedYear !== 'all' || appliedQuarter !== 'all' || appliedStartDate || appliedEndDate) && (
+              {(stagedYear !== 'all' || stagedQuarter !== 'all' || stagedStartDate || stagedEndDate || stagedProject !== 'all' || appliedYear !== 'all' || appliedQuarter !== 'all' || appliedStartDate || appliedEndDate || appliedProject !== 'all') && (
                 <button 
                   className="btn-secondary" 
                   style={{ padding: '8px 16px', fontSize: '13px' }}
@@ -243,6 +264,7 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
               <th>Cliente</th>
               <th>Importe</th>
               <th>Estado</th>
+              <th>Obra</th>
               <th>Fecha</th>
               <th style={{ textAlign: 'right' }}>Acciones</th>
             </tr>
@@ -278,6 +300,11 @@ export default function InvoiceListManager({ initialInvoices }: { initialInvoice
                 </td>
                 <td>
                   <InvoiceStatusToggle invoiceId={inv.id} currentStatus={inv.status as any} />
+                </td>
+                <td>
+                  <span style={{ fontSize: '13px', color: inv.project ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+                    {inv.project ? inv.project.name : '—'}
+                  </span>
                 </td>
                 <td className={styles.cellDate}>
                   <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>

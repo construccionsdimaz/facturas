@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const estimate = await db.estimate.findUnique({
+    const estimate = await (db.estimate as any).findUnique({
       where: { id },
       include: {
         client: true,
@@ -78,7 +78,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await db.estimate.delete({
+    await (db.estimate as any).delete({
       where: { id },
     });
 

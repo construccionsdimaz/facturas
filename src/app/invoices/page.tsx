@@ -6,13 +6,19 @@ import InvoiceListManager from "./InvoiceListManager";
 export const dynamic = 'force-dynamic';
 
 export default async function InvoicesPage() {
-  const invoices = await db.invoice.findMany({
+  const invoices = await (db.invoice as any).findMany({
     include: {
-      client: true
+      client: true,
+      project: true
     },
     orderBy: {
       createdAt: 'desc'
     }
+  });
+
+  const projects = await (db as any).project.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
   });
 
   // Convert dates to ISO strings for client component
@@ -34,7 +40,7 @@ export default async function InvoicesPage() {
         </Link>
       </div>
 
-      <InvoiceListManager initialInvoices={serializedInvoices} />
+      <InvoiceListManager initialInvoices={serializedInvoices} allProjects={projects as any[]} />
     </div>
   );
 }

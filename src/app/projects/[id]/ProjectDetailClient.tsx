@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import invStyles from '@/app/invoices/page.module.css';
 import styles from '../page.module.css';
+import ConfirmationModal from '@/components/ConfirmationModal';
 
 interface ProjectDetailClientProps {
   project: {
@@ -18,38 +20,161 @@ interface ProjectDetailClientProps {
   }
 }
 
-export default function ProjectDetailClient({ project }: ProjectDetailClientProps) {
+export default function ProjectDetailClient({ project: initialProject }: ProjectDetailClientProps) {
+  const router = useRouter();
+  const [project, setProject] = useState(initialProject);
   const [activeTab, setActiveTab] = useState<'invoices' | 'estimates'>('invoices');
+  
+  // Edit state
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(project.name);
+  const [editedDescription, setEditedDescription] = useState(project.description || '');
+  const [editedAddress, setEditedAddress] = useState(project.address || '');
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Delete state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
 
+  const handleUpdate = async () => {
+    setIsSaving(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editedName,
+          description: editedDescription,
+          address: editedAddress,
+          status: project.status
+        })
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      const updated = await res.json();
+      setProject({ ...project, ...updated });
+      setIsEditing(false);
+    } catch (error) {
+      alert('Error al actualizar la obra');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleToggleStatus = async () => {
+    const newStatus = project.status === 'ACTIVE' ? 'COMPLETED' : 'ACTIVE';
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: newStatus
+        })
+      });
+      if (!res.ok) throw new Error('Failed to update status');
+      setProject({ ...project, status: newStatus });
+    } catch (error) {
+      alert('Error al cambiar el estado');
+    }
+  };
+
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      router.push('/projects');
+    } catch (error) {
+      alert('Error al eliminar la obra');
+      setIsDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-      <div className="metricsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>CLIENTE</div>
-          <div style={{ fontSize: '18px', fontWeight: '600' }}>{project.client.name}</div>
-          {project.address && (
-            <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>📍 {project.address}</div>
-          )}
-        </div>
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>TOTAL FACTURADO</div>
-          <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-primary)' }}>
-            {totalInvoiced.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-          </div>
-        </div>
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>ESTADO</div>
-          <div style={{ fontSize: '18px', fontWeight: '600' }}>
-             <span className={`badge badge-${project.status === 'ACTIVE' ? 'success' : 'warning'}`}>
-                {project.status === 'ACTIVE' ? 'ACTIVA' : 'FINALIZADA'}
-             </span>
-          </div>
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+        {!isEditing ? (
+          <>
+            <button className="btn-secondary" onClick={() => setIsEditing(true)}>✏️ Editar Obra</button>
+            <button className="btn-secondary" onClick={handleToggleStatus}>
+              {project.status === 'ACTIVE' ? '✅ Finalizar Obra' : '🚀 Reactivar Obra'}
+            </button>
+            <button className="btn-secondary" style={{ color: '#ff4444' }} onClick={() => setShowDeleteModal(true)}>🗑️ Eliminar</button>
+          </>
+        ) : (
+          <>
+            <button className="btn-secondary" onClick={() => setIsEditing(false)} disabled={isSaving}>Cancelar</button>
+            <button className="btn-primary" onClick={handleUpdate} disabled={isSaving}>
+              {isSaving ? 'Guardando...' : '💾 Guardar Cambios'}
+            </button>
+          </>
+        )}
       </div>
 
-      {project.description && (
+      {isEditing ? (
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <h3>Editar Información de la Obra</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
+            <div className={styles.formGroup}>
+              <label>Nombre de la Obra</label>
+              <input 
+                type="text" 
+                className="input-modern" 
+                value={editedName} 
+                onChange={(e) => setEditedName(e.target.value)} 
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Dirección / Localización</label>
+              <input 
+                type="text" 
+                className="input-modern" 
+                value={editedAddress} 
+                onChange={(e) => setEditedAddress(e.target.value)} 
+              />
+            </div>
+            <div className={styles.formGroup}>
+              <label>Descripción / Notas</label>
+              <textarea 
+                className="input-modern" 
+                style={{ minHeight: '100px', resize: 'vertical' }}
+                value={editedDescription} 
+                onChange={(e) => setEditedDescription(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="metricsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>CLIENTE</div>
+            <div style={{ fontSize: '18px', fontWeight: '600' }}>{project.client.name}</div>
+            {project.address && (
+              <div style={{ fontSize: '14px', color: 'var(--text-muted)', marginTop: '4px' }}>📍 {project.address}</div>
+            )}
+          </div>
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>TOTAL FACTURADO</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-primary)' }}>
+              {totalInvoiced.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+            </div>
+          </div>
+          <div className="glass-panel" style={{ padding: '24px' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>ESTADO</div>
+            <div style={{ fontSize: '18px', fontWeight: '600' }}>
+              <span className={`badge badge-${project.status === 'ACTIVE' ? 'success' : 'warning'}`}>
+                  {project.status === 'ACTIVE' ? 'ACTIVA' : 'FINALIZADA'}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!isEditing && project.description && (
         <div className="glass-panel" style={{ padding: '24px' }}>
           <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>DESCRIPCIÓN</div>
           <div style={{ whiteSpace: 'pre-wrap' }}>{project.description}</div>
@@ -104,7 +229,7 @@ export default function ProjectDetailClient({ project }: ProjectDetailClientProp
                     <td>{new Date(inv.issueDate).toLocaleDateString()}</td>
                     <td>{inv.total.toFixed(2)} €</td>
                     <td>
-                      <span className={`badge badge-${inv.status === 'PAID' ? 'success' : 'warning'}`}>
+                      <span className={`badge badge-${inv.status === 'PAID' ? 'success' : inv.status === 'OVERDUE' ? 'danger' : 'warning'}`}>
                         {inv.status}
                       </span>
                     </td>
@@ -142,6 +267,15 @@ export default function ProjectDetailClient({ project }: ProjectDetailClientProp
           )}
         </div>
       </div>
+
+      <ConfirmationModal 
+        isOpen={showDeleteModal}
+        title="¿Eliminar Obra?"
+        message="Esta acción no se puede deshacer. Los documentos asociados (facturas y presupuestos) no se borrarán, pero dejarán de estar vinculados a esta obra."
+        confirmLabel={isDeleting ? "Eliminando..." : "Sí, Eliminar"}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteModal(false)}
+      />
     </div>
   );
 }

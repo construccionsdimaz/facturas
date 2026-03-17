@@ -6,20 +6,26 @@ import EstimateListManager from "@/app/estimates/EstimateListManager";
 export const dynamic = 'force-dynamic';
 
 export default async function EstimatesPage() {
-  const estimates = await db.estimate.findMany({
+  const estimates = await (db.estimate as any).findMany({
     include: {
-      client: true
+      client: true,
+      project: true
     },
     orderBy: {
       createdAt: 'desc'
     }
   });
 
+  const projects = await (db as any).project.findMany({
+    select: { id: true, name: true },
+    orderBy: { name: 'asc' }
+  });
+
   // Convert dates to ISO strings for client component
   const serializedEstimates = estimates.map((est: any) => ({
     ...est,
     createdAt: est.createdAt.toISOString(),
-    issueDate: est.issueDate.toISOString(),
+    issueDate: est.issueDate ? est.issueDate.toISOString() : est.createdAt.toISOString(),
     validUntil: est.validUntil ? est.validUntil.toISOString() : null
   }));
 
@@ -35,7 +41,7 @@ export default async function EstimatesPage() {
         </Link>
       </div>
 
-      <EstimateListManager initialEstimates={serializedEstimates} />
+      <EstimateListManager initialEstimates={serializedEstimates} allProjects={projects as any[]} />
     </div>
   );
 }

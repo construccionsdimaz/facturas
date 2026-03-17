@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const invoice = await db.invoice.findUnique({
+    const invoice = await (db.invoice as any).findUnique({
       where: { id },
       include: {
         client: true,
@@ -38,7 +38,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });
     }
 
-    const updated = await db.invoice.update({
+    const updated = await (db.invoice as any).update({
       where: { id },
       data: { status }
     });
@@ -105,7 +105,7 @@ export async function DELETE(
     });
 
     // Delete the invoice
-    await db.invoice.delete({
+    await (db.invoice as any).delete({
       where: { id }
     });
 
