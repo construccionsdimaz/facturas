@@ -50,6 +50,7 @@ export async function PUT(
         total,
         status,
         language,
+        issueDate: issueDate ? new Date(issueDate) : undefined,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
           create: items.map((item: any) => ({
@@ -62,7 +63,7 @@ export async function PUT(
       include: {
         items: true,
       },
-    });
+    } as any);
 
     return NextResponse.json(updatedEstimate);
   } catch (error) {

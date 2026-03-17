@@ -57,7 +57,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, paymentMethod, language } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, paymentMethod, language, issueDate, dueDate } = body;
 
     // Delete existing items then recreate
     await db.invoiceItem.deleteMany({ where: { invoiceId: id } });
@@ -72,6 +72,8 @@ export async function PUT(
         total,
         paymentMethod,
         language,
+        issueDate: issueDate ? new Date(issueDate) : undefined,
+        dueDate: dueDate ? new Date(dueDate) : undefined,
         items: {
           create: items.map((item: { description: string; quantity: number; price: number }) => ({
             description: item.description,
@@ -81,7 +83,7 @@ export async function PUT(
         },
       },
       include: { items: true, client: true }
-    });
+    } as any);
 
     return NextResponse.json(updated);
   } catch (error) {
