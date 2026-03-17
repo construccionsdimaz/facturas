@@ -3,12 +3,12 @@ import { db } from '@/lib/db';
 
 export async function GET(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
-    const project = await db.project.findUnique({
+    const project = await (db as any).project.findUnique({
       where: { id },
       include: {
         client: true,
@@ -34,14 +34,14 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
   try {
     const data = await req.json();
     const { name, description, address, status, clientId } = data;
 
-    const project = await db.project.update({
+    const project = await (db as any).project.update({
       where: { id },
       data: {
         name,
@@ -61,14 +61,14 @@ export async function PUT(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = params;
+  const { id } = await params;
 
   try {
     // We don't delete invoices/estimates, just the project link.
     // Prisma relation on Invoice is optional projectId, so it works.
-    await db.project.delete({
+    await (db as any).project.delete({
       where: { id }
     });
 
