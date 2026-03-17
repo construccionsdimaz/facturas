@@ -54,6 +54,8 @@ export default function NewInvoice() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const pdfRef = useRef<HTMLDivElement>(null);
 
   // Quick Add Client State
@@ -103,6 +105,21 @@ export default function NewInvoice() {
       }
     }).catch(err => console.error("Error loading data", err));
   }, []);
+
+  // Fetch projects when client changes
+  useEffect(() => {
+    if (selectedClientId) {
+      fetch(`/api/projects`).then(res => res.json()).then(data => {
+        // Filter projects for the selected client
+        const clientProjects = (data || []).filter((p: any) => p.clientId === selectedClientId);
+        setProjects(clientProjects);
+        setSelectedProjectId(''); // Reset project when client changes
+      });
+    } else {
+      setProjects([]);
+      setSelectedProjectId('');
+    }
+  }, [selectedClientId]);
 
   // Quick Add Client
   const handleQuickAddClient = async () => {
@@ -175,6 +192,7 @@ export default function NewInvoice() {
         taxAmount: tax,
         total,
         language,
+        projectId: selectedProjectId || undefined,
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -218,6 +236,7 @@ export default function NewInvoice() {
         taxAmount: tax,
         total,
         language,
+        projectId: selectedProjectId || undefined,
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -356,7 +375,20 @@ export default function NewInvoice() {
                   <option value="EN">English</option>
                 </select>
               </div>
-              <div className={styles.formGroup}></div> {/* Empty space to keep layout balanced */}
+              <div className={styles.formGroup}>
+                <label>Vincular a Obra (Opcional)</label>
+                <select 
+                  className="input-modern" 
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  disabled={!selectedClientId}
+                >
+                  <option value="">-- Sin Obra --</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             
             <div className={styles.divider}></div>

@@ -54,6 +54,8 @@ export default function NewEstimate() {
   const [brandColor, setBrandColor] = useState('#8b5cf6'); 
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState('');
   const pdfRef = useRef<HTMLDivElement>(null);
 
   // Quick Add Client State (omitting for brevity or keeping simple)
@@ -83,6 +85,20 @@ export default function NewEstimate() {
       
     }).catch(err => console.error("Error loading data", err));
   }, []);
+
+  // Fetch projects when client changes
+  useEffect(() => {
+    if (selectedClientId) {
+      fetch(`/api/projects`).then(res => res.json()).then(data => {
+        const clientProjects = (data || []).filter((p: any) => p.clientId === selectedClientId);
+        setProjects(clientProjects);
+        setSelectedProjectId('');
+      });
+    } else {
+      setProjects([]);
+      setSelectedProjectId('');
+    }
+  }, [selectedClientId]);
 
   const addItem = () => {
     setItems([...items, { id: Date.now().toString(), description: '', quantity: 1, price: 0 }]);
@@ -121,6 +137,7 @@ export default function NewEstimate() {
         language,
         issueDate: issueDate || undefined,
         validUntil: validUntil || undefined,
+        projectId: selectedProjectId || undefined,
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -251,7 +268,20 @@ export default function NewEstimate() {
                   <option value="EN">English</option>
                 </select>
               </div>
-              <div className={styles.formGroup}></div>
+              <div className={styles.formGroup}>
+                <label>Vincular a Obra (Opcional)</label>
+                <select 
+                  className="input-modern" 
+                  value={selectedProjectId}
+                  onChange={(e) => setSelectedProjectId(e.target.value)}
+                  disabled={!selectedClientId}
+                >
+                  <option value="">-- Sin Obra --</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.name}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             
             <div className={styles.divider}></div>
