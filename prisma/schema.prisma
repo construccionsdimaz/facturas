@@ -168,30 +168,13 @@ model Project {
   invoices    Invoice[]
   estimates   Estimate[]
   budgetLines ProjectBudgetLine[]
-  expenses    ProjectExpense[]
 }
 
-// Budget line items (Partidas) for a project
 model ProjectBudgetLine {
   id              String   @id @default(cuid())
   name            String
   description     String?
   estimatedAmount Float    @default(0)
-  
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-}
-
-// Real expenses/costs incurred for a project
-model ProjectExpense {
-  id              String   @id @default(cuid())
-  description     String
-  amount          Float
-  date            DateTime @default(now())
-  category        String?  // Materiales, Mano de Obra, Alquiler, etc.
   
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)

@@ -18,6 +18,7 @@ interface ProjectDetailClientProps {
     client: { name: string };
     invoices: any[];
     estimates: any[];
+    budgetLines: any[];
   };
   clients: any[];
 }
@@ -25,7 +26,14 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
-  const [activeTab, setActiveTab] = useState<'invoices' | 'estimates'>('invoices');
+  const [activeTab, setActiveTab] = useState<'budget' | 'invoices' | 'estimates'>('budget');
+  
+  // Budget management state
+  const [isAddingLine, setIsAddingLine] = useState(false);
+  const [newLineName, setNewLineName] = useState('');
+  const [newLineAmount, setNewLineAmount] = useState('');
+  const [newLineDesc, setNewLineDesc] = useState('');
+  const [isSavingLine, setIsSavingLine] = useState(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -66,10 +74,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       });
       if (!res.ok) throw new Error('Failed to update');
       const updated = await res.json();
-
-      // Update local state with the new client data that might come back from API
-      // Or just refresh the page since it's cleaner to get the full include data
-      router.refresh();
+      
+      router.refresh(); 
       setProject({ ...project, ...updated });
       setIsEditing(false);
     } catch (error) {
@@ -108,6 +114,53 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       alert('Error al eliminar la obra');
       setIsDeleting(false);
       setShowDeleteModal(false);
+    }
+  };
+
+  const handleDeleteBudgetLine = async (lineId: string) => {
+    if (!confirm('¿Seguro que quieres eliminar esta partida?')) return;
+    try {
+      const res = await fetch(`/api/projects/budget/${lineId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setProject({
+        ...project,
+        budgetLines: project.budgetLines.filter((l: any) => l.id !== lineId)
+      });
+    } catch (error) {
+      alert('Error al eliminar la partida');
+    }
+  };
+
+  const handleAddBudgetLine = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newLineName) return;
+    setIsSavingLine(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/budget`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newLineName,
+          description: newLineDesc,
+          estimatedAmount: newLineAmount
+        })
+      });
+      if (!res.ok) throw new Error('Failed to add');
+      const newLine = await res.json();
+      setProject({
+        ...project,
+        budgetLines: [...project.budgetLines, newLine]
+      });
+      setIsAddingLine(false);
+      setNewLineName('');
+      setNewLineAmount('');
+      setNewLineDesc('');
+    } catch (error) {
+      alert('Error al añadir la partida');
+    } finally {
+      setIsSavingLine(false);
     }
   };
 
@@ -266,6 +319,18 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       <div className="glass-panel" style={{ padding: '0' }}>
         <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
           <button
+            onClick={() => setActiveTab('budget')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'budget' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'budget' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600'
+            }}
+          >
+            Presupuesto ({project.budgetLines.length})
+          </button>
+          <button
             onClick={() => setActiveTab('invoices')}
             style={{
               padding: '16px 24px',
@@ -292,7 +357,107 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         </div>
 
         <div style={{ padding: '24px' }}>
-          {activeTab === 'invoices' ? (
+          {activeTab === 'budget' ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ fontSize: '18px', fontWeight: '600' }}>Partidas del Proyecto</div>
+                <button className="btn-primary" onClick={() => setIsAddingLine(true)} style={{ padding: '8px 16px', fontSize: '14px' }}>
+                  + Añadir Partida
+                </button>
+              </div>
+
+              {isAddingLine && (
+                <div className="glass-panel" style={{ padding: '20px', marginBottom: '24px', border: '1px solid var(--accent-primary)' }}>
+                  <form onSubmit={handleAddBudgetLine}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr auto', gap: '16px', alignItems: 'flex-start' }}>
+                      <div className={styles.formGroup}>
+                        <label>Concepto / Partida *</label>
+                        <input 
+                          type="text" 
+                          className="input-modern" 
+                          placeholder="Ej: Demolición y Desescombro" 
+                          value={newLineName}
+                          onChange={e => setNewLineName(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Importe Estimado (€)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          className="input-modern" 
+                          placeholder="0.00" 
+                          value={newLineAmount}
+                          onChange={e => setNewLineAmount(e.target.value)}
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '24px' }}>
+                        <button type="button" className="btn-secondary" onClick={() => setIsAddingLine(false)} disabled={isSavingLine}>
+                          Cancelar
+                        </button>
+                        <button type="submit" className="btn-primary" disabled={isSavingLine}>
+                          {isSavingLine ? '...' : 'Añadir'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup} style={{ marginTop: '12px' }}>
+                      <label>Descripción (Opcional)</label>
+                      <input 
+                        type="text" 
+                        className="input-modern" 
+                        placeholder="Breve descripción de los trabajos..." 
+                        value={newLineDesc}
+                        onChange={e => setNewLineDesc(e.target.value)}
+                      />
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <table className={invStyles.table}>
+                <thead>
+                  <tr>
+                    <th>Concepto</th>
+                    <th>Descripción</th>
+                    <th style={{ textAlign: 'right' }}>Presupuestado</th>
+                    <th style={{ width: '80px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {project.budgetLines.length === 0 ? (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay partidas definidas. Comienza añadiendo una presupuestada.</td></tr>
+                  ) : project.budgetLines.map((line: any) => (
+                    <tr key={line.id}>
+                      <td style={{ fontWeight: '600' }}>{line.name}</td>
+                      <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{line.description || '-'}</td>
+                      <td style={{ textAlign: 'right', fontWeight: '700' }}>
+                        {line.estimatedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button 
+                          onClick={() => handleDeleteBudgetLine(line.id)}
+                          style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
+                          title="Eliminar partida"
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {project.budgetLines.length > 0 && (
+                    <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                      <td colSpan={2} style={{ textAlign: 'right', fontWeight: '700', padding: '16px' }}>TOTAL PRESUPUESTADO:</td>
+                      <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--accent-primary)', fontSize: '18px', padding: '16px' }}>
+                        {project.budgetLines.reduce((sum: number, l: any) => sum + l.estimatedAmount, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                      </td>
+                      <td></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : activeTab === 'invoices' ? (
             <table className={invStyles.table}>
               <thead>
                 <tr>
