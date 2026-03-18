@@ -19,6 +19,7 @@ interface ProjectDetailClientProps {
     invoices: any[];
     estimates: any[];
     budgetLines: any[];
+    expenses: any[];
   };
   clients: any[];
 }
@@ -26,7 +27,7 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
-  const [activeTab, setActiveTab] = useState<'budget' | 'invoices' | 'estimates'>('budget');
+  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'invoices' | 'estimates'>('budget');
   
   // Budget management state
   const [isAddingLine, setIsAddingLine] = useState(false);
@@ -34,6 +35,14 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [newLineAmount, setNewLineAmount] = useState('');
   const [newLineDesc, setNewLineDesc] = useState('');
   const [isSavingLine, setIsSavingLine] = useState(false);
+
+  // Expenses management state
+  const [isAddingExpense, setIsAddingExpense] = useState(false);
+  const [newExpDesc, setNewExpDesc] = useState('');
+  const [newExpAmount, setNewExpAmount] = useState('');
+  const [newExpDate, setNewExpDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newExpCategory, setNewExpCategory] = useState('Materiales');
+  const [isSavingExpense, setIsSavingExpense] = useState(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -52,6 +61,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [isDeleting, setIsDeleting] = useState(false);
 
   const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
+  const totalExpenses = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
+  const totalBudgeted = project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0);
 
   const handleUpdate = async () => {
     if (!editedName || !editedClientId) {
@@ -161,6 +172,54 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       alert('Error al añadir la partida');
     } finally {
       setIsSavingLine(false);
+    }
+  };
+
+  const handleAddExpense = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newExpDesc || !newExpAmount) return;
+    setIsSavingExpense(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/expenses`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          description: newExpDesc,
+          amount: newExpAmount,
+          date: newExpDate,
+          category: newExpCategory
+        })
+      });
+      if (!res.ok) throw new Error('Failed to add');
+      const newExp = await res.json();
+      setProject({
+        ...project,
+        expenses: [newExp, ...project.expenses]
+      });
+      setIsAddingExpense(false);
+      setNewExpDesc('');
+      setNewExpAmount('');
+      setNewExpCategory('Materiales');
+    } catch (error) {
+      alert('Error al añadir el gasto');
+    } finally {
+      setIsSavingExpense(false);
+    }
+  };
+
+  const handleDeleteExpense = async (expId: string) => {
+    if (!confirm('¿Seguro que quieres eliminar este gasto?')) return;
+    try {
+      const res = await fetch(`/api/projects/expenses/${expId}`, {
+        method: 'DELETE'
+      });
+      if (!res.ok) throw new Error('Failed to delete');
+      setProject({
+        ...project,
+        expenses: project.expenses.filter((e: any) => e.id !== expId)
+      });
+    } catch (error) {
+      alert('Error al eliminar el gasto');
     }
   };
 
@@ -284,7 +343,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           </div>
         </div>
       ) : (
-        <div className="metricsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '20px' }}>
+        <div className="metricsGrid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px' }}>
           <div className="glass-panel" style={{ padding: '24px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>CLIENTE</div>
             <div style={{ fontSize: '18px', fontWeight: '600' }}>{project.client.name}</div>
@@ -293,17 +352,21 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             )}
           </div>
           <div className="glass-panel" style={{ padding: '24px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>TOTAL FACTURADO</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>FACTURADO</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: 'var(--accent-primary)' }}>
               {totalInvoiced.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
           </div>
+          <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid #ff4444' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>GASTOS REALES</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: '#ff4444' }}>
+              {totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+            </div>
+          </div>
           <div className="glass-panel" style={{ padding: '24px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>ESTADO</div>
-            <div style={{ fontSize: '18px', fontWeight: '600' }}>
-              <span className={`badge badge-${project.status === 'ACTIVE' ? 'success' : 'warning'}`}>
-                {project.status === 'ACTIVE' ? 'ACTIVA' : 'FINALIZADA'}
-              </span>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>MARGEN ESTIMADO</div>
+            <div style={{ fontSize: '24px', fontWeight: '700', color: (totalInvoiced - totalExpenses) >= 0 ? '#10b981' : '#ff4444' }}>
+              {(totalInvoiced - totalExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
           </div>
         </div>
@@ -317,7 +380,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       )}
 
       <div className="glass-panel" style={{ padding: '0' }}>
-        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+        <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', overflowX: 'auto' }}>
           <button
             onClick={() => setActiveTab('budget')}
             style={{
@@ -325,10 +388,24 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               color: activeTab === 'budget' ? 'var(--accent-primary)' : 'var(--text-muted)',
               borderBottom: activeTab === 'budget' ? '2px solid var(--accent-primary)' : 'none',
               background: 'none',
-              fontWeight: '600'
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
             }}
           >
             Presupuesto ({project.budgetLines.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('expenses')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'expenses' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'expenses' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Gastos ({project.expenses.length})
           </button>
           <button
             onClick={() => setActiveTab('invoices')}
@@ -337,7 +414,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               color: activeTab === 'invoices' ? 'var(--accent-primary)' : 'var(--text-muted)',
               borderBottom: activeTab === 'invoices' ? '2px solid var(--accent-primary)' : 'none',
               background: 'none',
-              fontWeight: '600'
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
             }}
           >
             Facturas ({project.invoices.length})
@@ -349,7 +427,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               color: activeTab === 'estimates' ? 'var(--accent-primary)' : 'var(--text-muted)',
               borderBottom: activeTab === 'estimates' ? '2px solid var(--accent-primary)' : 'none',
               background: 'none',
-              fontWeight: '600'
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
             }}
           >
             Presupuestos ({project.estimates.length})
@@ -449,7 +528,127 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                     <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
                       <td colSpan={2} style={{ textAlign: 'right', fontWeight: '700', padding: '16px' }}>TOTAL PRESUPUESTADO:</td>
                       <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--accent-primary)', fontSize: '18px', padding: '16px' }}>
-                        {project.budgetLines.reduce((sum: number, l: any) => sum + l.estimatedAmount, 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                        {totalBudgeted.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                      </td>
+                      <td></td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : activeTab === 'expenses' ? (
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <div style={{ fontSize: '18px', fontWeight: '600' }}>Registro de Gastos</div>
+                <button className="btn-primary" onClick={() => setIsAddingExpense(true)} style={{ padding: '8px 16px', fontSize: '14px' }}>
+                  + Anotar Gasto
+                </button>
+              </div>
+
+              {isAddingExpense && (
+                <div className="glass-panel" style={{ padding: '20px', marginBottom: '24px', border: '1px solid #ff4444' }}>
+                  <form onSubmit={handleAddExpense}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '16px', alignItems: 'flex-start' }}>
+                      <div className={styles.formGroup}>
+                        <label>Descripción / Concepto *</label>
+                        <input 
+                          type="text" 
+                          className="input-modern" 
+                          placeholder="Ej: Factura BricoDepot material fontanería" 
+                          value={newExpDesc}
+                          onChange={e => setNewExpDesc(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Categoría</label>
+                        <select 
+                          className="input-modern" 
+                          value={newExpCategory}
+                          onChange={e => setNewExpCategory(e.target.value)}
+                        >
+                          <option value="Materiales">Materiales</option>
+                          <option value="Mano de Obra">Mano de Obra</option>
+                          <option value="Herramientas">Herramientas</option>
+                          <option value="Subcontrata">Subcontrata</option>
+                          <option value="Otros">Otros</option>
+                        </select>
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Importe (€) *</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          className="input-modern" 
+                          placeholder="0.00" 
+                          value={newExpAmount}
+                          onChange={e => setNewExpAmount(e.target.value)}
+                          required
+                        />
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '24px' }}>
+                        <button type="button" className="btn-secondary" onClick={() => setIsAddingExpense(false)} disabled={isSavingExpense}>
+                          Cancelar
+                        </button>
+                        <button type="submit" className="btn-primary" style={{ background: '#ff4444' }} disabled={isSavingExpense}>
+                          {isSavingExpense ? '...' : 'Anotar'}
+                        </button>
+                      </div>
+                    </div>
+                    <div className={styles.formGroup} style={{ marginTop: '12px', maxWidth: '200px' }}>
+                      <label>Fecha</label>
+                      <input 
+                        type="date" 
+                        className="input-modern" 
+                        value={newExpDate}
+                        onChange={e => setNewExpDate(e.target.value)}
+                      />
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              <table className={invStyles.table}>
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Descripción</th>
+                    <th>Categoría</th>
+                    <th style={{ textAlign: 'right' }}>Importe</th>
+                    <th style={{ width: '80px' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {project.expenses.length === 0 ? (
+                    <tr><td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay gastos registrados. Anota el primer gasto para controlar la rentabilidad.</td></tr>
+                  ) : project.expenses.map((exp: any) => (
+                    <tr key={exp.id}>
+                      <td>{new Date(exp.date).toLocaleDateString()}</td>
+                      <td style={{ fontWeight: '500' }}>{exp.description}</td>
+                      <td>
+                        <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)' }}>
+                          {exp.category}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right', fontWeight: '700', color: '#ff4444' }}>
+                        {exp.amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                      </td>
+                      <td style={{ textAlign: 'center' }}>
+                        <button 
+                          onClick={() => handleDeleteExpense(exp.id)}
+                          style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
+                          title="Eliminar gasto"
+                        >
+                          ×
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {project.expenses.length > 0 && (
+                    <tr style={{ background: 'rgba(255, 68, 68, 0.05)' }}>
+                      <td colSpan={3} style={{ textAlign: 'right', fontWeight: '700', padding: '16px' }}>TOTAL GASTOS:</td>
+                      <td style={{ textAlign: 'right', fontWeight: '800', color: '#ff4444', fontSize: '18px', padding: '16px' }}>
+                        {totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                       </td>
                       <td></td>
                     </tr>
