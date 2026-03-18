@@ -46,7 +46,15 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [newExpAmount, setNewExpAmount] = useState('');
   const [newExpDate, setNewExpDate] = useState(new Date().toISOString().split('T')[0]);
   const [newExpCategory, setNewExpCategory] = useState('Materiales');
+  const [newExpSupplierId, setNewExpSupplierId] = useState('');
+  const [newExpBudgetLineId, setNewExpBudgetLineId] = useState('');
   const [isSavingExpense, setIsSavingExpense] = useState(false);
+  
+  // Suppliers management
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [isAddingSupplier, setIsAddingSupplier] = useState(false);
+  const [newSupplierName, setNewSupplierName] = useState('');
+  const [isSavingSupplier, setIsSavingSupplier] = useState(false);
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -63,6 +71,11 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   // Delete state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+
+  useState(() => {
+    fetch('/api/suppliers').then(r => r.json()).then(setSuppliers);
+    return () => {};
+  });
 
   const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
   const totalExpenses = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
@@ -173,6 +186,24 @@ export default function ProjectDetailClient({ project: initialProject, clients }
     }
   };
 
+  const handleUpdateBudgetLineStatus = async (lineId: string, newStatus: string) => {
+    try {
+      const res = await fetch(`/api/projects/budget/${lineId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      const updatedLine = await res.json();
+      setProject({
+        ...project,
+        budgetLines: project.budgetLines.map((l: any) => l.id === lineId ? updatedLine : l)
+      });
+    } catch (error) {
+      alert('Error al actualizar el estado de la partida');
+    }
+  };
+
   const handleAddBudgetLine = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newLineName) return;
@@ -216,7 +247,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           description: newExpDesc,
           amount: newExpAmount,
           date: newExpDate,
-          category: newExpCategory
+          category: newExpCategory,
+          supplierId: newExpSupplierId || null,
+          budgetLineId: newExpBudgetLineId || null
         })
       });
       if (!res.ok) throw new Error('Failed to add');
@@ -249,6 +282,44 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       });
     } catch (error) {
       alert('Error al eliminar el gasto');
+    }
+  };
+  const handleAddSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newSupplierName) return;
+    setIsSavingSupplier(true);
+    try {
+      const res = await fetch('/api/suppliers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: newSupplierName })
+      });
+      if (!res.ok) throw new Error('Failed to add');
+      const added = await res.json();
+      setSuppliers([...suppliers, added]);
+      setNewExpSupplierId(added.id); // Auto-select for convenience
+      setIsAddingSupplier(false);
+      setNewSupplierName('');
+    } catch (error) {
+      alert('Error al añadir el proveedor');
+    } finally {
+      setIsSavingSupplier(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'COMPLETED': return '#10b981';
+      case 'IN_PROGRESS': return '#3b82f6';
+      default: return 'var(--text-muted)';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'COMPLETED': return 'Finalizada';
+      case 'IN_PROGRESS': return 'En curso';
+      default: return 'Pendiente';
     }
   };
 
@@ -540,6 +611,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 <thead>
                   <tr>
                     <th>Concepto</th>
+                    <th>Estado</th>
                     <th>Descripción</th>
                     <th style={{ textAlign: 'right' }}>Presupuestado</th>
                     <th style={{ width: '80px' }}></th>
@@ -551,6 +623,25 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   ) : project.budgetLines.map((line: any) => (
                     <tr key={line.id}>
                       <td style={{ fontWeight: '600' }}>{line.name}</td>
+                      <td>
+                        <select
+                          value={line.status}
+                          onChange={(e) => handleUpdateBudgetLineStatus(line.id, e.target.value)}
+                          style={{
+                            padding: '4px 8px',
+                            borderRadius: '4px',
+                            background: 'rgba(255,255,255,0.05)',
+                            color: getStatusColor(line.status),
+                            border: `1px solid ${getStatusColor(line.status)}`,
+                            fontSize: '12px',
+                            fontWeight: '600'
+                          }}
+                        >
+                          <option value="PENDING">Pendiente</option>
+                          <option value="IN_PROGRESS">En curso</option>
+                          <option value="COMPLETED">Finalizada</option>
+                        </select>
+                      </td>
                       <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{line.description || '-'}</td>
                       <td style={{ textAlign: 'right', fontWeight: '700' }}>
                         {line.estimatedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
@@ -590,13 +681,13 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               {isAddingExpense && (
                 <div className="glass-panel" style={{ padding: '20px', marginBottom: '24px', border: '1px solid #ff4444' }}>
                   <form onSubmit={handleAddExpense}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr auto', gap: '16px', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '16px', alignItems: 'flex-start' }}>
                       <div className={styles.formGroup}>
                         <label>Descripción / Concepto *</label>
                         <input 
                           type="text" 
                           className="input-modern" 
-                          placeholder="Ej: Factura BricoDepot material fontanería" 
+                          placeholder="Ej: Factura BricoDepot" 
                           value={newExpDesc}
                           onChange={e => setNewExpDesc(e.target.value)}
                           required
@@ -617,6 +708,53 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         </select>
                       </div>
                       <div className={styles.formGroup}>
+                        <label>Proveedor</label>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <select 
+                            className="input-modern" 
+                            value={newExpSupplierId}
+                            onChange={e => setNewExpSupplierId(e.target.value)}
+                          >
+                            <option value="">(Sin proveedor)</option>
+                            {suppliers.map(s => (
+                              <option key={s.id} value={s.id}>{s.name}</option>
+                            ))}
+                          </select>
+                          <button 
+                            type="button" 
+                            onClick={(e) => { e.preventDefault(); setIsAddingSupplier(true); }}
+                            className="btn-secondary" 
+                            style={{ padding: '0 12px' }}
+                          >
+                            +
+                          </button>
+                        </div>
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Partida de Obra</label>
+                        <select 
+                          className="input-modern" 
+                          value={newExpBudgetLineId}
+                          onChange={e => setNewExpBudgetLineId(e.target.value)}
+                        >
+                          <option value="">(Gasto general)</option>
+                          {project.budgetLines.map(l => (
+                            <option key={l.id} value={l.id}>{l.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '24px' }}>
+                        <button type="button" className="btn-secondary" onClick={() => setIsAddingExpense(false)} disabled={isSavingExpense}>
+                          ×
+                        </button>
+                        <button type="submit" className="btn-primary" style={{ background: '#ff4444' }} disabled={isSavingExpense}>
+                          {isSavingExpense ? '...' : 'OK'}
+                        </button>
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '12px' }}>
+                      <div className={styles.formGroup} style={{ flex: 1 }}>
                         <label>Importe (€) *</label>
                         <input 
                           type="number" 
@@ -628,23 +766,39 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           required
                         />
                       </div>
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '24px' }}>
-                        <button type="button" className="btn-secondary" onClick={() => setIsAddingExpense(false)} disabled={isSavingExpense}>
-                          Cancelar
-                        </button>
-                        <button type="submit" className="btn-primary" style={{ background: '#ff4444' }} disabled={isSavingExpense}>
-                          {isSavingExpense ? '...' : 'Anotar'}
-                        </button>
+                      <div className={styles.formGroup} style={{ flex: 1 }}>
+                        <label>Fecha</label>
+                        <input 
+                          type="date" 
+                          className="input-modern" 
+                          value={newExpDate}
+                          onChange={e => setNewExpDate(e.target.value)}
+                        />
                       </div>
                     </div>
-                    <div className={styles.formGroup} style={{ marginTop: '12px', maxWidth: '200px' }}>
-                      <label>Fecha</label>
-                      <input 
-                        type="date" 
-                        className="input-modern" 
-                        value={newExpDate}
-                        onChange={e => setNewExpDate(e.target.value)}
-                      />
+                  </form>
+                </div>
+              )}
+
+              {isAddingSupplier && (
+                <div className="glass-panel" style={{ padding: '20px', marginBottom: '24px', border: '1px solid var(--accent-primary)' }}>
+                  <form onSubmit={handleAddSupplier}>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end' }}>
+                      <div className={styles.formGroup} style={{ flex: 1 }}>
+                        <label>Nombre del Nuevo Proveedor</label>
+                        <input 
+                          type="text" 
+                          className="input-modern" 
+                          value={newSupplierName}
+                          onChange={e => setNewSupplierName(e.target.value)}
+                          placeholder="Ej: Carpintería Juan"
+                          required
+                        />
+                      </div>
+                      <button type="button" className="btn-secondary" onClick={() => setIsAddingSupplier(false)}>Cancelar</button>
+                      <button type="submit" className="btn-primary" disabled={isSavingSupplier}>
+                        {isSavingSupplier ? '...' : 'Añadir'}
+                      </button>
                     </div>
                   </form>
                 </div>
@@ -769,10 +923,10 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               </div>
 
               {pieData.length > 0 && (
-                <div className="glass-panel" style={{ padding: '24px' }}>
-                  <h4 style={{ marginBottom: '20px' }}>Distribución de Gastos</h4>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'center' }}>
-                    <div style={{ height: '300px', width: '100%' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                  <div className="glass-panel" style={{ padding: '24px' }}>
+                    <h4 style={{ marginBottom: '20px' }}>Distribución por Categoría</h4>
+                    <div style={{ height: '250px', width: '100%' }}>
                       <ResponsiveContainer width="100%" height="100%">
                         <PieChart>
                           <Pie
@@ -780,10 +934,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                             cx="50%"
                             cy="50%"
                             innerRadius={60}
-                            outerRadius={100}
+                            outerRadius={80}
                             paddingAngle={5}
                             dataKey="value"
-                            label={({ name, percent }) => `${name} ${(percent ? percent * 100 : 0).toFixed(0)}%`}
                           >
                             {pieData.map((entry, index) => (
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -793,32 +946,107 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    <div>
-                      <table className={invStyles.table} style={{ fontSize: '14px' }}>
+                  </div>
+
+                  <div className="glass-panel" style={{ padding: '24px' }}>
+                    <h4 style={{ marginBottom: '20px' }}>Gastos por Proveedor</h4>
+                    <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                      <table className={invStyles.table} style={{ fontSize: '13px' }}>
                         <thead>
                           <tr>
-                            <th>Categoría</th>
-                            <th style={{ textAlign: 'right' }}>Total</th>
+                            <th>Proveedor</th>
+                            <th style={{ textAlign: 'right' }}>Importe</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {pieData.map((item, idx) => (
-                            <tr key={item.name}>
-                              <td>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: COLORS[idx % COLORS.length] }} />
-                                  {item.name}
-                                </div>
-                              </td>
-                              <td style={{ textAlign: 'right', fontWeight: '700' }}>{item.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
-                            </tr>
-                          ))}
+                          {(() => {
+                            const bySupplier = project.expenses.reduce((acc: any, exp: any) => {
+                              const sName = exp.supplier?.name || 'Varios / Sin asignar';
+                              acc[sName] = (acc[sName] || 0) + exp.amount;
+                              return acc;
+                            }, {});
+                            return Object.entries(bySupplier)
+                              .sort((a: any, b: any) => b[1] - a[1])
+                              .map(([name, amount]: any) => (
+                                <tr key={name}>
+                                  <td>{name}</td>
+                                  <td style={{ textAlign: 'right', fontWeight: '700' }}>
+                                    {amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                                  </td>
+                                </tr>
+                              ));
+                          })()}
                         </tbody>
                       </table>
                     </div>
                   </div>
                 </div>
               )}
+
+              <div className="glass-panel" style={{ padding: '24px' }}>
+                <h4 style={{ marginBottom: '20px' }}>Seguimiento del Presupuesto (Partida a Partida)</h4>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className={invStyles.table} style={{ fontSize: '14px' }}>
+                    <thead>
+                      <tr>
+                        <th>Partida</th>
+                        <th style={{ textAlign: 'right' }}>Presupuestado</th>
+                        <th style={{ textAlign: 'right' }}>Gastado Real</th>
+                        <th style={{ textAlign: 'right' }}>Diferencia</th>
+                        <th style={{ width: '150px' }}>% Desviación</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {project.budgetLines.map((line: any) => {
+                        const lineExpenses = project.expenses
+                          .filter((exp: any) => exp.budgetLineId === line.id)
+                          .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+                        const diff = line.estimatedAmount - lineExpenses;
+                        const percent = line.estimatedAmount > 0 ? (lineExpenses / line.estimatedAmount) * 100 : 0;
+                        
+                        return (
+                          <tr key={line.id}>
+                            <td style={{ fontWeight: '600' }}>{line.name}</td>
+                            <td style={{ textAlign: 'right' }}>{line.estimatedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                            <td style={{ textAlign: 'right', color: '#ff4444' }}>{lineExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                            <td style={{ textAlign: 'right', fontWeight: '700', color: diff >= 0 ? '#10b981' : '#ff4444' }}>
+                              {diff.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ flex: 1, height: '6px', background: 'rgba(255,255,255,0.05)', borderRadius: '3px', overflow: 'hidden' }}>
+                                  <div style={{ 
+                                    height: '100%', 
+                                    width: `${Math.min(100, percent)}%`, 
+                                    background: percent > 100 ? '#ef4444' : percent > 80 ? '#f59e0b' : '#3b82f6' 
+                                  }} />
+                                </div>
+                                <span style={{ fontSize: '11px', fontWeight: '700' }}>{percent.toFixed(0)}%</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                      {/* Expenses not linked to any line */}
+                      {(() => {
+                        const generalExpenses = project.expenses
+                          .filter((exp: any) => !exp.budgetLineId)
+                          .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+                        if (generalExpenses === 0) return null;
+                        return (
+                          <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
+                            <td style={{ fontStyle: 'italic', color: 'var(--text-muted)' }}>Gastos Generales / No asignados</td>
+                            <td style={{ textAlign: 'right' }}>-</td>
+                            <td style={{ textAlign: 'right', color: '#ff4444' }}>{generalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                            <td style={{ textAlign: 'right' }}>-</td>
+                            <td></td>
+                          </tr>
+                        );
+                      })()}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           ) : activeTab === 'invoices' ? (
             <table className={invStyles.table}>

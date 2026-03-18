@@ -9,14 +9,15 @@ export async function PATCH(
 
   try {
     const data = await req.json();
-    const { name, description, estimatedAmount } = data;
+    const { status, name, estimatedAmount, description } = data;
 
-    const budgetLine = await (db as any).projectBudgetLine.update({
+    const budgetLine = await db.projectBudgetLine.update({
       where: { id: lineId },
       data: {
-        name,
-        description,
-        estimatedAmount: estimatedAmount !== undefined ? parseFloat(estimatedAmount) : undefined
+        status: status || undefined,
+        name: name || undefined,
+        estimatedAmount: estimatedAmount !== undefined ? parseFloat(estimatedAmount) : undefined,
+        description: description !== undefined ? description : undefined,
       }
     });
 
@@ -34,7 +35,7 @@ export async function DELETE(
   const { lineId } = await params;
 
   try {
-    await (db as any).projectBudgetLine.delete({
+    await db.projectBudgetLine.delete({
       where: { id: lineId }
     });
 

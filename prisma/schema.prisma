@@ -39,6 +39,7 @@ model User {
   invoices  Invoice[]
   estimates Estimate[]
   projects  Project[]
+  suppliers Supplier[]
 }
 
 // Client represents the people/companies you are billing
@@ -176,12 +177,21 @@ model ProjectBudgetLine {
   name            String
   description     String?
   estimatedAmount Float    @default(0)
+  status          ProjectBudgetLineStatus @default(PENDING)
   
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
+  expenses        ProjectExpense[]
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+enum ProjectBudgetLineStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
 }
 
 model ProjectExpense {
@@ -194,6 +204,29 @@ model ProjectExpense {
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
+  supplierId      String?
+  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  
+  budgetLineId    String?
+  budgetLine      ProjectBudgetLine? @relation(fields: [budgetLineId], references: [id])
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model Supplier {
+  id        String   @id @default(cuid())
+  name      String
+  taxId     String?
+  email     String?
+  phone     String?
+  address   String?
+  
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  
+  expenses  ProjectExpense[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -8,8 +8,12 @@ export async function GET(
   const { id } = await params;
 
   try {
-    const expenses = await (db as any).projectExpense.findMany({
+    const expenses = await db.projectExpense.findMany({
       where: { projectId: id },
+      include: {
+        supplier: true,
+        budgetLine: true
+      },
       orderBy: { date: 'desc' }
     });
 
@@ -28,19 +32,21 @@ export async function POST(
 
   try {
     const data = await req.json();
-    const { description, amount, date, category } = data;
+    const { description, amount, date, category, supplierId, budgetLineId } = data;
 
     if (!description || !amount) {
       return NextResponse.json({ error: 'Descripción e importe son obligatorios' }, { status: 400 });
     }
 
-    const expense = await (db as any).projectExpense.create({
+    const expense = await db.projectExpense.create({
       data: {
         description,
         amount: parseFloat(amount),
         date: date ? new Date(date) : new Date(),
         category,
-        projectId: id
+        projectId: id,
+        supplierId: supplierId || null,
+        budgetLineId: budgetLineId || null
       }
     });
 
