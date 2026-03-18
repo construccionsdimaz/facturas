@@ -16,7 +16,7 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         orderBy: { createdAt: 'desc' }
       },
       estimates: {
-        orderBy: { createdAt: 'desc' }
+        orderBy: { issueDate: 'desc' }
       },
       budgetLines: {
         orderBy: { createdAt: 'asc' }

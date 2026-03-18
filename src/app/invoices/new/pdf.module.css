@@ -38,16 +38,16 @@
 .header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 30px;
-  gap: 30px;
+  margin-bottom: 15px; /* Reduced from 30px */
+  gap: 20px; /* Reduced from 30px */
 }
 
 /* Company details + Client details side by side */
 .detailsRow {
   display: flex;
   justify-content: space-between;
-  gap: 40px;
-  margin-bottom: 30px;
+  gap: 30px; /* Reduced from 40px */
+  margin-bottom: 15px; /* Reduced from 30px */
 }
 
 .detailsBlock {
@@ -149,7 +149,7 @@
 }
 
 .itemsSection {
-  margin-bottom: 40px;
+  margin-bottom: 20px; /* Reduced from 40px */
 }
 
 .table {
@@ -166,7 +166,7 @@
 }
 
 .table td {
-  padding: 12px;
+  padding: 8px 12px; /* Reduced vertical padding from 12px */
   font-size: 14px;
   border-bottom: 1px solid #eaeaea;
 }
@@ -179,7 +179,11 @@
   background-color: white;
 }
 
-.colDesc { text-align: left; }
+.colDesc { 
+  text-align: left; 
+  white-space: pre-wrap;
+  word-break: break-word;
+}
 .colQty { text-align: center !important; width: 10%; }
 .colPrice { text-align: center !important; width: 20%; }
 .colTotal { text-align: center !important; width: 20%; font-weight: 600;}
@@ -187,7 +191,7 @@
 .summarySection {
   display: flex;
   justify-content: flex-end;
-  margin-bottom: 60px;
+  margin-bottom: 30px; /* Reduced from 60px */
 }
 
 .summaryBox {
@@ -223,8 +227,9 @@
 
 .footer {
   margin-top: auto;
-  padding-top: 20px;
+  padding-top: 15px;
   border-top: 1px solid #eaeaea;
+  page-break-inside: avoid;
 }
 
 .paymentInfo {
@@ -239,12 +244,12 @@
 }
 
 .gdpr {
-  font-size: 9px;
+  font-size: 8.5px; /* Slightly smaller from 9px */
   color: #666;
   text-align: justify;
-  line-height: 1.3;
-  margin-bottom: 20px;
-  padding: 8px;
+  line-height: 1.25;
+  margin-bottom: 15px; /* Reduced from 20px */
+  padding: 6px; /* Reduced from 8px */
   background-color: #f9f9f9;
   border-radius: 4px;
 }
@@ -312,6 +317,10 @@
 }
 
 @media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
   .printWrapper {
     padding: 0 !important;
     margin: 0 !important;
@@ -321,11 +330,18 @@
   }
   .printWrapper .pdfContainer {
     width: 210mm;
+    height: 297mm; /* Force A4 height */
+    max-height: 297mm;
     margin: 0 !important;
-    padding: 15mm;
+    padding: 10mm 15mm; /* Reduced top padding */
     box-shadow: none;
     position: relative;
     top: 0;
     left: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    page-break-after: avoid;
+    page-break-before: avoid;
   }
 }

@@ -17,6 +17,12 @@ export async function GET(
         },
         estimates: {
           orderBy: { createdAt: 'desc' }
+        },
+        budgetLines: {
+          orderBy: { createdAt: 'asc' }
+        },
+        expenses: {
+          orderBy: { date: 'desc' }
         }
       }
     });
