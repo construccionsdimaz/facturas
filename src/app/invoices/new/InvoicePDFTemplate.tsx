@@ -124,7 +124,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
           <tbody>
             {data.items.map((item, index) => (
               <tr key={index} className={index % 2 === 0 ? styles.rowEven : styles.rowOdd}>
-                <td className={styles.colDesc}>{item.description || t.concept}</td>
+                <td className={styles.colDesc} style={{ whiteSpace: 'pre-wrap' }}>{item.description || t.concept}</td>
                 <td className={styles.colQty}>{item.quantity}</td>
                 <td className={styles.colPrice}>{item.price.toFixed(2)} €</td>
                 <td className={styles.colTotal}>{(item.quantity * item.price).toFixed(2)} €</td>

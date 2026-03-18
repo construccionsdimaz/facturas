@@ -56,6 +56,7 @@ export default function NewEstimate() {
   const [saveSuccess, setSaveSuccess] = useState('');
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
+  const [spellcheckLang, setSpellcheckLang] = useState('ES');
   const pdfRef = useRef<HTMLDivElement>(null);
 
   // Quick Add Client State (omitting for brevity or keeping simple)
@@ -328,17 +329,34 @@ export default function NewEstimate() {
           </div>
 
           <div className={`glass-panel ${styles.card}`}>
-            <h3>Conceptos del Presupuesto</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+              <h3 style={{ margin: 0 }}>Conceptos del Presupuesto</h3>
+              <div className={styles.langToggle}>
+                <button 
+                  className={`${styles.langBtn} ${spellcheckLang === 'ES' ? styles.langBtnActive : ''}`}
+                  onClick={() => setSpellcheckLang('ES')}
+                >
+                  ESP
+                </button>
+                <button 
+                  className={`${styles.langBtn} ${spellcheckLang === 'CA' ? styles.langBtnActive : ''}`}
+                  onClick={() => setSpellcheckLang('CA')}
+                >
+                  CAT
+                </button>
+              </div>
+            </div>
             <div className={styles.itemsTable}>
               {items.map((item) => (
                 <div key={item.id} className={styles.itemRow}>
                   <div className={styles.colDesc}>
-                    <input 
-                      type="text" 
+                    <textarea 
                       className="input-modern" 
                       placeholder="Descripción" 
                       value={item.description}
                       onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                      spellCheck={true}
+                      lang={spellcheckLang === 'ES' ? 'es' : 'ca'}
                     />
                   </div>
                   <div className={styles.colQty}>

@@ -93,14 +93,14 @@
 .itemRow {
   display: flex;
   gap: 1rem;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .colDesc { flex: 1; }
-.colQty { width: 100px; }
-.colPrice { width: 150px; }
-.colTotal { width: 100px; text-align: right; font-weight: 600; }
-.colAction { width: 40px; display: flex; justify-content: center; }
+.colQty { width: 100px; padding-top: 5px; }
+.colPrice { width: 150px; padding-top: 5px; }
+.colTotal { width: 100px; text-align: right; font-weight: 600; padding-top: 14px; }
+.colAction { width: 40px; display: flex; justify-content: center; padding-top: 10px; }
 
 .deleteBtn {
   width: 30px;
@@ -283,4 +283,32 @@
     width: 100%;
     justify-content: flex-end;
   }
+}
+.langToggle {
+  display: flex;
+  gap: 4px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border-subtle);
+}
+
+.langBtn {
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 4px;
+  color: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.langBtnActive {
+  background: var(--accent-primary);
+  color: white;
+}
+
+textarea.input-modern {
+  min-height: 48px;
+  resize: vertical;
+  line-height: 1.5;
 }
