@@ -132,10 +132,13 @@ function NewInvoiceContent({ items, setItems }: { items: InvoiceItem[], setItems
   useEffect(() => {
     if (selectedClientId) {
       fetch(`/api/projects`).then(res => res.json()).then(data => {
-        // Filter projects for the selected client
         const clientProjects = (data || []).filter((p: any) => p.clientId === selectedClientId);
         setProjects(clientProjects);
-        setSelectedProjectId(''); // Reset project when client changes
+        
+        // Only reset if the current selected project doesn't belong to the new client
+        if (selectedProjectId && !clientProjects.some((p: any) => p.id === selectedProjectId)) {
+          setSelectedProjectId('');
+        }
       });
     } else {
       setProjects([]);

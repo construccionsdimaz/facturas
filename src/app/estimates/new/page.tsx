@@ -114,7 +114,11 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
       fetch(`/api/projects`).then(res => res.json()).then(data => {
         const clientProjects = (data || []).filter((p: any) => p.clientId === selectedClientId);
         setProjects(clientProjects);
-        setSelectedProjectId('');
+        
+        // Only reset if the current selected project doesn't belong to the new client
+        if (selectedProjectId && !clientProjects.some((p: any) => p.id === selectedProjectId)) {
+          setSelectedProjectId('');
+        }
       });
     } else {
       setProjects([]);
