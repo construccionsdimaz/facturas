@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import styles from '@/app/invoices/new/page.module.css';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 
@@ -35,11 +36,20 @@ interface CompanySettings {
   bankAccount: string;
   dataProtection: string;
 }
-
 export default function NewEstimate() {
   const [items, setItems] = useState<EstimateItem[]>([
     { id: '1', description: '', quantity: 1, price: 0 }
   ]);
+  return (
+    <Suspense fallback={<div>Cargando editor...</div>}>
+      <NewEstimateContent items={items} setItems={setItems} />
+    </Suspense>
+  );
+}
+
+function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setItems: any }) {
+  const searchParams = useSearchParams();
+  const projectIdParam = searchParams.get('projectId');
   
   // Database State
   const [clients, setClients] = useState<Client[]>([]);
@@ -84,8 +94,19 @@ export default function NewEstimate() {
       const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
       setEstimateNumber(`PRE-${year}-${nextNumber.toString().padStart(3, '0')}`);
       
+      
+      // If projectId is in URL, fetch it and pre-select
+      if (projectIdParam) {
+        fetch(`/api/projects/${projectIdParam}`).then(res => res.json()).then(project => {
+          if (project && project.clientId) {
+            setSelectedClientId(project.clientId);
+            setSelectedProjectId(project.id);
+            setClientSearch(project.client?.name || '');
+          }
+        });
+      }
     }).catch(err => console.error("Error loading data", err));
-  }, []);
+  }, [projectIdParam]);
 
   // Fetch projects when client changes
   useEffect(() => {

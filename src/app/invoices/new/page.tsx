@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import styles from './page.module.css';
 import InvoicePDFTemplate from './InvoicePDFTemplate';
 
@@ -35,11 +36,20 @@ interface CompanySettings {
   bankAccount: string;
   dataProtection: string;
 }
-
 export default function NewInvoice() {
   const [items, setItems] = useState<InvoiceItem[]>([
     { id: '1', description: '', quantity: 1, price: 0 }
   ]);
+  return (
+    <Suspense fallback={<div>Cargando editor...</div>}>
+      <NewInvoiceContent items={items} setItems={setItems} />
+    </Suspense>
+  );
+}
+
+function NewInvoiceContent({ items, setItems }: { items: InvoiceItem[], setItems: any }) {
+  const searchParams = useSearchParams();
+  const projectIdParam = searchParams.get('projectId');
   
   // Database State
   const [clients, setClients] = useState<Client[]>([]);
@@ -104,8 +114,19 @@ export default function NewInvoice() {
       if (settingsData?.paymentMethod) {
         setPaymentMethod(settingsData.paymentMethod);
       }
+
+      // If projectId is in URL, fetch it and pre-select
+      if (projectIdParam) {
+        fetch(`/api/projects/${projectIdParam}`).then(res => res.json()).then(project => {
+          if (project && project.clientId) {
+            setSelectedClientId(project.clientId);
+            setSelectedProjectId(project.id);
+            setClientSearch(project.client?.name || '');
+          }
+        });
+      }
     }).catch(err => console.error("Error loading data", err));
-  }, []);
+  }, [projectIdParam]);
 
   // Fetch projects when client changes
   useEffect(() => {

@@ -1049,7 +1049,13 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               </div>
             </div>
           ) : activeTab === 'invoices' ? (
-            <table className={invStyles.table}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Link href={`/invoices/new?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
+                  + Nueva Factura
+                </Link>
+              </div>
+              <table className={invStyles.table}>
               <thead>
                 <tr>
                   <th>Nº Factura</th>
@@ -1075,8 +1081,15 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 ))}
               </tbody>
             </table>
-          ) : (
-            <table className={invStyles.table}>
+          </div>
+        ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                <Link href={`/estimates/new?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
+                  + Nuevo Presupuesto
+                </Link>
+              </div>
+              <table className={invStyles.table}>
               <thead>
                 <tr>
                   <th>Nº Presupuesto</th>
@@ -1102,9 +1115,10 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 ))}
               </tbody>
             </table>
-          )}
-        </div>
+          </div>
+        )}
       </div>
+    </div>
 
       <ConfirmationModal
         isOpen={showDeleteModal}
