@@ -3,10 +3,10 @@ import { db } from '@/lib/db';
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const certificationId = params.id;
+    const { id: certificationId } = await params;
 
     // 1. Fetch certification details
     // @ts-ignore - Prisma types might be out of sync

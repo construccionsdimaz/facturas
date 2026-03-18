@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 // GET all certifications for a project
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
@@ -31,7 +31,7 @@ export async function GET(
 // POST new certification
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
