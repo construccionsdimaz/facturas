@@ -1345,7 +1345,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             <h2 className="text-gradient">Nueva Certificación de Obra</h2>
             <p className={styles.subtitle}>Indica el avance de cada partida para este periodo.</p>
             
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', margin: '20px 0' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px', margin: '20px 0' }}>
               <div className={styles.formGroup}>
                 <label>Número de Certificación</label>
                 <input 
@@ -1362,6 +1362,24 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   className="input-modern" 
                   value={newCertPeriod}
                   onChange={e => setNewCertPeriod(e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>% Retención</span>
+                  <button 
+                    onClick={() => setCertRetention(0)} 
+                    style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontSize: '10px' }}
+                  >
+                    (Poner a 0%)
+                  </button>
+                </label>
+                <input 
+                  type="number" 
+                  step="0.1"
+                  className="input-modern" 
+                  value={certRetention}
+                  onChange={e => setCertRetention(parseFloat(e.target.value) || 0)}
                 />
               </div>
             </div>
@@ -1398,12 +1416,70 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         />
                       </td>
                       <td style={{ textAlign: 'right' }}>
-                        {(((line.previous + line.current) / line.estimated) * 100).toFixed(1)}%
+                        {line.estimated > 0 ? (((line.previous + line.current) / line.estimated) * 100).toFixed(1) : '100'}%
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Quick Add Extra Line */}
+            <div style={{ padding: '16px', border: '1px dashed rgba(255,255,255,0.2)', borderRadius: '8px', marginBottom: '20px' }}>
+              <div style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px' }}>Añadir Concepto Extra (Anticipo, Modificado, etc.)</div>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-end' }}>
+                <div style={{ flex: 1 }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Concepto</label>
+                  <input id="quick-line-name" type="text" className="input-modern" placeholder="Ej: Entrega a cuenta inicial" style={{ padding: '6px 12px' }} />
+                </div>
+                <div style={{ width: '150px' }}>
+                  <label style={{ fontSize: '11px', color: 'var(--text-muted)' }}>Importe (€)</label>
+                  <input id="quick-line-amount" type="number" className="input-modern" placeholder="0.00" style={{ padding: '6px 12px' }} />
+                </div>
+                <button 
+                  className="btn-secondary" 
+                  style={{ padding: '8px 16px', fontSize: '13px' }}
+                  onClick={async () => {
+                    const name = (document.getElementById('quick-line-name') as HTMLInputElement).value;
+                    const amount = parseFloat((document.getElementById('quick-line-amount') as HTMLInputElement).value) || 0;
+                    if (!name || amount <= 0) return alert("Indica nombre e importe");
+                    
+                    try {
+                      // 1. Create the budget line
+                      const res = await fetch(`/api/projects/${project.id}/budget-lines`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, estimatedAmount: amount, description: 'Partida añadida desde certificación' })
+                      });
+                      if (!res.ok) throw new Error('Failed to add line');
+                      const newLine = await res.json();
+                      
+                      // 2. Update parent state
+                      setProject({
+                        ...project,
+                        budgetLines: [...project.budgetLines, newLine]
+                      });
+                      
+                      // 3. Update local certLines
+                      setCertLines([...certLines, {
+                        budgetLineId: newLine.id,
+                        name: newLine.name,
+                        estimated: newLine.estimatedAmount,
+                        previous: 0,
+                        current: amount
+                      }]);
+                      
+                      // Clear inputs
+                      (document.getElementById('quick-line-name') as HTMLInputElement).value = '';
+                      (document.getElementById('quick-line-amount') as HTMLInputElement).value = '';
+                    } catch (e) {
+                      alert("Error al añadir concepto");
+                    }
+                  }}
+                >
+                  + Añadir
+                </button>
+              </div>
             </div>
 
             {(() => {
