@@ -170,6 +170,7 @@ model Project {
   estimates   Estimate[]
   budgetLines ProjectBudgetLine[]
   expenses    ProjectExpense[]
+  certifications ProjectCertification[]
 }
 
 model ProjectBudgetLine {
@@ -177,11 +178,13 @@ model ProjectBudgetLine {
   name            String
   description     String?
   estimatedAmount Float    @default(0)
+  certifiedAmount Float    @default(0)
   status          ProjectBudgetLineStatus @default(PENDING)
   
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
+  certificationLines ProjectCertificationLine[]
   expenses        ProjectExpense[]
   
   createdAt       DateTime @default(now())
@@ -229,4 +232,43 @@ model Supplier {
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Project Certification (Certificaciones de Obra)
+model ProjectCertification {
+  id              String   @id @default(cuid())
+  number          String   // e.g., CERT-001
+  date            DateTime @default(now())
+  period          String?  // e.g., "Marzo 2026"
+  status          String   @default("DRAFT") // DRAFT, ISSUED
+  
+  totalAmount     Float    @default(0) // Bruto certificado en este periodo
+  retentionAmount Float    @default(0) // Retención (ej. 5%)
+  netAmount       Float    @default(0) // Líquido a percibir
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  lines           ProjectCertificationLine[]
+  invoiceId       String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model ProjectCertificationLine {
+  id              String   @id @default(cuid())
+  certificationId String
+  certification   ProjectCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
+  
+  budgetLineId    String
+  budgetLine      ProjectBudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+  
+  previousAmount  Float    @default(0) // Acumulado anterior
+  currentAmount   Float    @default(0) // Certificado ahora
+  totalToDate     Float    @default(0) // Acumulado total (Origen)
+  percentage      Float    @default(0) // % de avance total
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

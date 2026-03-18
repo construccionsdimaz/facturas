@@ -24,6 +24,7 @@ interface ProjectDetailClientProps {
     estimates: any[];
     budgetLines: any[];
     expenses: any[];
+    certifications: any[];
   };
   clients: any[];
 }
@@ -31,7 +32,7 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
-  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates'>('budget');
+  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications'>('budget');
   
   // Budget management state
   const [isAddingLine, setIsAddingLine] = useState(false);
@@ -72,6 +73,14 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Certifications state
+  const [isAddingCert, setIsAddingCert] = useState(false);
+  const [newCertNumber, setNewCertNumber] = useState('');
+  const [newCertPeriod, setNewCertPeriod] = useState('');
+  const [certLines, setCertLines] = useState<any[]>([]); // Current progress entries
+  const [isSavingCert, setIsSavingCert] = useState(false);
+  const [certRetention, setCertRetention] = useState(5); // Default 5%
+
   useState(() => {
     fetch('/api/suppliers').then(r => r.json()).then(setSuppliers);
     return () => {};
@@ -80,13 +89,15 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
   const totalExpenses = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const totalBudgeted = project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0);
+  const totalCertified = project.budgetLines.reduce((sum, l) => sum + (l.certifiedAmount || 0), 0);
   const netResult = totalInvoiced - totalExpenses;
   const marginPercentage = totalInvoiced > 0 ? (netResult / totalInvoiced) * 100 : 0;
   const pendingToInvoice = Math.max(0, totalBudgeted - totalInvoiced);
+  const pendingToCertify = Math.max(0, totalBudgeted - totalCertified);
 
   // Chart Data
   const budgetData = [
-    { name: 'Ejecución Económica', Presupuestado: totalBudgeted, Facturado: totalInvoiced }
+    { name: 'Ejecución Económica', Presupuestado: totalBudgeted, Certificado: totalCertified, Facturado: totalInvoiced }
   ];
 
   const profitData = [
@@ -201,6 +212,96 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       });
     } catch (error) {
       alert('Error al actualizar el estado de la partida');
+    }
+  };
+
+  const handleGenerateInvoice = async (cert: any) => {
+    if (!confirm(`¿Generar factura para la certificación ${cert.number}?`)) return;
+    
+    try {
+      const res = await fetch(`/api/projects/certifications/${cert.id}/invoice`, {
+        method: 'POST'
+      });
+      
+      if (!res.ok) throw new Error('Failed to generate invoice');
+      const invoice = await res.json();
+      
+      // Update local state: certification now has an invoiceId
+      setProject({
+        ...project,
+        certifications: project.certifications.map((c: any) => 
+          c.id === cert.id ? { ...c, invoiceId: invoice.id } : c
+        ),
+        invoices: [invoice, ...project.invoices]
+      });
+      
+      alert('Factura generada con éxito. Puedes verla en la pestaña de Facturas.');
+    } catch (error) {
+      console.error(error);
+      alert('Error al generar la factura');
+    }
+  };
+
+  const handleCreateCertification = async () => {
+    if (!newCertNumber) {
+      alert("Por favor indica un número de certificación.");
+      return;
+    }
+
+    const bruto = certLines.reduce((sum, l) => sum + l.current, 0);
+    if (bruto <= 0) {
+      alert("La certificación debe tener un importe mayor que 0.");
+      return;
+    }
+
+    setIsSavingCert(true);
+    try {
+      const retencion = bruto * (certRetention / 100);
+      const neto = bruto - retencion;
+
+      const res = await fetch(`/api/projects/${project.id}/certifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number: newCertNumber,
+          date: new Date().toISOString(),
+          period: newCertPeriod,
+          totalAmount: bruto,
+          retentionAmount: retencion,
+          netAmount: neto,
+          lines: certLines.map(l => ({
+            budgetLineId: l.budgetLineId,
+            previousAmount: l.previous,
+            currentAmount: l.current,
+            totalToDate: l.previous + l.current,
+            percentage: ((l.previous + l.current) / l.estimated) * 100
+          }))
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to create certification');
+      const newCert = await res.json();
+
+      // Update local state: add new cert and update budget line certified amounts
+      setProject({
+        ...project,
+        certifications: [newCert, ...(project.certifications || [])],
+        budgetLines: project.budgetLines.map(l => {
+          const lineUpdate = certLines.find(cl => cl.budgetLineId === l.id);
+          if (lineUpdate) {
+            return { ...l, certifiedAmount: (l.certifiedAmount || 0) + lineUpdate.current };
+          }
+          return l;
+        })
+      });
+
+      setIsAddingCert(false);
+      alert('Certificación emitida con éxito');
+    } catch (error) {
+      console.error(error);
+      alert('Error al emitir la certificación');
+    } finally {
+      setIsSavingCert(false);
     }
   };
 
@@ -546,6 +647,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           >
             Presupuestos ({project.estimates.length})
           </button>
+          <button
+            onClick={() => setActiveTab('certifications')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'certifications' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'certifications' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Certificaciones ({project.certifications?.length || 0})
+          </button>
         </div>
 
         <div style={{ padding: '24px' }}>
@@ -612,58 +726,73 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   <tr>
                     <th>Concepto</th>
                     <th>Estado</th>
-                    <th>Descripción</th>
                     <th style={{ textAlign: 'right' }}>Presupuestado</th>
+                    <th style={{ textAlign: 'right' }}>Certificado (Acum.)</th>
+                    <th style={{ width: '120px' }}>% Avance</th>
                     <th style={{ width: '80px' }}></th>
                   </tr>
                 </thead>
                 <tbody>
                   {project.budgetLines.length === 0 ? (
-                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay partidas definidas. Comienza añadiendo una presupuestada.</td></tr>
-                  ) : project.budgetLines.map((line: any) => (
-                    <tr key={line.id}>
-                      <td style={{ fontWeight: '600' }}>{line.name}</td>
-                      <td>
-                        <select
-                          value={line.status}
-                          onChange={(e) => handleUpdateBudgetLineStatus(line.id, e.target.value)}
-                          style={{
-                            padding: '4px 8px',
-                            borderRadius: '4px',
-                            background: 'rgba(255,255,255,0.05)',
-                            color: getStatusColor(line.status),
-                            border: `1px solid ${getStatusColor(line.status)}`,
-                            fontSize: '12px',
-                            fontWeight: '600'
-                          }}
-                        >
-                          <option value="PENDING">Pendiente</option>
-                          <option value="IN_PROGRESS">En curso</option>
-                          <option value="COMPLETED">Finalizada</option>
-                        </select>
-                      </td>
-                      <td style={{ fontSize: '13px', color: 'var(--text-muted)' }}>{line.description || '-'}</td>
-                      <td style={{ textAlign: 'right', fontWeight: '700' }}>
-                        {line.estimatedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
-                      </td>
-                      <td style={{ textAlign: 'center' }}>
-                        <button 
-                          onClick={() => handleDeleteBudgetLine(line.id)}
-                          style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
-                          title="Eliminar partida"
-                        >
-                          ×
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                    <tr><td colSpan={6} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay partidas definidas. Comienza añadiendo una presupuestada.</td></tr>
+                  ) : project.budgetLines.map((line: any) => {
+                    const progress = line.estimatedAmount > 0 ? (line.certifiedAmount / line.estimatedAmount) * 100 : 0;
+                    return (
+                      <tr key={line.id}>
+                        <td style={{ fontWeight: '600' }}>
+                          <div>{line.name}</div>
+                          {line.description && <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' }}>{line.description}</div>}
+                        </td>
+                        <td>
+                          <select
+                            value={line.status}
+                            onChange={(e) => handleUpdateBudgetLineStatus(line.id, e.target.value)}
+                            style={{
+                              padding: '4px 8px',
+                              borderRadius: '4px',
+                              background: 'rgba(255,255,255,0.05)',
+                              color: getStatusColor(line.status),
+                              border: `1px solid ${getStatusColor(line.status)}`,
+                              fontSize: '12px',
+                              fontWeight: '600'
+                            }}
+                          >
+                            <option value="PENDING">Pendiente</option>
+                            <option value="IN_PROGRESS">En curso</option>
+                            <option value="COMPLETED">Finalizada</option>
+                          </select>
+                        </td>
+                        <td style={{ textAlign: 'right' }}>{line.estimatedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                        <td style={{ textAlign: 'right', fontWeight: '700', color: progress >= 100 ? '#10b981' : 'var(--text-primary)' }}>
+                          {(line.certifiedAmount || 0).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                        </td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div style={{ flex: 1, height: '4px', background: 'rgba(255,255,255,0.05)', borderRadius: '2px', overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${Math.min(100, progress)}%`, background: progress >= 100 ? '#10b981' : '#3b82f6' }} />
+                            </div>
+                            <span style={{ fontSize: '11px' }}>{progress.toFixed(0)}%</span>
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'center' }}>
+                          <button 
+                            onClick={() => handleDeleteBudgetLine(line.id)}
+                            style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
+                            title="Eliminar partida"
+                          >
+                            ×
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                   {project.budgetLines.length > 0 && (
                     <tr style={{ background: 'rgba(255,255,255,0.02)' }}>
                       <td colSpan={2} style={{ textAlign: 'right', fontWeight: '700', padding: '16px' }}>TOTAL PRESUPUESTADO:</td>
                       <td style={{ textAlign: 'right', fontWeight: '800', color: 'var(--accent-primary)', fontSize: '18px', padding: '16px' }}>
                         {totalBudgeted.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
                       </td>
-                      <td></td>
+                      <td colSpan={3}></td>
                     </tr>
                   )}
                 </tbody>
@@ -874,8 +1003,24 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   </div>
                   <div style={{ marginTop: '20px', fontSize: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>Pendiente de Certificar:</span>
+                      <span style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>{pendingToCertify.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                    </div>
+                    <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
+                      <div 
+                        className="progress-bar-fill" 
+                        style={{ 
+                          height: '100%', 
+                          width: `${Math.min(100, (totalCertified / totalBudgeted) * 100)}%`, 
+                          background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                          transition: 'width 0.5s ease-in-out'
+                        }} 
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <span>Pendiente de Facturar:</span>
-                      <span style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>{pendingToInvoice.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                      <span style={{ fontWeight: '700', color: '#f59e0b' }}>{pendingToInvoice.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
                     </div>
                     <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
                       <div 
@@ -883,13 +1028,13 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         style={{ 
                           height: '100%', 
                           width: `${Math.min(100, (totalInvoiced / totalBudgeted) * 100)}%`, 
-                          background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                          background: 'linear-gradient(90deg, #10b981, #f59e0b)',
                           transition: 'width 0.5s ease-in-out'
                         }} 
                       />
                     </div>
                     <div style={{ textAlign: 'right', fontSize: '11px', marginTop: '4px', color: 'var(--text-muted)' }}>
-                      {((totalInvoiced / totalBudgeted) * 100 || 0).toFixed(1)}% ejecutado
+                      {((totalInvoiced / totalBudgeted) * 100 || 0).toFixed(1)}% facturado
                     </div>
                   </div>
                 </div>
@@ -1082,14 +1227,88 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               </tbody>
             </table>
           </div>
-        ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Link href={`/estimates/new?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
-                  + Nuevo Presupuesto
-                </Link>
-              </div>
+        ) : activeTab === 'certifications' ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ fontSize: '18px', fontWeight: '600' }}>Certificaciones de Obra</div>
+              <button 
+                className="btn-primary" 
+                onClick={() => {
+                  setNewCertNumber(`CERT-${(project.certifications?.length || 0) + 1}`.padStart(3, '0'));
+                  setNewCertPeriod(new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' }));
+                  // Initialize lines with 0 current progress
+                  setCertLines(project.budgetLines.map(l => ({
+                    budgetLineId: l.id,
+                    name: l.name,
+                    estimated: l.estimatedAmount,
+                    previous: l.certifiedAmount || 0,
+                    current: 0
+                  })));
+                  setIsAddingCert(true);
+                }}
+                style={{ padding: '8px 16px', fontSize: '14px' }}
+              >
+                + Nueva Certificación
+              </button>
+            </div>
+
+            <div className={`glass-panel ${invStyles.tableContainer}`}>
               <table className={invStyles.table}>
+                <thead>
+                  <tr>
+                    <th>Nº</th>
+                    <th>Fecha</th>
+                    <th>Periodo</th>
+                    <th style={{ textAlign: 'right' }}>Total (Bruto)</th>
+                    <th style={{ textAlign: 'right' }}>Retención (5%)</th>
+                    <th style={{ textAlign: 'right' }}>Neto</th>
+                    <th>Estado</th>
+                    <th>Factura</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {!project.certifications || project.certifications.length === 0 ? (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay certificaciones emitidas.</td></tr>
+                  ) : project.certifications.map((cert: any) => (
+                    <tr key={cert.id}>
+                      <td><strong>{cert.number}</strong></td>
+                      <td>{new Date(cert.date).toLocaleDateString()}</td>
+                      <td>{cert.period}</td>
+                      <td style={{ textAlign: 'right' }}>{cert.totalAmount.toFixed(2)} €</td>
+                      <td style={{ textAlign: 'right', color: '#ff4444' }}>-{cert.retentionAmount.toFixed(2)} €</td>
+                      <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--accent-primary)' }}>{cert.netAmount.toFixed(2)} €</td>
+                      <td>
+                        <span className={`badge badge-${cert.status === 'ISSUED' ? 'success' : 'warning'}`}>
+                          {cert.status}
+                        </span>
+                      </td>
+                      <td>
+                        {cert.invoiceId ? (
+                          <Link href={`/invoices/${cert.invoiceId}`} className="text-accent">Ver Factura</Link>
+                        ) : (
+                          <button 
+                            className="btn-primary" 
+                            style={{ padding: '4px 8px', fontSize: '12px' }}
+                            onClick={() => handleGenerateInvoice(cert)}
+                          >
+                            Facturar
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <Link href={`/estimates/new?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
+                + Nuevo Presupuesto
+              </Link>
+            </div>
+            <table className={invStyles.table}>
               <thead>
                 <tr>
                   <th>Nº Presupuesto</th>
@@ -1119,6 +1338,107 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         )}
       </div>
     </div>
+
+      {isAddingCert && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth: '900px', width: '95%' }}>
+            <h2 className="text-gradient">Nueva Certificación de Obra</h2>
+            <p className={styles.subtitle}>Indica el avance de cada partida para este periodo.</p>
+            
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', margin: '20px 0' }}>
+              <div className={styles.formGroup}>
+                <label>Número de Certificación</label>
+                <input 
+                  type="text" 
+                  className="input-modern" 
+                  value={newCertNumber}
+                  onChange={e => setNewCertNumber(e.target.value)}
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Periodo / Mes</label>
+                <input 
+                  type="text" 
+                  className="input-modern" 
+                  value={newCertPeriod}
+                  onChange={e => setNewCertPeriod(e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className={invStyles.tableContainer} style={{ maxHeight: '400px', overflowY: 'auto', marginBottom: '20px' }}>
+              <table className={invStyles.table}>
+                <thead>
+                  <tr>
+                    <th>Partida</th>
+                    <th style={{ textAlign: 'right' }}>Presupuestado</th>
+                    <th style={{ textAlign: 'right' }}>Ant. Certificado</th>
+                    <th style={{ textAlign: 'right' }}>Certificar Ahora (€)</th>
+                    <th style={{ textAlign: 'right' }}>Total (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {certLines.map((line, idx) => (
+                    <tr key={line.budgetLineId}>
+                      <td>{line.name}</td>
+                      <td style={{ textAlign: 'right' }}>{line.estimated.toFixed(2)} €</td>
+                      <td style={{ textAlign: 'right' }}>{line.previous.toFixed(2)} €</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <input 
+                          type="number" 
+                          className="input-modern" 
+                          style={{ width: '120px', textAlign: 'right', padding: '4px 8px' }}
+                          value={line.current}
+                          onChange={(e) => {
+                            const val = parseFloat(e.target.value) || 0;
+                            const newLines = [...certLines];
+                            newLines[idx].current = val;
+                            setCertLines(newLines);
+                          }}
+                        />
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        {(((line.previous + line.current) / line.estimated) * 100).toFixed(1)}%
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {(() => {
+              const bruto = certLines.reduce((sum, l) => sum + l.current, 0);
+              const retencion = bruto * (certRetention / 100);
+              const neto = bruto - retencion;
+              return (
+                <div style={{ background: 'rgba(255,255,255,0.05)', padding: '16px', borderRadius: '8px', marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span>Total Bruto Certificado (este periodo):</span>
+                    <span style={{ fontWeight: '600' }}>{bruto.toFixed(2)} €</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', color: '#ff4444' }}>
+                    <span>Retención de Garantía ({certRetention}%):</span>
+                    <span>-{retencion.toFixed(2)} €</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '18px', fontWeight: '700', color: 'var(--accent-primary)' }}>
+                    <span>Líquido a Percibir:</span>
+                    <span>{neto.toFixed(2)} €</span>
+                  </div>
+                </div>
+              );
+            })()}
+
+            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="btn-secondary" onClick={() => setIsAddingCert(false)} disabled={isSavingCert}>
+                Cancelar
+              </button>
+              <button className="btn-primary" onClick={handleCreateCertification} disabled={isSavingCert}>
+                {isSavingCert ? "Guardando..." : "Emitir Certificación"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmationModal
         isOpen={showDeleteModal}

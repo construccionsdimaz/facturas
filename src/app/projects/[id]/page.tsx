@@ -23,6 +23,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
       },
       expenses: {
         orderBy: { date: 'desc' }
+      },
+      certifications: {
+        include: {
+          lines: true
+        },
+        orderBy: { date: 'desc' }
       }
     }
   });
