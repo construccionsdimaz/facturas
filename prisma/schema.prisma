@@ -172,7 +172,15 @@ model Project {
 }
 
 model ProjectBudgetLine {
-...
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  estimatedAmount Float    @default(0)
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
 
