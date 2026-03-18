@@ -3,6 +3,10 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+  PieChart, Pie, Cell, LineChart, Line
+} from 'recharts';
 import invStyles from '@/app/invoices/page.module.css';
 import styles from '../page.module.css';
 import ConfirmationModal from '@/components/ConfirmationModal';
@@ -27,7 +31,7 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
-  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'invoices' | 'estimates'>('budget');
+  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates'>('budget');
   
   // Budget management state
   const [isAddingLine, setIsAddingLine] = useState(false);
@@ -63,6 +67,31 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
   const totalExpenses = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
   const totalBudgeted = project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0);
+  const netResult = totalInvoiced - totalExpenses;
+  const marginPercentage = totalInvoiced > 0 ? (netResult / totalInvoiced) * 100 : 0;
+  const pendingToInvoice = Math.max(0, totalBudgeted - totalInvoiced);
+
+  // Chart Data
+  const budgetData = [
+    { name: 'Ejecución Económica', Presupuestado: totalBudgeted, Facturado: totalInvoiced }
+  ];
+
+  const profitData = [
+    { name: 'Rentabilidad Real', Ingresos: totalInvoiced, Gastos: totalExpenses }
+  ];
+
+  const expenseByCategory = project.expenses.reduce((acc: any, exp: any) => {
+    const cat = exp.category || 'Otros';
+    acc[cat] = (acc[cat] || 0) + exp.amount;
+    return acc;
+  }, {});
+
+  const pieData = Object.keys(expenseByCategory).map(key => ({
+    name: key,
+    value: expenseByCategory[key]
+  }));
+
+  const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
 
   const handleUpdate = async () => {
     if (!editedName || !editedClientId) {
@@ -365,8 +394,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           </div>
           <div className="glass-panel" style={{ padding: '24px' }}>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>MARGEN ESTIMADO</div>
-            <div style={{ fontSize: '24px', fontWeight: '700', color: (totalInvoiced - totalExpenses) >= 0 ? '#10b981' : '#ff4444' }}>
-              {(totalInvoiced - totalExpenses).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+            <div style={{ fontSize: '24px', fontWeight: '700', color: netResult >= 0 ? '#10b981' : '#ff4444' }}>
+              {netResult.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
           </div>
         </div>
@@ -406,6 +435,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             }}
           >
             Gastos ({project.expenses.length})
+          </button>
+          <button
+            onClick={() => setActiveTab('analysis')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'analysis' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'analysis' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📊 Análisis y Control
           </button>
           <button
             onClick={() => setActiveTab('invoices')}
@@ -655,6 +697,128 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   )}
                 </tbody>
               </table>
+            </div>
+          ) : activeTab === 'analysis' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h4 style={{ marginBottom: '20px' }}>Ejecución vs Presupuesto</h4>
+                  <div style={{ height: '300px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={budgetData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="name" stroke="var(--text-muted)" />
+                        <YAxis stroke="var(--text-muted)" />
+                        <Tooltip 
+                          contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                        />
+                        <Legend />
+                        <Bar dataKey="Presupuestado" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Facturado" fill="#10b981" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ marginTop: '20px', fontSize: '14px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span>Pendiente de Facturar:</span>
+                      <span style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>{pendingToInvoice.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                    </div>
+                    <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
+                      <div 
+                        className="progress-bar-fill" 
+                        style={{ 
+                          height: '100%', 
+                          width: `${Math.min(100, (totalInvoiced / totalBudgeted) * 100)}%`, 
+                          background: 'linear-gradient(90deg, #3b82f6, #10b981)',
+                          transition: 'width 0.5s ease-in-out'
+                        }} 
+                      />
+                    </div>
+                    <div style={{ textAlign: 'right', fontSize: '11px', marginTop: '4px', color: 'var(--text-muted)' }}>
+                      {((totalInvoiced / totalBudgeted) * 100 || 0).toFixed(1)}% ejecutado
+                    </div>
+                  </div>
+                </div>
+
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h4 style={{ marginBottom: '20px' }}>Rentabilidad Real</h4>
+                  <div style={{ height: '300px', width: '100%' }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={profitData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+                        <XAxis dataKey="name" stroke="var(--text-muted)" />
+                        <YAxis stroke="var(--text-muted)" />
+                        <Tooltip 
+                          contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
+                        />
+                        <Legend />
+                        <Bar dataKey="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Gastos" fill="#ff4444" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ marginTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '14px' }}>Margen sobre Ingresos:</span>
+                      <span style={{ fontSize: '20px', fontWeight: '800', color: marginPercentage >= 0 ? '#10b981' : '#ff4444' }}>
+                        {marginPercentage.toFixed(1)}%
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {pieData.length > 0 && (
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h4 style={{ marginBottom: '20px' }}>Distribución de Gastos</h4>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', alignItems: 'center' }}>
+                    <div style={{ height: '300px', width: '100%' }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieData}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={100}
+                            paddingAngle={5}
+                            dataKey="value"
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                          >
+                            {pieData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div>
+                      <table className={invStyles.table} style={{ fontSize: '14px' }}>
+                        <thead>
+                          <tr>
+                            <th>Categoría</th>
+                            <th style={{ textAlign: 'right' }}>Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pieData.map((item, idx) => (
+                            <tr key={item.name}>
+                              <td>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: COLORS[idx % COLORS.length] }} />
+                                  {item.name}
+                                </div>
+                              </td>
+                              <td style={{ textAlign: 'right', fontWeight: '700' }}>{item.value.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           ) : activeTab === 'invoices' ? (
             <table className={invStyles.table}>
