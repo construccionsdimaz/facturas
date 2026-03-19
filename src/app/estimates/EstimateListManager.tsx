@@ -315,7 +315,7 @@ export default function EstimateListManager({ initialEstimates, allProjects = []
                 </td>
                 <td className={styles.cellAmount}>
                   <Link href={`/estimates/${est.id}`} className={styles.rowLink}>
-                    {est.total.toFixed(2)} €
+                    {formatCurrency(est.total)}
                   </Link>
                 </td>
                 <td>

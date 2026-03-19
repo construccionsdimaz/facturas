@@ -296,7 +296,7 @@ export default function InvoiceListManager({ initialInvoices, allProjects = [] }
                 </td>
                 <td className={styles.cellAmount}>
                   <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>
-                    {inv.total.toFixed(2)} €
+                    {formatCurrency(inv.total)}
                   </Link>
                 </td>
                 <td>

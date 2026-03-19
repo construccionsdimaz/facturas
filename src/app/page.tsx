@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import styles from "./page.module.css";
 import Link from "next/link";
 import { RevenueChart, StatusDistributionChart } from "@/components/DashboardCharts";
+import { formatCurrency } from "@/lib/format";
 
 export const dynamic = 'force-dynamic';
 
@@ -60,7 +61,7 @@ export default async function Home() {
 
   const growthLabel = prevMonthRevenue === 0 && currentMonthRevenue > 0 
     ? 'Nuevo' 
-    : `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}% MoM`;
+    : `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}% vs mes ant.`;
 
   const recentInvoices = allInvoices.slice(0, 5);
   const totalRevenue = allInvoices.reduce((sum: number, inv: any) => sum + inv.total, 0);
@@ -172,7 +173,7 @@ export default async function Home() {
                         <div className={styles.muted} style={{ fontSize: '12px' }}>{inv.number}</div>
                       </div>
                     </td>
-                    <td className={styles.cellAmount}>{inv.total.toFixed(2)} €</td>
+                    <td className={styles.cellAmount}>{formatCurrency(inv.total)}</td>
                     <td>
                       <span className={`badge badge-${inv.status === 'PAID' ? 'success' : inv.status === 'OVERDUE' ? 'danger' : 'warning'}`}>
                         {inv.status === 'PAID' ? 'PAGADA' : inv.status === 'SENT' ? 'ENVIADA' : inv.status === 'OVERDUE' ? 'VENCIDA' : 'BORRADOR'}

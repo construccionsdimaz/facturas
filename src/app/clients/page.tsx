@@ -20,8 +20,8 @@ export default async function ClientsPage() {
     <div className={styles.clientsPage}>
       <div className={styles.header}>
         <div>
-          <h1 className="text-gradient">Clients Management</h1>
-          <p className={styles.subtitle}>Manage your customer relationships and billing details.</p>
+          <h1 className="text-gradient">Gestión de Clientes</h1>
+          <p className={styles.subtitle}>Administra tus clientes y sus datos de facturación de forma centralizada.</p>
         </div>
       </div>
 

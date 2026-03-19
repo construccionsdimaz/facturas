@@ -1280,7 +1280,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                       <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--accent-primary)' }}>{formatCurrency(cert.netAmount)}</td>
                       <td>
                         <span className={`badge badge-${cert.status === 'ISSUED' ? 'success' : 'warning'}`}>
-                          {cert.status}
+                          {cert.status === 'ISSUED' ? 'EMITIDA' : cert.status}
                         </span>
                       </td>
                       <td>
