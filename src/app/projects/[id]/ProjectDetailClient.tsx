@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -33,7 +33,19 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
-  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications'>('budget');
+  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>('budget');
+  
+  // Site Journal & Documents
+  const [logs, setLogs] = useState<any[]>([]);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [isFetchingLogs, setIsFetchingLogs] = useState(false);
+  const [isFetchingDocs, setIsFetchingDocs] = useState(false);
+  const [isAddingLog, setIsAddingLog] = useState(false);
+  const [isAddingDoc, setIsAddingDoc] = useState(false);
+  const [newLogContent, setNewLogContent] = useState('');
+  const [newLogWeather, setNewLogWeather] = useState('Soleado');
+  const [newLogIncidents, setNewLogIncidents] = useState('');
+  const [isSavingLog, setIsSavingLog] = useState(false);
   
   // Budget management state
   const [isAddingLine, setIsAddingLine] = useState(false);
@@ -108,6 +120,32 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   }));
 
   const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+
+  const fetchLogs = async () => {
+    setIsFetchingLogs(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/logs`);
+      if (res.ok) setLogs(await res.json());
+    } catch (e) { console.error(e); }
+    setIsFetchingLogs(false);
+  };
+
+  const fetchDocs = async () => {
+    setIsFetchingDocs(true);
+    try {
+      const res = await fetch(`/api/projects/${project.id}/documents`);
+      if (res.ok) setDocuments(await res.json());
+    } catch (e) { console.error(e); }
+    setIsFetchingDocs(false);
+  };
+
+  useEffect(() => {
+    if (activeTab === 'diario') {
+      fetchLogs();
+    } else if (activeTab === 'documents') {
+      fetchDocs();
+    }
+  }, [activeTab]);
 
   const handleUpdate = async () => {
     if (!editedName || !editedClientId) {
@@ -633,6 +671,32 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             }}
           >
             Certificaciones ({project.certifications?.length || 0})
+          </button>
+          <button
+            onClick={() => setActiveTab('diario')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'diario' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'diario' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Diario de Obra
+          </button>
+          <button
+            onClick={() => setActiveTab('documents')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'documents' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'documents' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Documentación
           </button>
         </div>
 
@@ -1293,7 +1357,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               </table>
             </div>
           </div>
-        ) : (
+        ) : activeTab === 'estimates' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
               <Link href={`/estimates/new?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
@@ -1326,6 +1390,219 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 ))}
               </tbody>
             </table>
+          </div>
+        ) : activeTab === 'diario' ? (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '600' }}>Diario de Obra (Actividades Diario)</div>
+              <button 
+                className="btn-primary" 
+                onClick={() => setIsAddingLog(!isAddingLog)} 
+                style={{ padding: '8px 16px', fontSize: '14px' }}
+              >
+                {isAddingLog ? 'Cancelar' : '+ Nueva Entrada'}
+              </button>
+            </div>
+
+            {isAddingLog && (
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '32px', border: '1px solid var(--accent-primary)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '20px' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Actividad / Avances del día</label>
+                    <textarea 
+                      className="input-modern" 
+                      style={{ width: '100%', minHeight: '100px', padding: '12px' }}
+                      placeholder="Ej: Hormigonado de pilares planta 1, recepción de materiales..."
+                      value={newLogContent}
+                      onChange={(e) => setNewLogContent(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Incidencias / Notas</label>
+                    <textarea 
+                      className="input-modern" 
+                      style={{ width: '100%', minHeight: '100px', padding: '12px', border: '1px solid #ff444466' }}
+                      placeholder="Retrasos, roturas, cambios de diseño..."
+                      value={newLogIncidents}
+                      onChange={(e) => setNewLogIncidents(e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+                  <div style={{ width: '200px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Clima</label>
+                    <select 
+                      className="input-modern" 
+                      style={{ width: '100%', padding: '8px' }}
+                      value={newLogWeather}
+                      onChange={(e) => setNewLogWeather(e.target.value)}
+                    >
+                      <option value="Soleado">Soleado ☀️</option>
+                      <option value="Nublado">Nublado ☁️</option>
+                      <option value="Lluvia">Lluvia 🌧️</option>
+                      <option value="Viento">Viento 💨</option>
+                      <option value="Nieve">Nieve ❄️</option>
+                    </select>
+                  </div>
+                  <button 
+                    className="btn-primary" 
+                    style={{ marginTop: '24px', padding: '10px 24px' }}
+                    disabled={isSavingLog || !newLogContent}
+                    onClick={async () => {
+                      setIsSavingLog(true);
+                      try {
+                        const res = await fetch(`/api/projects/${project.id}/logs`, {
+                          method: 'POST',
+                          headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ content: newLogContent, weather: newLogWeather, incidents: newLogIncidents })
+                        });
+                        if (res.ok) {
+                          setNewLogContent('');
+                          setNewLogIncidents('');
+                          setIsAddingLog(false);
+                          fetchLogs();
+                        }
+                      } catch (e) { console.error(e); }
+                      setIsSavingLog(false);
+                    }}
+                  >
+                    {isSavingLog ? 'Guardando...' : 'Registrar Hoy'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {isFetchingLogs && logs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>Cargando actividades...</div>
+              ) : logs.length === 0 ? (
+                <div className="glass-panel" style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>
+                  No hay registros en el diario todavía. Empieza a documentar el día a día de la obra.
+                </div>
+              ) : logs.map((log: any) => (
+                <div key={log.id} className="glass-panel" style={{ padding: '20px', borderLeft: '4px solid var(--accent-primary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <span style={{ fontWeight: '700', fontSize: '16px' }}>{new Date(log.date).toLocaleDateString()}</span>
+                      <span className="badge badge-info">{log.weather}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: '15px', lineHeight: '1.6', color: 'var(--text-main)', marginBottom: log.incidents ? '12px' : '0' }}>
+                    {log.content}
+                  </div>
+                  {log.incidents && (
+                    <div style={{ padding: '12px', background: 'rgba(239, 68, 68, 0.05)', borderRadius: '6px', fontSize: '14px', border: '1px solid rgba(239, 68, 68, 0.1)' }}>
+                      <strong style={{ color: '#ef4444' }}>Incidencia:</strong> {log.incidents}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : activeTab === 'documents' ? (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ fontSize: '18px', fontWeight: '600' }}>Gestión Documental (Planos y Contratos)</div>
+              <button 
+                className="btn-primary" 
+                onClick={() => setIsAddingDoc(!isAddingDoc)} 
+                style={{ padding: '8px 16px', fontSize: '14px' }}
+              >
+                {isAddingDoc ? 'Cancelar' : '+ Añadir Archivo'}
+              </button>
+            </div>
+
+            {isAddingDoc && (
+              <div className="glass-panel" style={{ padding: '24px', marginBottom: '32px', border: '1px solid var(--accent-primary)' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '20px', alignItems: 'flex-end' }}>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Nombre del Documento</label>
+                    <input id="doc-name" type="text" className="input-modern" placeholder="Ej: Plano de Instalaciones Rev 2" />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Categoría</label>
+                    <select id="doc-cat" className="input-modern" style={{ width: '100%', padding: '10px' }}>
+                      <option value="PLANO">Plano / Técnico</option>
+                      <option value="CONTRATO">Contrato / Legal</option>
+                      <option value="SEGURO">Seguros / Otros</option>
+                      <option value="OTROS">Otros</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', marginBottom: '8px', fontSize: '13px', color: 'var(--text-muted)' }}>Enlace / URL del archivo</label>
+                    <input id="doc-url" type="text" className="input-modern" placeholder="https://..." />
+                  </div>
+                </div>
+                <button 
+                  className="btn-primary" 
+                  style={{ marginTop: '20px', padding: '10px 24px' }}
+                  onClick={async () => {
+                    const name = (document.getElementById('doc-name') as HTMLInputElement).value;
+                    const url = (document.getElementById('doc-url') as HTMLInputElement).value;
+                    const category = (document.getElementById('doc-cat') as HTMLSelectElement).value;
+                    if (!name || !url) return alert("Indica nombre y enlace");
+                    
+                    try {
+                      const res = await fetch(`/api/projects/${project.id}/documents`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ name, url, category })
+                      });
+                      if (res.ok) {
+                        setIsAddingDoc(false);
+                        fetchDocs();
+                      }
+                    } catch (e) { console.error(e); }
+                  }}
+                >
+                  Guardar Documento
+                </button>
+              </div>
+            )}
+
+            <div className={`glass-panel ${invStyles.tableContainer}`}>
+              <table className={invStyles.table}>
+                <thead>
+                  <tr>
+                    <th>Documento</th>
+                    <th>Categoría</th>
+                    <th>Fecha Subida</th>
+                    <th style={{ textAlign: 'right' }}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {isFetchingDocs && documents.length === 0 ? (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px' }}>Cargando documentos...</td></tr>
+                  ) : documents.length === 0 ? (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay documentos asociados a esta obra.</td></tr>
+                  ) : documents.map((doc: any) => (
+                    <tr key={doc.id}>
+                      <td>
+                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                          <span style={{ fontSize: '20px' }}>{doc.category === 'PLANO' ? '📐' : '📄'}</span>
+                          <strong>{doc.name}</strong>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`badge badge-${doc.category === 'PLANO' ? 'info' : 'secondary'}`}>
+                          {doc.category}
+                        </span>
+                      </td>
+                      <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
+                      <td style={{ textAlign: 'right' }}>
+                        <a href={doc.url} target="_blank" rel="noopener noreferrer" className="btn-secondary" style={{ padding: '6px 12px', fontSize: '12px', textDecoration: 'none' }}>
+                          Ver Archivo ↗
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : (
+          <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-muted)' }}>
+            Pestaña no disponible.
           </div>
         )}
       </div>

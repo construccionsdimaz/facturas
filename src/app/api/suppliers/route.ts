@@ -3,7 +3,10 @@ import { db } from '@/lib/db';
 
 export async function GET() {
   try {
-    const suppliers = await db.supplier.findMany({
+    const suppliers = await db.client.findMany({
+      where: {
+        category: 'PROVEEDOR',
+      },
       orderBy: {
         name: 'asc',
       },
@@ -40,13 +43,14 @@ export async function POST(request: Request) {
       });
     }
 
-    const newSupplier = await db.supplier.create({
+    const newSupplier = await db.client.create({
       data: {
         name,
         email,
         address,
         phone,
         taxId,
+        category: 'PROVEEDOR',
         userId: user.id,
       }
     });
