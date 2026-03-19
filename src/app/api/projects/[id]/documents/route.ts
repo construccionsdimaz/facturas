@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const documents = await db.projectDocument.findMany({
+    const documents = await (db as any).projectDocument.findMany({
       where: { projectId: id },
       orderBy: { createdAt: 'desc' }
     });
@@ -27,7 +27,7 @@ export async function POST(
     const body = await request.json();
     const { name, url, fileType, category } = body;
 
-    const document = await db.projectDocument.create({
+    const document = await (db as any).projectDocument.create({
       data: {
         name,
         url,

@@ -7,7 +7,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const logs = await db.projectLog.findMany({
+    const logs = await (db as any).projectLog.findMany({
       where: { projectId: id },
       include: { photos: true },
       orderBy: { date: 'desc' }
@@ -28,7 +28,7 @@ export async function POST(
     const body = await request.json();
     const { content, weather, incidents, photos } = body;
 
-    const log = await db.projectLog.create({
+    const log = await (db as any).projectLog.create({
       data: {
         content,
         weather,
