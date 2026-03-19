@@ -35,6 +35,11 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   const [paymentMethod, setPaymentMethod] = useState('Transferencia Bancaria');
   const [language, setLanguage] = useState('ES');
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
+  
+  // Calculation States
+  const [taxRate, setTaxRate] = useState(21);
+  const [taxAmount, setTaxAmount] = useState(0);
+  const [total, setTotal] = useState(0);
 
   // Client search
   const [clientSearch, setClientSearch] = useState('');
@@ -65,6 +70,15 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
         if (invoice.paymentMethod) {
           setPaymentMethod(invoice.paymentMethod);
         }
+        if (invoice.taxAmount !== undefined) {
+          setTaxAmount(invoice.taxAmount);
+        }
+        if (invoice.total !== undefined) {
+          setTotal(invoice.total);
+        }
+        if (invoice.subtotal > 0 && invoice.taxAmount !== undefined) {
+          setTaxRate((invoice.taxAmount / invoice.subtotal) * 100);
+        }
         setClients(clientsData || []);
         setIsLoading(false);
       });
@@ -84,8 +98,40 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
   };
 
   const subtotal = items.reduce((sum, item) => sum + (item.quantity * item.price), 0);
-  const tax = subtotal * 0.21;
-  const total = subtotal + tax;
+  
+  // Sync calculations when items or taxRate change (only if not manually edited? 
+  // No, in edit mode we should probably sync initially or when items change)
+  useEffect(() => {
+    // We only want to auto-sync if items change, but we should be careful not to overwrite manual edits 
+    // if the items didn't change. However, usually subtotal change implies items change.
+    const newTax = subtotal * (taxRate / 100);
+    setTaxAmount(newTax);
+    setTotal(subtotal + newTax);
+  }, [subtotal, taxRate]);
+
+  const handleTaxAmountChange = (val: number) => {
+    setTaxAmount(val);
+    setTotal(subtotal + val);
+    if (subtotal !== 0) {
+      setTaxRate((val / subtotal) * 100);
+    }
+  };
+
+  const handleTotalChange = (val: number) => {
+    setTotal(val);
+    const newTax = val - subtotal;
+    setTaxAmount(newTax);
+    if (subtotal !== 0) {
+      setTaxRate((newTax / subtotal) * 100);
+    }
+  };
+
+  const handleTaxRateChange = (val: number) => {
+    setTaxRate(val);
+    const newTax = subtotal * (val / 100);
+    setTaxAmount(newTax);
+    setTotal(subtotal + newTax);
+  };
 
   const handleSave = async () => {
     if (!selectedClientId) {
@@ -102,7 +148,7 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
           number: invoiceNumber,
           clientId: selectedClientId,
           subtotal,
-          taxAmount: tax,
+          taxAmount,
           total,
           items: items.map(item => ({
             description: item.description,
@@ -377,17 +423,47 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
           <div className={`glass-panel ${styles.summaryCard}`}>
             <h3>Resumen</h3>
             <div className={styles.summaryRow}>
-              <span>Subtotal</span>
+              <span>Subtotal (Base)</span>
               <span>{subtotal.toFixed(2)} €</span>
             </div>
             <div className={styles.summaryRow}>
-              <span>IVA (21%)</span>
-              <span>{tax.toFixed(2)} €</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span>IVA</span>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 6px' }}>
+                  <input 
+                    type="number" 
+                    value={taxRate % 1 === 0 ? taxRate : taxRate.toFixed(2)} 
+                    onChange={(e) => handleTaxRateChange(parseFloat(e.target.value) || 0)}
+                    style={{ width: '45px', background: 'transparent', border: 'none', color: 'white', textAlign: 'right', outline: 'none', fontSize: '13px' }}
+                  />
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>%</span>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 6px' }}>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={taxAmount.toFixed(2)} 
+                  onChange={(e) => handleTaxAmountChange(parseFloat(e.target.value) || 0)}
+                  style={{ width: '80px', background: 'transparent', border: 'none', color: 'white', textAlign: 'right', outline: 'none', fontSize: '14px' }}
+                />
+                <span style={{ marginLeft: '4px' }}>€</span>
+              </div>
             </div>
             <div className={styles.divider}></div>
             <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
               <span>Total</span>
-              <span className="text-gradient">{total.toFixed(2)} €</span>
+              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.1)', borderRadius: '6px', padding: '4px 10px', border: '1px solid rgba(59,130,246,0.2)' }}>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  value={total.toFixed(2)} 
+                  onChange={(e) => handleTotalChange(parseFloat(e.target.value) || 0)}
+                  className="text-gradient"
+                  style={{ width: '100px', background: 'transparent', border: 'none', fontWeight: 700, textAlign: 'right', outline: 'none', fontSize: '18px' }}
+                />
+                <span className="text-gradient" style={{ marginLeft: '4px', fontWeight: 700 }}>€</span>
+              </div>
             </div>
           </div>
         </div>
