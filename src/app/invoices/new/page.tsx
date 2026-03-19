@@ -699,55 +699,76 @@ function NewInvoiceContent({ items, setItems }: { items: InvoiceItem[], setItems
             <button className={styles.addBtn} onClick={addItem}>
               + Añadir Concepto
             </button>
+
+            <div className={styles.divider} style={{ margin: '1.5rem 0' }}></div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxWidth: '400px', marginLeft: 'auto' }}>
+              <div className={styles.summaryRow}>
+                <span style={{ color: 'var(--text-secondary)' }}>Subtotal (Base)</span>
+                <span style={{ fontWeight: 600 }}>{subtotal.toFixed(2)} €</span>
+              </div>
+              
+              <div className={styles.summaryRow}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--text-secondary)' }}>IVA</span>
+                  <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 6px' }}>
+                    <input 
+                      type="number" 
+                      value={taxRate % 1 === 0 ? taxRate : taxRate.toFixed(2)} 
+                      onChange={(e) => handleTaxRateChange(parseFloat(e.target.value) || 0)}
+                      style={{ width: '45px', background: 'transparent', border: 'none', color: 'white', textAlign: 'right', outline: 'none', fontSize: '13px' }}
+                    />
+                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>%</span>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 6px' }}>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={taxAmount.toFixed(2)} 
+                    onChange={(e) => handleTaxAmountChange(parseFloat(e.target.value) || 0)}
+                    style={{ width: '80px', background: 'transparent', border: 'none', color: 'white', textAlign: 'right', outline: 'none', fontSize: '14px' }}
+                  />
+                  <span style={{ marginLeft: '4px' }}>€</span>
+                </div>
+              </div>
+
+              <div className={styles.divider}></div>
+
+              <div className={styles.summaryRow} style={{ marginTop: '4px' }}>
+                <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>Total Factura</span>
+                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.1)', borderRadius: '6px', padding: '6px 12px', border: '1px solid rgba(59,130,246,0.2)' }}>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={total.toFixed(2)} 
+                    onChange={(e) => handleTotalChange(parseFloat(e.target.value) || 0)}
+                    className="text-gradient"
+                    style={{ width: '120px', background: 'transparent', border: 'none', fontWeight: 800, textAlign: 'right', outline: 'none', fontSize: '20px' }}
+                  />
+                  <span className="text-gradient" style={{ marginLeft: '6px', fontWeight: 800, fontSize: '20px' }}>€</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
         {/* Right Summary Panel */}
         <div className={styles.summaryPanel}>
           <div className={`glass-panel ${styles.summaryCard}`}>
-            <h3>Resumen</h3>
+            <h3>Resumen Rápido</h3>
             <div className={styles.summaryRow}>
-              <span>Subtotal (Base)</span>
+              <span>Subtotal</span>
               <span>{subtotal.toFixed(2)} €</span>
             </div>
             <div className={styles.summaryRow}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span>IVA</span>
-                <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 6px' }}>
-                  <input 
-                    type="number" 
-                    value={taxRate % 1 === 0 ? taxRate : taxRate.toFixed(2)} 
-                    onChange={(e) => handleTaxRateChange(parseFloat(e.target.value) || 0)}
-                    style={{ width: '45px', background: 'transparent', border: 'none', color: 'white', textAlign: 'right', outline: 'none', fontSize: '13px' }}
-                  />
-                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>%</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', padding: '2px 6px' }}>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  value={taxAmount.toFixed(2)} 
-                  onChange={(e) => handleTaxAmountChange(parseFloat(e.target.value) || 0)}
-                  style={{ width: '80px', background: 'transparent', border: 'none', color: 'white', textAlign: 'right', outline: 'none', fontSize: '14px' }}
-                />
-                <span style={{ marginLeft: '4px' }}>€</span>
-              </div>
+              <span>IVA ({taxRate.toFixed(0)}%)</span>
+              <span>{taxAmount.toFixed(2)} €</span>
             </div>
             <div className={styles.divider}></div>
             <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
               <span>Total</span>
-              <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(59,130,246,0.1)', borderRadius: '6px', padding: '4px 10px', border: '1px solid rgba(59,130,246,0.2)' }}>
-                <input 
-                  type="number" 
-                  step="0.01"
-                  value={total.toFixed(2)} 
-                  onChange={(e) => handleTotalChange(parseFloat(e.target.value) || 0)}
-                  className="text-gradient"
-                  style={{ width: '100px', background: 'transparent', border: 'none', fontWeight: 700, textAlign: 'right', outline: 'none', fontSize: '18px' }}
-                />
-                <span className="text-gradient" style={{ marginLeft: '4px', fontWeight: 700 }}>€</span>
-              </div>
+              <span className="text-gradient">{total.toFixed(2)} €</span>
             </div>
           </div>
 
