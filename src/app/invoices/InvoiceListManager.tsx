@@ -24,6 +24,8 @@ type Invoice = {
   project?: {
     name: string;
   } | null;
+  certifications?: { number: string }[];
+  estimate?: { number: string } | null;
 };
 
 export default function InvoiceListManager({ initialInvoices, allProjects = [] }: { initialInvoices: Invoice[], allProjects?: { id: string, name: string }[] }) {
@@ -264,6 +266,7 @@ export default function InvoiceListManager({ initialInvoices, allProjects = [] }
               <th>Nº Factura</th>
               <th>Cliente</th>
               <th>Importe</th>
+              <th>Origen</th>
               <th>Estado</th>
               <th>Obra</th>
               <th>Fecha</th>
@@ -298,6 +301,19 @@ export default function InvoiceListManager({ initialInvoices, allProjects = [] }
                   <Link href={`/invoices/${inv.id}`} className={styles.rowLink}>
                     {formatCurrency(inv.total)}
                   </Link>
+                </td>
+                <td style={{ fontSize: '13px' }}>
+                  {inv.certifications && inv.certifications.length > 0 ? (
+                    <span className="text-accent" title={`Desde Certif. ${inv.certifications[0].number}`}>
+                      📑 Certif. {inv.certifications[0].number}
+                    </span>
+                  ) : inv.estimate ? (
+                    <span style={{ color: '#8b5cf6' }} title={`Desde Presup. ${inv.estimate.number}`}>
+                      📋 Presup. {inv.estimate.number}
+                    </span>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>Directa</span>
+                  )}
                 </td>
                 <td>
                   <InvoiceStatusToggle invoiceId={inv.id} currentStatus={inv.status as any} />

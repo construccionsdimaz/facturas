@@ -9,7 +9,9 @@ export default async function InvoicesPage() {
   const invoices = await (db.invoice as any).findMany({
     include: {
       client: true,
-      project: true
+      project: true,
+      certifications: true,
+      estimate: true
     },
     orderBy: {
       createdAt: 'desc'

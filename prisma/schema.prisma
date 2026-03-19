@@ -91,6 +91,10 @@ model Invoice {
   project     Project? @relation(fields: [projectId], references: [id])
   
   items       InvoiceItem[]
+  
+  // Relations to source documents
+  certifications ProjectCertification[]
+  estimate       Estimate?
 }
 
 // Individual items (concepts) within an invoice

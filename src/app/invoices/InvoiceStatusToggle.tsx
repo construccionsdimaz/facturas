@@ -4,9 +4,11 @@ import { useState } from 'react';
 
 const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'DRAFT', label: 'Borrador', color: 'warning' },
-  { value: 'PENDING', label: 'Pendiente', color: 'warning' },
-  { value: 'PAID', label: 'Pagada', color: 'success' },
+  { value: 'ISSUED', label: 'Emitida', color: 'primary' },
+  { value: 'SENT', label: 'Enviada', color: 'info' },
   { value: 'OVERDUE', label: 'Vencida', color: 'danger' },
+  { value: 'PAID', label: 'Cobrada', color: 'success' },
+  { value: 'CANCELLED', label: 'Anulada', color: 'secondary' },
 ];
 
 export default function InvoiceStatusToggle({ invoiceId, currentStatus }: { invoiceId: string; currentStatus: string }) {
