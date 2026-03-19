@@ -50,6 +50,7 @@ model Client {
   address   String?
   phone     String?
   taxId     String?  // NIF/CIF/DNI/NIE
+  type      String   @default("PARTICULAR") // PARTICULAR, EMPRESA, PROMOTOR, COMUNIDAD, INVERSOR, INDUSTRIAL
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -66,11 +67,13 @@ model Invoice {
   number      String   @unique // INV-2026-001
   issueDate   DateTime @default(now())
   dueDate     DateTime?
-  status      String   @default("DRAFT") // DRAFT, PENDING, PAID, OVERDUE
+  status      String   @default("DRAFT") // DRAFT, ISSUED, PARTIAL, PAID, CANCELLED
+  isSent      Boolean  @default(false)
   
   subtotal    Float    @default(0)
   taxRate     Float    @default(21.0)
   taxAmount   Float    @default(0)
+  paidAmount  Float    @default(0)
   total       Float    @default(0)
   
   currency    String   @default("EUR")

@@ -112,6 +112,8 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           description: item.description,
           quantity: item.quantity,
           price: item.price,
+          unit: item.unit || 'ud',
+          chapter: item.chapter || '01 GENERAL'
         })),
         subtotal: estimate.subtotal,
         tax: estimate.taxAmount,

@@ -15,8 +15,11 @@ type Invoice = {
   taxAmount: number;
   total: number;
   status: string;
+  isSent: boolean;
+  paidAmount: number;
+  dueDate: string | Date | null;
   createdAt: string | Date;
-  issueDate?: string | Date;
+  issueDate: string | Date;
   client: {
     name: string;
   };
@@ -316,7 +319,25 @@ export default function InvoiceListManager({ initialInvoices, allProjects = [] }
                   )}
                 </td>
                 <td>
-                  <InvoiceStatusToggle invoiceId={inv.id} currentStatus={inv.status as any} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <InvoiceStatusToggle 
+                      invoiceId={inv.id} 
+                      currentStatus={inv.status as any} 
+                    />
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {inv.isSent ? (
+                        <span className="badge badge-info" style={{ fontSize: '10px', padding: '2px 6px' }}>Enviada</span>
+                      ) : (
+                        <span className="badge badge-secondary" style={{ fontSize: '10px', padding: '2px 6px', opacity: 0.7 }}>No enviada</span>
+                      )}
+                      {(() => {
+                        const isOverdue = inv.dueDate && new Date(inv.dueDate) < new Date() && (inv.paidAmount || 0) < inv.total;
+                        return isOverdue ? (
+                          <span className="badge badge-danger" style={{ fontSize: '10px', padding: '2px 6px' }}>Vencida</span>
+                        ) : null;
+                      })()}
+                    </div>
+                  </div>
                 </td>
                 <td>
                   <span style={{ fontSize: '13px', color: inv.project ? 'var(--accent-primary)' : 'var(--text-muted)' }}>

@@ -22,9 +22,20 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
 
   const statusLabels: Record<string, string> = {
     DRAFT: 'Borrador',
-    PENDING: 'Pendiente',
-    PAID: 'Pagada',
-    OVERDUE: 'Vencida',
+    ISSUED: 'Emitida',
+    PARTIAL: 'Cobrada Parcial',
+    PAID: 'Cobrada Total',
+    CANCELLED: 'Anulada',
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch(status) {
+      case 'PAID': return 'success';
+      case 'PARTIAL': return 'info';
+      case 'ISSUED': return 'primary';
+      case 'CANCELLED': return 'secondary';
+      default: return 'warning';
+    }
   };
 
   return (
@@ -35,7 +46,7 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
           <h1 className="text-gradient">Factura {invoice.number}</h1>
         </div>
         <div className={styles.actions + " no-print"}>
-          <span className={`badge badge-${invoice.status === 'PAID' ? 'success' : invoice.status === 'OVERDUE' ? 'danger' : 'warning'}`}
+          <span className={`badge badge-${getStatusBadgeClass(invoice.status)}`}
             style={{ fontSize: '14px', padding: '8px 16px' }}
           >
             {statusLabels[invoice.status] || invoice.status}
@@ -107,6 +118,10 @@ export default async function InvoiceDetailPage({ params }: { params: Promise<{ 
         id: invoice.id,
         number: invoice.number,
         issueDate: invoice.issueDate.toISOString(),
+        dueDate: invoice.dueDate ? (invoice.dueDate as any).toISOString() : null,
+        status: invoice.status,
+        isSent: (invoice as any).isSent,
+        paidAmount: (invoice as any).paidAmount,
         clientName: invoice.client.name,
         clientAddress: invoice.client.address || '',
         clientTaxId: invoice.client.taxId || '',

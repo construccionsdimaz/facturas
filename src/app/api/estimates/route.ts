@@ -56,6 +56,8 @@ export async function POST(request: Request) {
             description: item.description,
             quantity: item.quantity,
             price: item.price,
+            unit: item.unit || 'ud',
+            chapter: item.chapter || '01 GENERAL',
           })),
         },
       } as any,

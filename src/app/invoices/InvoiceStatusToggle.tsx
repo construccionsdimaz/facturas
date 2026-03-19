@@ -5,9 +5,8 @@ import { useState } from 'react';
 const STATUS_OPTIONS: { value: string; label: string; color: string }[] = [
   { value: 'DRAFT', label: 'Borrador', color: 'warning' },
   { value: 'ISSUED', label: 'Emitida', color: 'primary' },
-  { value: 'SENT', label: 'Enviada', color: 'info' },
-  { value: 'OVERDUE', label: 'Vencida', color: 'danger' },
-  { value: 'PAID', label: 'Cobrada', color: 'success' },
+  { value: 'PARTIAL', label: 'Cobrada Parcial', color: 'info' },
+  { value: 'PAID', label: 'Cobrada Total', color: 'success' },
   { value: 'CANCELLED', label: 'Anulada', color: 'secondary' },
 ];
 

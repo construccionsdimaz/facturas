@@ -32,15 +32,16 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status } = body;
+    const { status, isSent, paidAmount } = body;
 
-    if (!status) {
-      return NextResponse.json({ error: 'Status is required' }, { status: 400 });
-    }
+    const data: any = {};
+    if (status !== undefined) data.status = status;
+    if (isSent !== undefined) data.isSent = isSent;
+    if (paidAmount !== undefined) data.paidAmount = paidAmount;
 
     const updated = await (db.invoice as any).update({
       where: { id },
-      data: { status }
+      data
     });
 
     return NextResponse.json(updated);
@@ -57,7 +58,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, paymentMethod, language, issueDate, dueDate } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, paymentMethod, language, issueDate, dueDate, status, isSent, paidAmount } = body;
 
     // Delete existing items then recreate
     await db.invoiceItem.deleteMany({ where: { invoiceId: id } });
@@ -74,6 +75,9 @@ export async function PUT(
         language,
         issueDate: issueDate ? new Date(issueDate) : undefined,
         dueDate: dueDate ? new Date(dueDate) : undefined,
+        status,
+        isSent,
+        paidAmount,
         items: {
           create: items.map((item: { description: string; quantity: number; price: number }) => ({
             description: item.description,

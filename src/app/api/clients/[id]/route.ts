@@ -8,11 +8,11 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { name, email, address, taxId } = body;
+    const { name, email, address, taxId, type } = body;
 
     const updated = await db.client.update({
       where: { id },
-      data: { name, email, address, taxId }
+      data: { name, email, address, taxId, type }
     });
 
     return NextResponse.json(updated);

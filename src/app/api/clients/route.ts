@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, address, phone, taxId } = body;
+    const { name, email, address, phone, taxId, type } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -47,6 +47,7 @@ export async function POST(request: Request) {
         address,
         phone,
         taxId,
+        type: type || 'PARTICULAR',
         userId: user.id,
       }
     });

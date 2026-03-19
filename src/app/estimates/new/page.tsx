@@ -4,12 +4,15 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import styles from '@/app/invoices/new/page.module.css';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
+import { formatCurrency } from '@/lib/format';
 
 interface EstimateItem {
   id: string;
   description: string;
   quantity: number;
   price: number;
+  unit: string;
+  chapter: string;
 }
 
 interface Client {
@@ -36,18 +39,16 @@ interface CompanySettings {
   bankAccount: string;
   dataProtection: string;
 }
+
 export default function NewEstimate() {
-  const [items, setItems] = useState<EstimateItem[]>([
-    { id: '1', description: '', quantity: 1, price: 0 }
-  ]);
   return (
     <Suspense fallback={<div>Cargando editor...</div>}>
-      <NewEstimateContent items={items} setItems={setItems} />
+      <NewEstimateContent />
     </Suspense>
   );
 }
 
-function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setItems: any }) {
+function NewEstimateContent() {
   const searchParams = useSearchParams();
   const projectIdParam = searchParams.get('projectId');
   
@@ -56,6 +57,10 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
   const [settings, setSettings] = useState<CompanySettings | null>(null);
   
   // Form State
+  const [items, setItems] = useState<EstimateItem[]>([
+    { id: '1', description: '', quantity: 1, price: 0, unit: 'ud', chapter: '01 GENERAL' }
+  ]);
+  const [chapters, setChapters] = useState<string[]>(['01 GENERAL']);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [estimateNumber, setEstimateNumber] = useState('');
   const [validUntil, setValidUntil] = useState('');
@@ -69,7 +74,7 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
   const pdfRef = useRef<HTMLDivElement>(null);
 
-  // Quick Add Client State (omitting for brevity or keeping simple)
+  // Quick Add Client State
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
 
@@ -83,7 +88,6 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
       setClients(clientsData || []);
       setSettings(settingsData || null);
       
-      // Generate sequential estimate number
       const year = new Date().getFullYear();
       const existingNumbers = (estimatesData || [])
         .map((est: any) => {
@@ -94,8 +98,6 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
       const nextNumber = existingNumbers.length > 0 ? Math.max(...existingNumbers) + 1 : 1;
       setEstimateNumber(`PRE-${year}-${nextNumber.toString().padStart(3, '0')}`);
       
-      
-      // If projectId is in URL, fetch it and pre-select
       if (projectIdParam) {
         fetch(`/api/projects/${projectIdParam}`).then(res => res.json()).then(project => {
           if (project && project.clientId) {
@@ -114,8 +116,6 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
       fetch(`/api/projects`).then(res => res.json()).then(data => {
         const clientProjects = (data || []).filter((p: any) => p.clientId === selectedClientId);
         setProjects(clientProjects);
-        
-        // Only reset if the current selected project doesn't belong to the new client
         if (selectedProjectId && !clientProjects.some((p: any) => p.id === selectedProjectId)) {
           setSelectedProjectId('');
         }
@@ -126,8 +126,42 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
     }
   }, [selectedClientId]);
 
-  const addItem = () => {
-    setItems([...items, { id: Date.now().toString(), description: '', quantity: 1, price: 0 }]);
+  // Item & Chapter management
+  const addItemToChapter = (chapterName: string) => {
+    setItems([...items, { 
+      id: Date.now().toString(), 
+      description: '', 
+      quantity: 1, 
+      price: 0, 
+      unit: 'ud', 
+      chapter: chapterName 
+    }]);
+  };
+
+  const addChapter = () => {
+    const nextNum = chapters.length + 1;
+    const newChapter = `${nextNum.toString().padStart(2, '0')} NUEVO CAPÍTULO`;
+    setChapters([...chapters, newChapter]);
+    setItems([...items, { 
+      id: Date.now().toString(), 
+      description: '', 
+      quantity: 1, 
+      price: 0, 
+      unit: 'ud', 
+      chapter: newChapter 
+    }]);
+  };
+
+  const removeChapter = (chapterName: string) => {
+    if (chapters.length > 1) {
+      setChapters(chapters.filter(c => c !== chapterName));
+      setItems(items.filter(item => item.chapter !== chapterName));
+    }
+  };
+
+  const updateChapterName = (oldName: string, newName: string) => {
+    setChapters(chapters.map(c => c === oldName ? newName : c));
+    setItems(items.map(item => item.chapter === oldName ? { ...item, chapter: newName } : item));
   };
 
   const removeItem = (id: string) => {
@@ -167,7 +201,9 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
-          price: item.price
+          price: item.price,
+          unit: item.unit,
+          chapter: item.chapter
         }))
       };
       const res = await fetch('/api/estimates', {
@@ -179,7 +215,6 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
       setSaveSuccess('✓ Presupuesto guardado correctamente');
       setTimeout(() => setSaveSuccess(''), 4000);
       
-      // Refresh increment
       const year = new Date().getFullYear();
       const currentNum = parseInt(estimateNumber.split('-').pop() || '0');
       setEstimateNumber(`PRE-${year}-${(currentNum + 1).toString().padStart(3, '0')}`);
@@ -227,7 +262,7 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
       <div className={styles.header + " no-print"}>
         <div>
           <h1 className="text-gradient">Crear Nuevo Presupuesto</h1>
-          <p className={styles.subtitle}>Genera una propuesta comercial para tu cliente.</p>
+          <p className={styles.subtitle}>Genera una propuesta comercial estructurada por capítulos.</p>
         </div>
         <div className={styles.actions + " no-print"}>
           {saveSuccess && <span style={{ color: '#10b981', marginRight: '16px', fontWeight: 600 }}>{saveSuccess}</span>}
@@ -354,8 +389,8 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
           </div>
 
           <div className={`glass-panel ${styles.card}`}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Conceptos del Presupuesto</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>Estructura del Presupuesto (Capítulos y Partidas)</h3>
               <div className={styles.langToggle}>
                 <button 
                   className={`${styles.langBtn} ${spellcheckLang === 'ES' ? styles.langBtnActive : ''}`}
@@ -371,53 +406,108 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
                 </button>
               </div>
             </div>
-            <div className={styles.itemsTable}>
-              {items.map((item) => (
-                <div key={item.id} className={styles.itemRow}>
-                  <div className={styles.colDesc}>
-                    <textarea 
-                      className="input-modern" 
-                      placeholder="Descripción" 
-                      value={item.description}
-                      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                      spellCheck={true}
-                      lang={spellcheckLang === 'ES' ? 'es' : 'ca'}
-                    />
-                  </div>
-                  <div className={styles.colQty}>
+
+            {chapters.map((chapterName) => {
+              const chapterItems = items.filter(i => i.chapter === chapterName);
+              const chapterTotal = chapterItems.reduce((s, i) => s + (i.quantity * i.price), 0);
+              
+              return (
+                <div key={chapterName} style={{ marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '12px' }}>
                     <input 
-                      type="number" 
-                      className="input-modern" 
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                      className="input-modern"
+                      style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--accent-primary)', flex: 1 }}
+                      value={chapterName}
+                      onChange={(e) => updateChapterName(chapterName, e.target.value)}
                     />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600 }}>Subtotal: {formatCurrency(chapterTotal)}</span>
+                      <button 
+                        onClick={() => removeChapter(chapterName)}
+                        style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}
+                        title="Eliminar Capítulo"
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.colPrice}>
-                    <input 
-                      type="number" 
-                      className="input-modern" 
-                      value={item.price}
-                      onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
-                    />
+
+                  <div className={styles.itemsTable}>
+                    {chapterItems.map((item) => (
+                      <div key={item.id} className={styles.itemRow}>
+                        <div className={styles.colDesc}>
+                          <textarea 
+                            className="input-modern" 
+                            placeholder="Descripción de la partida / concepto" 
+                            value={item.description}
+                            onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                            spellCheck={true}
+                            lang={spellcheckLang === 'ES' ? 'es' : 'ca'}
+                          />
+                        </div>
+                        <div style={{ width: '80px' }}>
+                          <input 
+                            type="text" 
+                            className="input-modern" 
+                            placeholder="Ud."
+                            value={item.unit}
+                            onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                            style={{ textAlign: 'center' }}
+                          />
+                        </div>
+                        <div className={styles.colQty}>
+                          <input 
+                            type="number" 
+                            className="input-modern" 
+                            value={item.quantity}
+                            onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className={styles.colPrice}>
+                          <input 
+                            type="number" 
+                            className="input-modern" 
+                            value={item.price}
+                            onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className={styles.colTotal}>
+                          {(item.quantity * item.price).toFixed(2)} €
+                        </div>
+                        <div className={styles.colAction}>
+                          <button className={styles.deleteBtn} onClick={() => removeItem(item.id)}>✕</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className={styles.colTotal}>
-                    {(item.quantity * item.price).toFixed(2)} €
-                  </div>
-                  <div className={styles.colAction}>
-                    <button className={styles.deleteBtn} onClick={() => removeItem(item.id)}>✕</button>
-                  </div>
+                  <button 
+                    className={styles.addBtn} 
+                    style={{ marginTop: '12px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', border: '1px dashed var(--accent-primary)' }}
+                    onClick={() => addItemToChapter(chapterName)}
+                  >
+                    + Añadir Partida a {chapterName}
+                  </button>
                 </div>
-              ))}
+              );
+            })}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="btn-primary" 
+                style={{ flex: 1, padding: '12px', background: 'linear-gradient(135deg, #3b82f6, #8b5cf6)' }}
+                onClick={addChapter}
+              >
+                📂 Nuevo Capítulo
+              </button>
             </div>
-            <button className={styles.addBtn} onClick={addItem}>+ Añadir Concepto</button>
           </div>
         </div>
 
         <div className={styles.summaryPanel}>
           <div className={`glass-panel ${styles.summaryCard}`}>
-            <h3>Resumen</h3>
+            <h3>Resumen Presupuestario</h3>
             <div className={styles.summaryRow}>
-              <span>Subtotal</span>
+              <span>Total Ejecución Material</span>
               <span>{subtotal.toFixed(2)} €</span>
             </div>
             <div className={styles.summaryRow}>
@@ -426,7 +516,7 @@ function NewEstimateContent({ items, setItems }: { items: EstimateItem[], setIte
             </div>
             <div className={styles.divider}></div>
             <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
-              <span>Total</span>
+              <span>Total Presupuesto</span>
               <span className="text-gradient">{total.toFixed(2)} €</span>
             </div>
           </div>

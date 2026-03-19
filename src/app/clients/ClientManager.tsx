@@ -10,11 +10,21 @@ type Client = {
   email: string | null;
   address: string | null;
   taxId: string | null;
-  createdAt: Date;
+  type: string;
+  createdAt: string;
   _count?: { invoices: number };
 };
 
-export default function ClientManager({ initialClients }: { initialClients: Client[] }) {
+const CLIENT_TYPES = [
+  { id: 'PARTICULAR', label: 'Particular', color: '#3b82f6' },
+  { id: 'EMPRESA', label: 'Empresa', color: '#10b981' },
+  { id: 'PROMOTOR', label: 'Promotor', color: '#f59e0b' },
+  { id: 'COMUNIDAD', label: 'Comunidad', color: '#8b5cf6' },
+  { id: 'INVERSOR', label: 'Inversor', color: '#ec4899' },
+  { id: 'INDUSTRIAL', label: 'Industrial / Subcontrata', color: '#64748b' }
+];
+
+export default function ClientManager({ initialClients }: { initialClients: any[] }) {
   const [clients, setClients] = useState<Client[]>(initialClients);
   const [isAdding, setIsAdding] = useState(false);
   const [editingClient, setEditingClient] = useState<Client | null>(null);
@@ -30,7 +40,8 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
     name: '',
     email: '',
     address: '',
-    taxId: ''
+    taxId: '',
+    type: 'PARTICULAR'
   });
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -82,7 +93,8 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
       name: client.name,
       email: client.email || '',
       address: client.address || '',
-      taxId: client.taxId || ''
+      taxId: client.taxId || '',
+      type: client.type || 'PARTICULAR'
     });
     setEditingClient(client);
     setIsAdding(false);
@@ -119,7 +131,7 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
   const closeForm = () => {
     setIsAdding(false);
     setEditingClient(null);
-    setFormData({ name: '', email: '', address: '', taxId: '' });
+    setFormData({ name: '', email: '', address: '', taxId: '', type: 'PARTICULAR' });
   };
 
   return (
@@ -173,6 +185,18 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                   placeholder="Calle Ejemplo 123, Ciudad"
                 />
               </div>
+              <div className={styles.formGroup}>
+                <label>Tipo de Cliente</label>
+                <select 
+                  className="input-modern"
+                  value={formData.type}
+                  onChange={e => setFormData({...formData, type: e.target.value})}
+                >
+                  {CLIENT_TYPES.map(type => (
+                    <option key={type.id} value={type.id}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className={styles.formActions}>
               <button type="button" className="btn-secondary" onClick={closeForm}>Cancelar</button>
@@ -196,6 +220,7 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
           <thead>
             <tr>
               <th>Datos del Cliente</th>
+              <th>Tipo</th>
               <th>Contacto</th>
               <th>NIF/CIF</th>
               <th>Facturas</th>
@@ -215,6 +240,25 @@ export default function ClientManager({ initialClients }: { initialClients: Clie
                   <div className={styles.clientInfo}>
                     <span className={styles.clientName}>{client.name}</span>
                   </div>
+                </td>
+                <td>
+                  {(() => {
+                    const typeInfo = CLIENT_TYPES.find(t => t.id === (client.type || 'PARTICULAR'));
+                    return (
+                      <span className={styles.badge} style={{ 
+                        backgroundColor: 'rgba(255,255,255,0.05)', 
+                        border: `1px solid ${typeInfo?.color || '#3b82f6'}33`,
+                        color: typeInfo?.color || '#3b82f6',
+                        padding: '4px 8px',
+                        borderRadius: '6px',
+                        fontSize: '11px',
+                        fontWeight: 600,
+                        textTransform: 'uppercase'
+                      }}>
+                        {typeInfo?.label || 'Particular'}
+                      </span>
+                    );
+                  })()}
                 </td>
                 <td className={styles.cellContact}>
                     {client.email || <span className={styles.muted}>N/A</span>}

@@ -3,12 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import styles from '@/app/invoices/new/page.module.css';
+import { formatCurrency } from '@/lib/format';
 
 interface EstimateItem {
   id: string;
   description: string;
   quantity: number;
   price: number;
+  unit: string;
+  chapter: string;
 }
 
 interface Client {
@@ -26,6 +29,7 @@ export default function EditEstimatePage() {
   const estimateId = params.id as string;
   
   const [items, setItems] = useState<EstimateItem[]>([]);
+  const [chapters, setChapters] = useState<string[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
   const [selectedClientId, setSelectedClientId] = useState('');
   const [estimateNumber, setEstimateNumber] = useState('');
@@ -55,19 +59,63 @@ export default function EditEstimatePage() {
       setValidUntil(estimate.validUntil ? estimate.validUntil.split('T')[0] : '');
       setStatus(estimate.status);
       if (estimate.language) setLanguage(estimate.language);
-      setItems(estimate.items.map((item: any) => ({
+      
+      const loadedItems = estimate.items.map((item: any) => ({
         id: item.id,
         description: item.description,
         quantity: item.quantity,
         price: item.price,
-      })));
+        unit: item.unit || 'ud',
+        chapter: item.chapter || '01 GENERAL'
+      }));
+      setItems(loadedItems);
+      
+      // Extract unique chapters from items
+      const uniqueChapters = Array.from(new Set(loadedItems.map((i: any) => i.chapter))) as string[];
+      if (uniqueChapters.length === 0) uniqueChapters.push('01 GENERAL');
+      setChapters(uniqueChapters.sort());
+      
       setClients(clientsData || []);
       setIsLoading(false);
     });
   }, [estimateId]);
 
-  const addItem = () => {
-    setItems([...items, { id: Date.now().toString(), description: '', quantity: 1, price: 0 }]);
+  // Item & Chapter management
+  const addItemToChapter = (chapterName: string) => {
+    setItems([...items, { 
+      id: Date.now().toString(), 
+      description: '', 
+      quantity: 1, 
+      price: 0, 
+      unit: 'ud', 
+      chapter: chapterName 
+    }]);
+  };
+
+  const addChapter = () => {
+    const nextNum = chapters.length + 1;
+    const newChapter = `${nextNum.toString().padStart(2, '0')} NUEVO CAPÍTULO`;
+    setChapters([...chapters, newChapter]);
+    setItems([...items, { 
+      id: Date.now().toString(), 
+      description: '', 
+      quantity: 1, 
+      price: 0, 
+      unit: 'ud', 
+      chapter: newChapter 
+    }]);
+  };
+
+  const removeChapter = (chapterName: string) => {
+    if (chapters.length > 1) {
+      setChapters(chapters.filter(c => c !== chapterName));
+      setItems(items.filter(item => item.chapter !== chapterName));
+    }
+  };
+
+  const updateChapterName = (oldName: string, newName: string) => {
+    setChapters(chapters.map(c => c === oldName ? newName : c));
+    setItems(items.map(item => item.chapter === oldName ? { ...item, chapter: newName } : item));
   };
 
   const removeItem = (id: string) => {
@@ -105,6 +153,8 @@ export default function EditEstimatePage() {
             description: item.description,
             quantity: item.quantity,
             price: item.price,
+            unit: item.unit,
+            chapter: item.chapter
           })),
           language
         })
@@ -137,7 +187,7 @@ export default function EditEstimatePage() {
             ← Volver al presupuesto
           </button>
           <h1 className="text-gradient">Editar Presupuesto {estimateNumber}</h1>
-          <p className={styles.subtitle}>Modifica los datos del presupuesto.</p>
+          <p className={styles.subtitle}>Modifica los datos y estructura de capítulos.</p>
         </div>
         <div className={styles.actions}>
           {saveSuccess && <span style={{ color: '#10b981', marginRight: '16px', fontWeight: 600 }}>{saveSuccess}</span>}
@@ -219,8 +269,8 @@ export default function EditEstimatePage() {
           </div>
 
           <div className={`glass-panel ${styles.card}`}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-              <h3 style={{ margin: 0 }}>Conceptos</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+              <h3 style={{ margin: 0 }}>Estructura del Presupuesto</h3>
               <div className={styles.langToggle}>
                 <button 
                   className={`${styles.langBtn} ${spellcheckLang === 'ES' ? styles.langBtnActive : ''}`}
@@ -236,60 +286,114 @@ export default function EditEstimatePage() {
                 </button>
               </div>
             </div>
-            <div className={styles.itemsTable}>
-              {items.map((item) => (
-                <div key={item.id} className={styles.itemRow}>
-                  <div className={styles.colDesc}>
-                    <textarea 
-                      className="input-modern" 
-                      placeholder="Descripción" 
-                      value={item.description}
-                      onChange={(e) => updateItem(item.id, 'description', e.target.value)}
-                      spellCheck={true}
-                      lang={spellcheckLang === 'ES' ? 'es' : 'ca'}
-                    />
-                  </div>
-                  <div className={styles.colQty}>
+
+            {chapters.map((chapterName) => {
+              const chapterItems = items.filter(i => i.chapter === chapterName);
+              const chapterTotal = chapterItems.reduce((s, i) => s + (i.quantity * i.price), 0);
+              
+              return (
+                <div key={chapterName} style={{ marginBottom: '2rem', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '16px', background: 'rgba(255,255,255,0.02)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px', gap: '12px' }}>
                     <input 
-                      type="number" 
-                      className="input-modern" 
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
+                      className="input-modern"
+                      style={{ fontWeight: 'bold', fontSize: '16px', color: 'var(--accent-primary)', flex: 1 }}
+                      value={chapterName}
+                      onChange={(e) => updateChapterName(chapterName, e.target.value)}
                     />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                      <span style={{ fontSize: '14px', fontWeight: 600 }}>Subtotal: {formatCurrency(chapterTotal)}</span>
+                      <button 
+                        onClick={() => removeChapter(chapterName)}
+                        style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}
+                      >
+                        🗑️
+                      </button>
+                    </div>
                   </div>
-                  <div className={styles.colPrice}>
-                    <input 
-                      type="number" 
-                      className="input-modern" 
-                      value={item.price}
-                      onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
-                    />
+
+                  <div className={styles.itemsTable}>
+                    {chapterItems.map((item) => (
+                      <div key={item.id} className={styles.itemRow}>
+                        <div className={styles.colDesc}>
+                          <textarea 
+                            className="input-modern" 
+                            placeholder="Descripción" 
+                            value={item.description}
+                            onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                            spellCheck={true}
+                            lang={spellcheckLang === 'ES' ? 'es' : 'ca'}
+                          />
+                        </div>
+                        <div style={{ width: '80px' }}>
+                          <input 
+                            type="text" 
+                            className="input-modern" 
+                            placeholder="Ud."
+                            value={item.unit}
+                            onChange={(e) => updateItem(item.id, 'unit', e.target.value)}
+                            style={{ textAlign: 'center' }}
+                          />
+                        </div>
+                        <div className={styles.colQty}>
+                          <input 
+                            type="number" 
+                            className="input-modern" 
+                            value={item.quantity}
+                            onChange={(e) => updateItem(item.id, 'quantity', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className={styles.colPrice}>
+                          <input 
+                            type="number" 
+                            className="input-modern" 
+                            value={item.price}
+                            onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
+                          />
+                        </div>
+                        <div className={styles.colAction}>
+                          <button className={styles.deleteBtn} onClick={() => removeItem(item.id)}>✕</button>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className={styles.colAction}>
-                    <button className={styles.deleteBtn} onClick={() => removeItem(item.id)}>✕</button>
-                  </div>
+                  <button 
+                    className={styles.addBtn} 
+                    style={{ marginTop: '12px', background: 'rgba(59, 130, 246, 0.1)', color: 'var(--accent-primary)', border: '1px dashed var(--accent-primary)' }}
+                    onClick={() => addItemToChapter(chapterName)}
+                  >
+                    + Añadir Partida a {chapterName}
+                  </button>
                 </div>
-              ))}
+              );
+            })}
+
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <button 
+                className="btn-primary" 
+                style={{ flex: 1, padding: '12px' }}
+                onClick={addChapter}
+              >
+                📂 Nuevo Capítulo
+              </button>
             </div>
-            <button className={styles.addBtn} onClick={addItem}>+ Añadir Concepto</button>
           </div>
         </div>
 
         <div className={styles.summaryPanel}>
           <div className={`glass-panel ${styles.summaryCard}`}>
-            <h3>Resumen</h3>
+            <h3>Resumen Presupuestario</h3>
             <div className={styles.summaryRow}>
-              <span>Subtotal</span>
-              <span>{subtotal.toFixed(2)} €</span>
+              <span>Total Ejecución Material</span>
+              <span>{formatCurrency(subtotal)}</span>
             </div>
             <div className={styles.summaryRow}>
               <span>IVA (21%)</span>
-              <span>{tax.toFixed(2)} €</span>
+              <span>{formatCurrency(tax)}</span>
             </div>
             <div className={styles.divider}></div>
             <div className={`${styles.summaryRow} ${styles.summaryTotal}`}>
-              <span>Total</span>
-              <span className="text-gradient">{total.toFixed(2)} €</span>
+              <span>Total Presupuesto</span>
+              <span className="text-gradient">{formatCurrency(total)}</span>
             </div>
           </div>
         </div>
