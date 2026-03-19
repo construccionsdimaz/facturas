@@ -140,14 +140,17 @@ model Estimate {
   project     Project? @relation(fields: [projectId], references: [id])
   
   invoiceId   String?  @unique // Link to the invoice if converted
+  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
 }
 
 // Individual items (concepts) within an estimate
 model EstimateItem {
   id          String   @id @default(cuid())
   description String
-  quantity    Int      @default(1)
+  quantity    Float    @default(1)
   price       Float    @default(0)
+  unit        String   @default("ud") // m2, m3, ud, etc
+  chapter     String   @default("01 GENERAL")
   
   estimateId  String
   estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
@@ -255,6 +258,7 @@ model ProjectCertification {
   
   lines           ProjectCertificationLine[]
   invoiceId       String?
+  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
