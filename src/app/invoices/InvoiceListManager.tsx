@@ -260,6 +260,31 @@ export default function InvoiceListManager({ initialInvoices, allProjects = [] }
             <span className={`${styles.statValue} ${styles.total}`}>{formatCurrency(totals.total)}</span>
           </div>
         </div>
+
+        {/* Active Filters Summary */}
+        {(appliedYear !== 'all' || appliedQuarter !== 'all' || appliedProject !== 'all' || appliedStartDate || appliedEndDate) && (
+          <div style={{ marginTop: '16px', display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Filtros aplicados:</span>
+            {appliedYear !== 'all' && <span className="badge badge-primary" style={{ fontSize: '11px' }}>Año: {appliedYear}</span>}
+            {appliedQuarter !== 'all' && <span className="badge badge-primary" style={{ fontSize: '11px' }}>Trimestre: T{appliedQuarter}</span>}
+            {appliedProject !== 'all' && (
+              <span className="badge badge-primary" style={{ fontSize: '11px' }}>
+                Obra: {allProjects.find(p => p.id === appliedProject)?.name || 'Seleccionada'}
+              </span>
+            )}
+            {(appliedStartDate || appliedEndDate) && (
+              <span className="badge badge-primary" style={{ fontSize: '11px' }}>
+                Rango: {appliedStartDate || '...'} a {appliedEndDate || '...'}
+              </span>
+            )}
+            <button 
+              onClick={handleClearFilters}
+              style={{ fontSize: '12px', color: 'var(--accent-primary)', marginLeft: '8px', cursor: 'pointer', background: 'none', border: 'none', padding: '0', textDecoration: 'underline' }}
+            >
+              Limpiar todos
+            </button>
+          </div>
+        )}
       </div>
 
       <div className={`glass-panel ${styles.tableContainer}`}>
