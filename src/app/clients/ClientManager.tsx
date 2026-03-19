@@ -10,18 +10,26 @@ type Client = {
   email: string | null;
   address: string | null;
   taxId: string | null;
-  type: string;
+  category: string;
+  subType: string | null;
   createdAt: string;
   _count?: { invoices: number };
 };
 
-const CLIENT_TYPES = [
-  { id: 'PARTICULAR', label: 'Particular', color: '#3b82f6' },
-  { id: 'EMPRESA', label: 'Empresa', color: '#10b981' },
-  { id: 'PROMOTOR', label: 'Promotor', color: '#f59e0b' },
-  { id: 'COMUNIDAD', label: 'Comunidad', color: '#8b5cf6' },
+const CLIENT_CATEGORIES = [
+  { id: 'CLIENTE', label: 'Cliente', color: '#3b82f6' },
+  { id: 'PROVEEDOR', label: 'Proveedor', color: '#10b981' },
+  { id: 'COLABORADOR', label: 'Colaborador', color: '#8b5cf6' },
+  { id: 'SUBCONTRATA', label: 'Subcontrata', color: '#64748b' },
   { id: 'INVERSOR', label: 'Inversor', color: '#ec4899' },
-  { id: 'INDUSTRIAL', label: 'Industrial / Subcontrata', color: '#64748b' }
+  { id: 'MIXTO', label: 'Mixto (Dual)', color: '#f59e0b' }
+];
+
+const CLIENT_SUBTYPES = [
+  { id: 'PARTICULAR', label: 'Particular' },
+  { id: 'EMPRESA', label: 'Empresa' },
+  { id: 'PROMOTOR', label: 'Promotor' },
+  { id: 'COMUNIDAD', label: 'Comunidad' }
 ];
 
 export default function ClientManager({ initialClients }: { initialClients: any[] }) {
@@ -41,7 +49,8 @@ export default function ClientManager({ initialClients }: { initialClients: any[
     email: '',
     address: '',
     taxId: '',
-    type: 'PARTICULAR'
+    category: 'CLIENTE',
+    subType: 'PARTICULAR'
   });
 
   const handleSaveClient = async (e: React.FormEvent) => {
@@ -78,7 +87,7 @@ export default function ClientManager({ initialClients }: { initialClients: any[
       }
       
       // Reset form
-      setFormData({ name: '', email: '', address: '', taxId: '' });
+      setFormData({ name: '', email: '', address: '', taxId: '', category: 'CLIENTE', subType: 'PARTICULAR' });
       
     } catch (error) {
       console.error(error);
@@ -94,7 +103,8 @@ export default function ClientManager({ initialClients }: { initialClients: any[
       email: client.email || '',
       address: client.address || '',
       taxId: client.taxId || '',
-      type: client.type || 'PARTICULAR'
+      category: client.category || 'CLIENTE',
+      subType: client.subType || 'PARTICULAR'
     });
     setEditingClient(client);
     setIsAdding(false);
@@ -131,7 +141,7 @@ export default function ClientManager({ initialClients }: { initialClients: any[
   const closeForm = () => {
     setIsAdding(false);
     setEditingClient(null);
-    setFormData({ name: '', email: '', address: '', taxId: '', type: 'PARTICULAR' });
+    setFormData({ name: '', email: '', address: '', taxId: '', category: 'CLIENTE', subType: 'PARTICULAR' });
   };
 
   return (
@@ -139,13 +149,13 @@ export default function ClientManager({ initialClients }: { initialClients: any[
       {(isAdding || editingClient) ? (
         <div className={`glass-panel ${styles.addClientForm}`}>
           <div className={styles.formHeader}>
-            <h2>{editingClient ? 'Editar Cliente' : 'Añadir Nuevo Cliente'}</h2>
+            <h2>{editingClient ? 'Editar Tercero' : 'Añadir Nuevo Tercero'}</h2>
             <button className={styles.closeBtn} onClick={closeForm}>×</button>
           </div>
           <form onSubmit={handleSaveClient}>
             <div className={styles.formGrid}>
               <div className={styles.formGroup}>
-                <label>Nombre Empresa/Cliente *</label>
+                <label>Nombre / Razón Social *</label>
                 <input 
                   type="text" 
                   className="input-modern" 
@@ -176,7 +186,7 @@ export default function ClientManager({ initialClients }: { initialClients: any[
                 />
               </div>
               <div className={styles.formGroup}>
-                <label>Dirección de Facturación</label>
+                <label>Dirección</label>
                 <input 
                   type="text" 
                   className="input-modern" 
@@ -185,23 +195,39 @@ export default function ClientManager({ initialClients }: { initialClients: any[
                   placeholder="Calle Ejemplo 123, Ciudad"
                 />
               </div>
+              
               <div className={styles.formGroup}>
-                <label>Tipo de Cliente</label>
+                <label>Tipo de Tercero</label>
                 <select 
                   className="input-modern"
-                  value={formData.type}
-                  onChange={e => setFormData({...formData, type: e.target.value})}
+                  value={formData.category}
+                  onChange={e => setFormData({...formData, category: e.target.value})}
                 >
-                  {CLIENT_TYPES.map(type => (
-                    <option key={type.id} value={type.id}>{type.label}</option>
+                  {CLIENT_CATEGORIES.map(cat => (
+                    <option key={cat.id} value={cat.id}>{cat.label}</option>
                   ))}
                 </select>
               </div>
+
+              {(formData.category === 'CLIENTE' || formData.category === 'MIXTO') && (
+                <div className={styles.formGroup}>
+                  <label>Subtipo de Cliente</label>
+                  <select 
+                    className="input-modern"
+                    value={formData.subType}
+                    onChange={e => setFormData({...formData, subType: e.target.value})}
+                  >
+                    {CLIENT_SUBTYPES.map(sub => (
+                      <option key={sub.id} value={sub.id}>{sub.label}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
             </div>
             <div className={styles.formActions}>
               <button type="button" className="btn-secondary" onClick={closeForm}>Cancelar</button>
               <button type="submit" className="btn-primary" disabled={isLoading}>
-                {isLoading ? 'Guardando...' : (editingClient ? 'Actualizar Cliente' : 'Guardar Cliente')}
+                {isLoading ? 'Guardando...' : (editingClient ? 'Actualizar Tercero' : 'Guardar Tercero')}
               </button>
             </div>
           </form>
@@ -209,9 +235,9 @@ export default function ClientManager({ initialClients }: { initialClients: any[
       ) : (
         <div className={styles.actionsBar}>
            <div className={styles.searchBox}>
-               <input type="text" className="input-modern" placeholder="Buscar clientes..." />
+               <input type="text" className="input-modern" placeholder="Buscar terceros..." />
            </div>
-           <button className="btn-primary" onClick={() => setIsAdding(true)}>+ Nuevo Cliente</button>
+           <button className="btn-primary" onClick={() => setIsAdding(true)}>+ Nuevo Tercero</button>
         </div>
       )}
 
@@ -219,19 +245,19 @@ export default function ClientManager({ initialClients }: { initialClients: any[
         <table className={styles.table}>
           <thead>
             <tr>
-              <th>Datos del Cliente</th>
-              <th>Tipo</th>
+              <th>Datos del Tercero</th>
+              <th>Rol y Clasificación</th>
               <th>Contacto</th>
               <th>NIF/CIF</th>
-              <th>Facturas</th>
-              <th>Fecha Alta</th>
+              <th style={{ textAlign: 'center' }}>Facturas EM</th>
+              <th>Alta</th>
               <th style={{ textAlign: 'right' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {clients.length === 0 ? (
               <tr>
-                <td colSpan={6} className={styles.emptyState}>No se han encontrado clientes. Añade tu primer cliente arriba.</td>
+                <td colSpan={7} className={styles.emptyState}>No se han encontrado terceros. Añade el primero arriba.</td>
               </tr>
             ) : clients.map((client) => (
               <tr key={client.id} className={styles.tableRow}>
@@ -243,20 +269,36 @@ export default function ClientManager({ initialClients }: { initialClients: any[
                 </td>
                 <td>
                   {(() => {
-                    const typeInfo = CLIENT_TYPES.find(t => t.id === (client.type || 'PARTICULAR'));
+                    const catInfo = CLIENT_CATEGORIES.find(c => c.id === (client.category || 'CLIENTE'));
+                    const subInfo = CLIENT_SUBTYPES.find(s => s.id === client.subType);
+                    
                     return (
-                      <span className={styles.badge} style={{ 
-                        backgroundColor: 'rgba(255,255,255,0.05)', 
-                        border: `1px solid ${typeInfo?.color || '#3b82f6'}33`,
-                        color: typeInfo?.color || '#3b82f6',
-                        padding: '4px 8px',
-                        borderRadius: '6px',
-                        fontSize: '11px',
-                        fontWeight: 600,
-                        textTransform: 'uppercase'
-                      }}>
-                        {typeInfo?.label || 'Particular'}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        <span className={styles.badge} style={{ 
+                          backgroundColor: 'rgba(255,255,255,0.05)', 
+                          border: `1px solid ${catInfo?.color || '#3b82f6'}33`,
+                          color: catInfo?.color || '#3b82f6',
+                          padding: '4px 8px',
+                          borderRadius: '6px',
+                          fontSize: '11px',
+                          fontWeight: 600,
+                          textTransform: 'uppercase',
+                          width: 'fit-content'
+                        }}>
+                          {catInfo?.label || 'Cliente'}
+                        </span>
+                        {subInfo && (formData.category === 'CLIENTE' || formData.category === 'MIXTO') && (
+                          <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                            ({subInfo.label})
+                          </span>
+                        )}
+                        {/* Fallback for cases where it's saved as CLIENTE but role in table is being determined from subType */}
+                        {subInfo && !catInfo && (
+                           <span style={{ fontSize: '10px', color: 'var(--text-muted)', marginLeft: '4px' }}>
+                            ({subInfo.label})
+                          </span>
+                        )}
+                      </div>
                     );
                   })()}
                 </td>
@@ -266,18 +308,18 @@ export default function ClientManager({ initialClients }: { initialClients: any[
                 <td className={styles.cellTax}>
                     {client.taxId || <span className={styles.muted}>N/A</span>}
                 </td>
-                <td className={styles.cellInvoices}>
+                <td className={styles.cellInvoices} style={{ textAlign: 'center' }}>
                     <span className={styles.badge}>{client._count?.invoices || 0}</span>
                 </td>
                 <td className={styles.cellDate}>
-                  {new Date(client.createdAt).toLocaleDateString()}
+                  {new Date(client.createdAt).toLocaleDateString('es-ES')}
                 </td>
                 <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
                       <button 
                         className={styles.editBtn} 
                         onClick={() => handleEditClick(client)}
-                        title="Editar cliente"
+                        title="Editar tercero"
                       >
                         ✏️
                       </button>
@@ -285,7 +327,7 @@ export default function ClientManager({ initialClients }: { initialClients: any[
                         className={styles.deleteBtn}
                         onClick={() => handleDeleteClick(client.id, client.name)}
                         disabled={isLoading}
-                        title="Eliminar cliente"
+                        title="Eliminar tercero"
                       >
                         🗑️
                       </button>
@@ -299,8 +341,8 @@ export default function ClientManager({ initialClients }: { initialClients: any[
 
       <ConfirmationModal 
         isOpen={modalConfig.isOpen}
-        title="Eliminar Cliente"
-        message={`¿Estás seguro de que deseas eliminar al cliente "${modalConfig.name}"? Esta acción no se puede deshacer.`}
+        title="Eliminar Tercero"
+        message={`¿Estás seguro de que deseas eliminar a "${modalConfig.name}"? Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
         onConfirm={confirmDeleteClient}
         onCancel={() => setModalConfig({ ...modalConfig, isOpen: false })}

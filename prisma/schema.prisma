@@ -50,7 +50,8 @@ model Client {
   address   String?
   phone     String?
   taxId     String?  // NIF/CIF/DNI/NIE
-  type      String   @default("PARTICULAR") // PARTICULAR, EMPRESA, PROMOTOR, COMUNIDAD, INVERSOR, INDUSTRIAL
+  category  String   @default("CLIENTE") // CLIENTE, PROVEEDOR, COLABORADOR, SUBCONTRATA, INVERSOR, MIXTO
+  subType   String?  // PARTICULAR, EMPRESA, PROMOTOR, COMUNIDAD (relevant for CLIENTE/MIXTO)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

@@ -19,7 +19,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, email, address, phone, taxId, type } = body;
+    const { name, email, address, phone, taxId, category, subType } = body;
 
     if (!name) {
       return NextResponse.json(
@@ -40,14 +40,15 @@ export async function POST(request: Request) {
       });
     }
 
-    const newClient = await db.client.create({
+    const newClient = await (db.client as any).create({
       data: {
         name,
         email,
         address,
         phone,
         taxId,
-        type: type || 'PARTICULAR',
+        category: category || 'CLIENTE',
+        subType,
         userId: user.id,
       }
     });
