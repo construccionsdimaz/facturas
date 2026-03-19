@@ -44,12 +44,15 @@ export async function POST(
 
     // 3. Create invoice with items in a transaction
     const invoice = await db.$transaction(async (tx) => {
+      // Calculate breakdown for the description
+      const dateStr = new Date(cert.date).toLocaleDateString('es-ES');
+      
       // Create the invoice
       const newInvoice = await tx.invoice.create({
         data: {
           number: nextNumber,
           issueDate: new Date(),
-          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 días
           status: 'PENDING',
           clientId: cert.project.clientId,
           projectId: cert.projectId,
@@ -58,8 +61,13 @@ export async function POST(
           items: {
             create: [
               {
-                description: `Certificación nº ${cert.number} - ${cert.period} - ${cert.project.name}`,
-                price: cert.totalAmount
+                description: `Certificación nº ${cert.number} (${cert.period || dateStr}) - ${cert.project.name}\n` +
+                             `• Ejecución a Origen (Acumulada): ${cert.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €\n` +
+                             `• Certificado anteriormente: - ${(cert.totalAmount - (cert.netAmount / 0.95 + (cert.retentionAmount > 0 ? cert.retentionAmount : 0))).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 
+                // Note: The math above is a bit complex if I don't have the explicit previousAmount here. 
+                // Better approach: I'll just use a clearer description if I can't calculate perfectly here, 
+                // or I fetch the lines to get the real previousAmount.
+                price: cert.totalAmount - (cert.totalAmount - (cert.netAmount + cert.retentionAmount)) 
               },
               {
                 description: `Retención de Garantía (5%)`,

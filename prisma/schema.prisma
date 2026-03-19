@@ -39,7 +39,6 @@ model User {
   invoices  Invoice[]
   estimates Estimate[]
   projects  Project[]
-  suppliers Supplier[]
 }
 
 // Client represents the people/companies you are billing
@@ -60,6 +59,7 @@ model Client {
   invoices  Invoice[]
   estimates Estimate[]
   projects  Project[]
+  expenses  ProjectExpense[]
 }
 
 // Invoice record
@@ -214,35 +214,19 @@ model ProjectExpense {
   amount          Float
   date            DateTime @default(now())
   category        String?  // Materiales, Mano de Obra, Subcontrata, etc.
+  status          String   @default("PENDIENTE") // PENDIENTE, PAGADO
   
   projectId       String
   project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
   
-  supplierId      String?
-  supplier        Supplier? @relation(fields: [supplierId], references: [id])
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id])
   
   budgetLineId    String?
   budgetLine      ProjectBudgetLine? @relation(fields: [budgetLineId], references: [id])
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-}
-
-model Supplier {
-  id        String   @id @default(cuid())
-  name      String
-  taxId     String?
-  email     String?
-  phone     String?
-  address   String?
-  
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  
-  expenses  ProjectExpense[]
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
 
 // Project Certification (Certificaciones de Obra)
