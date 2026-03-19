@@ -3,11 +3,12 @@ import { db } from '@/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const logs = await db.projectLog.findMany({
-      where: { projectId: params.id },
+      where: { projectId: id },
       include: { photos: true },
       orderBy: { date: 'desc' }
     });
@@ -20,9 +21,10 @@ export async function GET(
 
 export async function POST(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const body = await request.json();
     const { content, weather, incidents, photos } = body;
 
@@ -31,7 +33,7 @@ export async function POST(
         content,
         weather,
         incidents,
-        projectId: params.id,
+        projectId: id,
         photos: photos ? {
           create: photos.map((p: any) => ({
             url: p.url,
