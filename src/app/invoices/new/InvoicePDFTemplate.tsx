@@ -1,5 +1,6 @@
 import styles from './pdf.module.css';
 import { translations, Language } from '@/lib/translations';
+import { formatCurrency } from '@/lib/format';
 
 interface InvoiceData {
   number: string;
@@ -126,8 +127,8 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
               <tr key={index} className={index % 2 === 0 ? styles.rowEven : styles.rowOdd}>
                 <td className={styles.colDesc} style={{ whiteSpace: 'pre-wrap' }}>{item.description || t.concept}</td>
                 <td className={styles.colQty}>{item.quantity}</td>
-                <td className={styles.colPrice}>{item.price.toFixed(2)} €</td>
-                <td className={styles.colTotal}>{(item.quantity * item.price).toFixed(2)} €</td>
+                <td className={styles.colPrice}>{formatCurrency(item.price)}</td>
+                <td className={styles.colTotal}>{formatCurrency(item.quantity * item.price)}</td>
               </tr>
             ))}
           </tbody>
@@ -139,15 +140,15 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
         <div className={styles.summaryBox}>
           <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>{t.subtotal}:</span>
-            <span className={styles.summaryValue}>{data.subtotal.toFixed(2)} €</span>
+            <span className={styles.summaryValue}>{formatCurrency(data.subtotal)}</span>
           </div>
           <div className={styles.summaryRow}>
             <span className={styles.summaryLabel}>{t.tax}:</span>
-            <span className={styles.summaryValue}>{data.tax.toFixed(2)} €</span>
+            <span className={styles.summaryValue}>{formatCurrency(data.tax)}</span>
           </div>
           <div className={styles.summaryTotalRow} style={{ color: data.brandColor, borderTopColor: data.brandColor }}>
             <span className={styles.summaryLabel}>{t.total}:</span>
-            <span className={styles.summaryValue}>{data.total.toFixed(2)} €</span>
+            <span className={styles.summaryValue}>{formatCurrency(data.total)}</span>
           </div>
         </div>
       </div>

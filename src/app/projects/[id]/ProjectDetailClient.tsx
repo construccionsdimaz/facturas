@@ -10,6 +10,7 @@ import {
 import invStyles from '@/app/invoices/page.module.css';
 import styles from '../page.module.css';
 import ConfirmationModal from '@/components/ConfirmationModal';
+import { formatCurrency } from '@/lib/format';
 
 interface ProjectDetailClientProps {
   project: {
@@ -1004,7 +1005,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   <div style={{ marginTop: '20px', fontSize: '14px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <span>Pendiente de Certificar:</span>
-                      <span style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>{pendingToCertify.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                      <span style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>{formatCurrency(pendingToCertify)}</span>
                     </div>
                     <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
                       <div 
@@ -1020,7 +1021,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
 
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
                       <span>Pendiente de Facturar:</span>
-                      <span style={{ fontWeight: '700', color: '#f59e0b' }}>{pendingToInvoice.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</span>
+                      <span style={{ fontWeight: '700', color: '#f59e0b' }}>{formatCurrency(pendingToInvoice)}</span>
                     </div>
                     <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
                       <div 
@@ -1087,7 +1088,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                               <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                             ))}
                           </Pie>
-                          <Tooltip />
+                          <Tooltip formatter={(value: any) => formatCurrency(Number(value))} />
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
@@ -1116,7 +1117,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                                 <tr key={name}>
                                   <td>{name}</td>
                                   <td style={{ textAlign: 'right', fontWeight: '700' }}>
-                                    {amount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                                    {formatCurrency(amount)}
                                   </td>
                                 </tr>
                               ));
@@ -1152,10 +1153,10 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         return (
                           <tr key={line.id}>
                             <td style={{ fontWeight: '600' }}>{line.name}</td>
-                            <td style={{ textAlign: 'right' }}>{line.estimatedAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
-                            <td style={{ textAlign: 'right', color: '#ff4444' }}>{lineExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €</td>
+                            <td style={{ textAlign: 'right' }}>{formatCurrency(line.estimatedAmount)}</td>
+                            <td style={{ textAlign: 'right', color: '#ff4444' }}>{formatCurrency(lineExpenses)}</td>
                             <td style={{ textAlign: 'right', fontWeight: '700', color: diff >= 0 ? '#10b981' : '#ff4444' }}>
-                              {diff.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
+                              {formatCurrency(diff)}
                             </td>
                             <td>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1274,9 +1275,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                       <td><strong>{cert.number}</strong></td>
                       <td>{new Date(cert.date).toLocaleDateString()}</td>
                       <td>{cert.period}</td>
-                      <td style={{ textAlign: 'right' }}>{cert.totalAmount.toFixed(2)} €</td>
-                      <td style={{ textAlign: 'right', color: '#ff4444' }}>-{cert.retentionAmount.toFixed(2)} €</td>
-                      <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--accent-primary)' }}>{cert.netAmount.toFixed(2)} €</td>
+                      <td style={{ textAlign: 'right' }}>{formatCurrency(cert.totalAmount)}</td>
+                      <td style={{ textAlign: 'right', color: '#ff4444' }}>-{formatCurrency(cert.retentionAmount)}</td>
+                      <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--accent-primary)' }}>{formatCurrency(cert.netAmount)}</td>
                       <td>
                         <span className={`badge badge-${cert.status === 'ISSUED' ? 'success' : 'warning'}`}>
                           {cert.status}

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import styles from '../invoices/page.module.css';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import CustomSelect from '@/components/CustomSelect';
+import { formatCurrency } from '@/lib/format';
 
 type Estimate = {
   id: string;
@@ -261,16 +262,16 @@ export default function EstimateListManager({ initialEstimates, allProjects = []
         {/* Summary Stats */}
         <div className={styles.statsGrid}>
           <div className={`glass-panel ${styles.statCard}`}>
-            <span className={styles.statLabel}>Subtotal Presupuestado</span>
-            <span className={styles.statValue}>{totals.subtotal.toFixed(2)} €</span>
+            <span className={styles.statLabel}>Total Base Imponible</span>
+            <span className={styles.statValue}>{formatCurrency(totals.subtotal)}</span>
           </div>
           <div className={`glass-panel ${styles.statCard}`}>
-            <span className={styles.statLabel}>IVA Estimado (21%)</span>
-            <span className={styles.statValue}>{totals.taxAmount.toFixed(2)} €</span>
+            <span className={styles.statLabel}>Total IVA (21%)</span>
+            <span className={styles.statValue}>{formatCurrency(totals.taxAmount)}</span>
           </div>
-          <div className={`glass-panel ${styles.statCard}`}>
-            <span className={styles.statLabel}>Total Presupuestado</span>
-            <span className={`${styles.statValue} ${styles.total}`}>{totals.total.toFixed(2)} €</span>
+          <div className={`glass-panel ${styles.statCard} ${styles.totalCard}`}>
+            <span className={styles.statLabel}>Importe Total</span>
+            <span className={styles.statValue}>{formatCurrency(totals.total)}</span>
           </div>
         </div>
       </div>

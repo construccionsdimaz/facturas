@@ -12,6 +12,7 @@ import {
   Bar,
   Cell
 } from 'recharts';
+import { formatCurrency } from '@/lib/format';
 
 interface ChartData {
   name: string;
@@ -34,7 +35,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
         backdropFilter: 'blur(8px)'
       }}>
         <p style={{ color: 'rgba(255, 255, 255, 0.6)', fontSize: '12px', marginBottom: '4px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</p>
-        <p style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>{payload[0].value.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })}</p>
+        <p style={{ color: 'white', fontWeight: 'bold', fontSize: '16px' }}>{formatCurrency(payload[0].value)}</p>
       </div>
     );
   }

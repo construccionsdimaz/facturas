@@ -6,6 +6,7 @@ import styles from './page.module.css';
 import InvoiceStatusToggle from './InvoiceStatusToggle';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import CustomSelect from '@/components/CustomSelect';
+import { formatCurrency } from '@/lib/format';
 
 type Invoice = {
   id: string;
@@ -243,15 +244,15 @@ export default function InvoiceListManager({ initialInvoices, allProjects = [] }
         <div className={styles.statsGrid}>
           <div className={`glass-panel ${styles.statCard}`}>
             <span className={styles.statLabel}>Total Base Imponible</span>
-            <span className={styles.statValue}>{totals.subtotal.toFixed(2)} €</span>
+            <span className={styles.statValue}>{formatCurrency(totals.subtotal)}</span>
           </div>
           <div className={`glass-panel ${styles.statCard}`}>
             <span className={styles.statLabel}>Total IVA (21%)</span>
-            <span className={styles.statValue}>{totals.taxAmount.toFixed(2)} €</span>
+            <span className={styles.statValue}>{formatCurrency(totals.taxAmount)}</span>
           </div>
           <div className={`glass-panel ${styles.statCard}`}>
             <span className={styles.statLabel}>Total Facturado</span>
-            <span className={`${styles.statValue} ${styles.total}`}>{totals.total.toFixed(2)} €</span>
+            <span className={`${styles.statValue} ${styles.total}`}>{formatCurrency(totals.total)}</span>
           </div>
         </div>
       </div>
