@@ -28,7 +28,7 @@ export async function POST(
 
   try {
     const data = await req.json();
-    const { name, description, estimatedAmount } = data;
+    const { name, description, estimatedAmount, startDate, endDate, order } = data;
 
     if (!name) {
       return NextResponse.json({ error: 'El nombre es obligatorio' }, { status: 400 });
@@ -39,6 +39,9 @@ export async function POST(
         name,
         description,
         estimatedAmount: parseFloat(estimatedAmount) || 0,
+        startDate: startDate ? new Date(startDate) : null,
+        endDate: endDate ? new Date(endDate) : null,
+        order: parseInt(order) || 0,
         projectId: id
       }
     });

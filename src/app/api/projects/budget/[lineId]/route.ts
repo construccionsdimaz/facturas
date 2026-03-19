@@ -9,7 +9,7 @@ export async function PATCH(
 
   try {
     const data = await req.json();
-    const { status, name, estimatedAmount, description } = data;
+    const { status, name, estimatedAmount, description, startDate, endDate, order } = data;
 
     const budgetLine = await db.projectBudgetLine.update({
       where: { id: lineId },
@@ -18,6 +18,9 @@ export async function PATCH(
         name: name || undefined,
         estimatedAmount: estimatedAmount !== undefined ? parseFloat(estimatedAmount) : undefined,
         description: description !== undefined ? description : undefined,
+        startDate: startDate !== undefined ? (startDate ? new Date(startDate) : null) : undefined,
+        endDate: endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined,
+        order: order !== undefined ? parseInt(order) : undefined,
       }
     });
 

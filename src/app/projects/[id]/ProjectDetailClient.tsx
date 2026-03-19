@@ -11,6 +11,7 @@ import invStyles from '@/app/invoices/page.module.css';
 import styles from '../page.module.css';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { formatCurrency } from '@/lib/format';
+import GanttChart from '@/components/GanttChart';
 
 interface ProjectDetailClientProps {
   project: {
@@ -33,7 +34,7 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
-  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>('budget');
+  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>('budget');
   
   // Site Journal & Documents
   const [logs, setLogs] = useState<any[]>([]);
@@ -242,6 +243,25 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       });
     } catch (error) {
       alert('Error al actualizar el estado de la partida');
+    }
+  };
+
+  const handleUpdateBudgetLineDates = async (lineId: string, field: 'startDate' | 'endDate', value: string) => {
+    try {
+      const res = await fetch(`/api/projects/budget/${lineId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: value || null })
+      });
+      if (!res.ok) throw new Error('Failed to update dates');
+      const updatedLine = await res.json();
+      setProject({
+        ...project,
+        budgetLines: project.budgetLines.map((l: any) => l.id === lineId ? updatedLine : l)
+      });
+    } catch (error) {
+      console.error(error);
+      alert('Error al actualizar la fecha');
     }
   };
 
@@ -673,6 +693,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             Certificaciones ({project.certifications?.length || 0})
           </button>
           <button
+            onClick={() => setActiveTab('planificacion')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'planificacion' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'planificacion' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📅 Planificación
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -701,6 +734,24 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         </div>
 
         <div style={{ padding: '24px' }}>
+          {activeTab === 'planificacion' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ fontSize: '18px', fontWeight: '600' }}>Cronograma de la Obra (Gantt)</div>
+                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+                  Las barras muestran el periodo de ejecución y el relleno indica el avance certificado.
+                </div>
+              </div>
+              <GanttChart budgetLines={project.budgetLines} />
+              
+              <div className="glass-panel" style={{ padding: '20px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+                  💡 **Consejo:** Para cambiar las fechas de una partida, ve a la pestaña de **Presupuesto** y usa los selectores de fecha en la columna "Inicio / Fin".
+                </p>
+              </div>
+            </div>
+          )}
+
           {activeTab === 'budget' ? (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
@@ -764,6 +815,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   <tr>
                     <th>Concepto</th>
                     <th>Estado</th>
+                    <th>Inicio / Fin</th>
                     <th style={{ textAlign: 'right' }}>Presupuestado</th>
                     <th style={{ textAlign: 'right' }}>Certificado</th>
                     <th style={{ textAlign: 'right' }}>Gastado (Real)</th>
@@ -796,9 +848,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                               borderRadius: '4px',
                               background: 'rgba(255,255,255,0.05)',
                               color: getStatusColor(line.status),
-                              border: `1px solid ${getStatusColor(line.status)}`,
                               fontSize: '11px',
-                              fontWeight: '600'
+                              outline: 'none',
+                              width: '100px'
                             }}
                           >
                             <option value="PENDING">Pendiente</option>
@@ -806,7 +858,25 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                             <option value="COMPLETED">Finalizada</option>
                           </select>
                         </td>
-                        <td style={{ textAlign: 'right' }}>{formatCurrency(line.estimatedAmount)}</td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            <input 
+                              type="date" 
+                              value={line.startDate ? new Date(line.startDate).toISOString().split('T')[0] : ''} 
+                              onChange={(e) => handleUpdateBudgetLineDates(line.id, 'startDate', e.target.value)}
+                              style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px 4px', outline: 'none' }}
+                            />
+                            <input 
+                              type="date" 
+                              value={line.endDate ? new Date(line.endDate).toISOString().split('T')[0] : ''} 
+                              onChange={(e) => handleUpdateBudgetLineDates(line.id, 'endDate', e.target.value)}
+                              style={{ fontSize: '11px', background: 'rgba(255,255,255,0.05)', color: 'white', border: '1px solid var(--border-subtle)', borderRadius: '4px', padding: '2px 4px', outline: 'none' }}
+                            />
+                          </div>
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
+                          {formatCurrency(line.estimatedAmount)}
+                        </td>
                         <td style={{ textAlign: 'right', fontWeight: '500' }}>
                           {formatCurrency(line.certifiedAmount || 0)}
                         </td>
