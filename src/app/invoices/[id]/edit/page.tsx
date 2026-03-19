@@ -459,10 +459,9 @@ export default function EditInvoicePage({ params }: { params: Promise<{ id: stri
                     step="0.01"
                     value={total.toFixed(2)} 
                     onChange={(e) => handleTotalChange(parseFloat(e.target.value) || 0)}
-                    className="text-gradient"
-                    style={{ width: '120px', background: 'transparent', border: 'none', fontWeight: 800, textAlign: 'right', outline: 'none', fontSize: '20px' }}
+                    style={{ width: '120px', background: 'transparent', border: 'none', fontWeight: 800, textAlign: 'right', outline: 'none', fontSize: '24px', color: 'white' }}
                   />
-                  <span className="text-gradient" style={{ marginLeft: '6px', fontWeight: 800, fontSize: '20px' }}>€</span>
+                  <span className="text-gradient" style={{ marginLeft: '6px', fontWeight: 800, fontSize: '24px' }}>€</span>
                 </div>
               </div>
             </div>
