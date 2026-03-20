@@ -11,7 +11,7 @@ export async function PATCH(
     const data = await req.json();
     const { status, name, estimatedAmount, description, startDate, endDate, order } = data;
 
-    const budgetLine = await db.projectBudgetLine.update({
+    const budgetLine = await (db as any).projectBudgetLine.update({
       where: { id: lineId },
       data: {
         status: status || undefined,
