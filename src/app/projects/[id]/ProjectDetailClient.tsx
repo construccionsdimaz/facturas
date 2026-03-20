@@ -80,6 +80,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [newExpBudgetLineId, setNewExpBudgetLineId] = useState('');
   const [newExpType, setNewExpType] = useState<'DIRECT_BUDGET' | 'DIRECT_PROJECT' | 'LABOR'>('DIRECT_BUDGET');
   const [isSavingExpense, setIsSavingExpense] = useState(false);
+  const [newExpPaidAmount, setNewExpPaidAmount] = useState('');
+  const [newExpDueDate, setNewExpDueDate] = useState('');
   
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
@@ -542,7 +544,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           type: newExpType,
           clientId: newExpClientId || null,
           budgetLineId: newExpBudgetLineId || null,
-          status: newExpStatus
+          status: newExpStatus,
+          paidAmount: newExpPaidAmount || 0,
+          dueDate: newExpDueDate || null
         })
       });
       if (!res.ok) throw new Error('Failed to add');
@@ -554,6 +558,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       setIsAddingExpense(false);
       setNewExpDesc('');
       setNewExpAmount('');
+      setNewExpPaidAmount('');
+      setNewExpDueDate('');
       setNewExpClientId('');
       setSupplierSearch('');
       setNewExpStatus('PENDIENTE');
@@ -564,6 +570,38 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       alert('Error al añadir el gasto');
     } finally {
       setIsSavingExpense(false);
+    }
+  };
+
+  const handleRegisterExpensePayment = async (expense: any, amountToAdd: number) => {
+    const totalNewPaid = Math.round(((expense.paidAmount || 0) + amountToAdd) * 100) / 100;
+    if (totalNewPaid > expense.amount) {
+      alert('El importe pagado no puede superar el total del gasto.');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/treasury/${expense.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paidAmount: totalNewPaid,
+          source: 'PROJECT'
+        })
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setProject({
+          ...project,
+          expenses: project.expenses.map((e: any) => e.id === expense.id ? { ...e, ...updated } : e)
+        });
+      } else {
+        alert('Error al registrar el pago');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión');
     }
   };
 
@@ -1324,12 +1362,35 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         />
                       </div>
                       <div className={styles.formGroup} style={{ flex: 1 }}>
-                        <label>Fecha de Factura / Gasto</label>
+                        <label>Pagado Inicialmente (€)</label>
+                        <input 
+                          type="number" 
+                          step="0.01"
+                          className="input-modern" 
+                          placeholder="0.00" 
+                          value={newExpPaidAmount}
+                          onChange={e => setNewExpPaidAmount(e.target.value)}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '16px', marginTop: '16px' }}>
+                      <div className={styles.formGroup} style={{ flex: 1 }}>
+                        <label>Fecha del Gasto</label>
                         <input 
                           type="date" 
                           className="input-modern" 
                           value={newExpDate}
                           onChange={e => setNewExpDate(e.target.value)}
+                        />
+                      </div>
+                      <div className={styles.formGroup} style={{ flex: 1 }}>
+                        <label>Fecha de Vencimiento (Opcional)</label>
+                        <input 
+                          type="date" 
+                          className="input-modern" 
+                          value={newExpDueDate}
+                          onChange={e => setNewExpDueDate(e.target.value)}
                         />
                       </div>
                     </div>
@@ -1342,10 +1403,11 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   <thead>
                     <tr>
                       <th>Fecha</th>
-                      <th>Descripción</th>
-                      <th>Tipo</th>
-                      <th>Categoría</th>
-                      <th style={{ textAlign: 'right' }}>Importe</th>
+                      <th>Proveedor / Concepto</th>
+                      <th>Tipo / Categoría</th>
+                      <th style={{ textAlign: 'right' }}>Total</th>
+                      <th style={{ textAlign: 'right' }}>Pagado</th>
+                      <th style={{ textAlign: 'right' }}>Pendiente</th>
                       <th style={{ textAlign: 'center' }}>Estado</th>
                       <th style={{ textAlign: 'center' }}></th>
                     </tr>
@@ -1362,30 +1424,39 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                             {exp.client ? exp.client.name : 'Varios / Otros'}
                           </div>
                         </td>
-                        <td>
-                          {exp.type === 'DIRECT_BUDGET' ? 'Partida' : exp.type === 'DIRECT_PROJECT' ? 'Obra' : 'Mano Obra'}
-                        </td>
-                        <td>
-                          <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)' }}>
-                            {exp.category}
-                          </span>
-                        </td>
-                        <td style={{ textAlign: 'right', fontWeight: '700', color: '#ff4444' }}>
+                        <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
                           {formatCurrency(exp.amount)}
                         </td>
+                        <td style={{ textAlign: 'right', color: '#10b981' }}>
+                          {formatCurrency(exp.paidAmount || 0)}
+                        </td>
+                        <td style={{ textAlign: 'right', fontWeight: '700', color: (exp.amount - (exp.paidAmount || 0)) > 0 ? '#ff4444' : 'var(--text-muted)' }}>
+                          {formatCurrency(exp.amount - (exp.paidAmount || 0))}
+                        </td>
                         <td style={{ textAlign: 'center' }}>
-                          <span className={`badge badge-${exp.status === 'PAGADO' ? 'success' : 'warning'}`} style={{ fontSize: '10px' }}>
+                          <span className={`badge badge-${exp.status === 'PAGADO' ? 'success' : exp.status === 'PARCIAL' ? 'info' : 'warning'}`} style={{ fontSize: '10px' }}>
                             {exp.status || 'PENDIENTE'}
                           </span>
                         </td>
-                        <td style={{ textAlign: 'center' }}>
-                          <button 
-                            onClick={() => handleDeleteExpense(exp.id)}
-                            style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
-                            title="Eliminar gasto"
-                          >
-                            ×
-                          </button>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            {exp.status !== 'PAGADO' && (
+                              <button 
+                                onClick={() => handleRegisterExpensePayment(exp, exp.amount - (exp.paidAmount || 0))}
+                                style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '14px' }}
+                                title="Liquidar pago"
+                              >
+                                💰
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => handleDeleteExpense(exp.id)}
+                              style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
+                              title="Eliminar gasto"
+                            >
+                              ×
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

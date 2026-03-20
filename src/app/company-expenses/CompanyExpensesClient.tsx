@@ -25,6 +25,9 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
   const [newSupplierId, setNewSupplierId] = useState('');
   const [supplierSearch, setSupplierSearch] = useState('');
   const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+  const [newPaidAmount, setNewPaidAmount] = useState('');
+  const [newDueDate, setNewDueDate] = useState('');
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   // Quick create supplier state
   const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
@@ -51,6 +54,8 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
           amount: parseFloat(newAmount),
           category: newCategory,
           date: newDate,
+          dueDate: newDueDate || null,
+          paidAmount: newPaidAmount || 0,
           clientId: newSupplierId || null
         })
       });
@@ -62,6 +67,8 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
       setNewAmount('');
       setNewSupplierId('');
       setSupplierSearch('');
+      setNewPaidAmount('');
+      setNewDueDate('');
     } catch (e) {
       alert('Error al añadir gasto');
     } finally {
@@ -104,6 +111,38 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
       alert('Error al imputar gasto');
     } finally {
       setIsImputing(false);
+    }
+  };
+
+  const handleRegisterPayment = async (expense: any, amountToAdd: number) => {
+    const totalNewPaid = Math.round(((expense.paidAmount || 0) + amountToAdd) * 100) / 100;
+    if (totalNewPaid > expense.amount) {
+      alert('El importe pagado no puede superar el total del gasto.');
+      return;
+    }
+
+    setUpdatingId(expense.id);
+    try {
+      const res = await fetch(`/api/treasury/${expense.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paidAmount: totalNewPaid,
+          source: 'COMPANY'
+        })
+      });
+
+      if (res.ok) {
+        const updated = await res.json();
+        setExpenses(expenses.map(e => e.id === expense.id ? { ...e, ...updated } : e));
+      } else {
+        alert('Error al registrar el pago');
+      }
+    } catch (error) {
+      console.error(error);
+      alert('Error de conexión');
+    } finally {
+      setUpdatingId(null);
     }
   };
 
@@ -151,7 +190,7 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
       {isAdding && (
         <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--accent-primary)' }}>
           <form onSubmit={handleAddExpense}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr 1fr 0.8fr auto', gap: '16px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr) minmax(150px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(100px, 1fr) minmax(120px, 1fr) auto', gap: '16px', alignItems: 'flex-end' }}>
               <div className={styles.formGroup}>
                 <label>Descripción / Concepto</label>
                 <input 
@@ -246,14 +285,25 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
                 <input type="date" className="input-modern" value={newDate} onChange={e => setNewDate(e.target.value)} />
               </div>
               <div className={styles.formGroup}>
-                <label>Importe (€)</label>
+                <label>Vencimiento</label>
+                <input type="date" className="input-modern" value={newDueDate} onChange={e => setNewDueDate(e.target.value)} />
+              </div>
+              <div className={styles.formGroup}>
+                <label>Total (€)</label>
                 <input 
                   type="number" step="0.01" className="input-modern" 
                   value={newAmount} onChange={e => setNewAmount(e.target.value)} required 
                 />
               </div>
+              <div className={styles.formGroup}>
+                <label>Pagado (€)</label>
+                <input 
+                  type="number" step="0.01" className="input-modern" 
+                  value={newPaidAmount} onChange={e => setNewPaidAmount(e.target.value)} 
+                />
+              </div>
               <button type="submit" className="btn-primary" disabled={isSaving} style={{ height: '42px' }}>
-                {isSaving ? 'Guardando...' : 'Guardar'}
+                {isSaving ? '...' : 'OK'}
               </button>
             </div>
           </form>
@@ -264,51 +314,72 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
         <table className={invStyles.table}>
           <thead>
             <tr>
-              <th>Fecha</th>
+              <th>Fecha / Venc.</th>
               <th>Proveedor</th>
-              <th>Descripción</th>
-              <th>Categoría</th>
-              <th style={{ textAlign: 'right' }}>Importe Total</th>
+              <th>Descripción / Categoría</th>
+              <th style={{ textAlign: 'right' }}>Total</th>
+              <th style={{ textAlign: 'right' }}>Pagado</th>
+              <th style={{ textAlign: 'right' }}>Pendiente</th>
               <th style={{ textAlign: 'right' }}>Imputado</th>
-              <th style={{ textAlign: 'right' }}>Remanente</th>
               <th style={{ textAlign: 'center' }}>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {expenses.length === 0 ? (
-              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No hay gastos registrados.</td></tr>
+              <tr><td colSpan={8} style={{ textAlign: 'center', padding: '40px', color: 'var(--text-muted)' }}>No hay gastos registrados.</td></tr>
             ) : expenses.map(exp => {
               const totalImputed = exp.imputations?.reduce((sum: number, i: any) => sum + i.amount, 0) || 0;
-              const remaining = exp.amount - totalImputed;
+              const pending = exp.amount - (exp.paidAmount || 0);
               
               return (
                 <tr key={exp.id}>
-                  <td>{new Date(exp.date).toLocaleDateString()}</td>
+                  <td>
+                    <div style={{ fontSize: '13px' }}>{new Date(exp.date).toLocaleDateString()}</div>
+                    {exp.dueDate && (
+                      <div style={{ fontSize: '11px', color: new Date(exp.dueDate) < new Date() ? '#ff4444' : 'var(--text-muted)' }}>
+                        Vence: {new Date(exp.dueDate).toLocaleDateString()}
+                      </div>
+                    )}
+                  </td>
                   <td>
                     {exp.client ? (
                       <div>
                         <strong>{exp.client.name}</strong>
-                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{exp.client.taxId || 'Sin NIF'}</div>
                       </div>
                     ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>(Varios / Sin asignar)</span>
+                      <span style={{ color: 'var(--text-muted)' }}>(Sin proveedor)</span>
                     )}
                   </td>
-                  <td><strong>{exp.description}</strong></td>
-                  <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)' }}>{exp.category}</span></td>
-                  <td style={{ textAlign: 'right', fontWeight: '700' }}>{formatCurrency(exp.amount)}</td>
-                  <td style={{ textAlign: 'right', color: '#3b82f6' }}>{formatCurrency(totalImputed)}</td>
-                  <td style={{ textAlign: 'right', fontWeight: '700', color: remaining > 0 ? '#10b981' : '#ff4444' }}>
-                    {formatCurrency(remaining)}
+                  <td>
+                    <strong>{exp.description}</strong>
+                    <div><span className="badge" style={{ background: 'rgba(255,255,255,0.05)', fontSize: '10px' }}>{exp.category}</span></div>
                   </td>
+                  <td style={{ textAlign: 'right', fontWeight: '700' }}>{formatCurrency(exp.amount)}</td>
+                  <td style={{ textAlign: 'right', color: '#10b981' }}>{formatCurrency(exp.paidAmount || 0)}</td>
+                  <td style={{ textAlign: 'right', fontWeight: '700', color: pending > 0 ? '#ff4444' : 'var(--text-muted)' }}>
+                    {formatCurrency(pending)}
+                  </td>
+                  <td style={{ textAlign: 'right', color: '#3b82f6' }}>{formatCurrency(totalImputed)}</td>
                   <td style={{ textAlign: 'center' }}>
-                    <button 
-                      className="btn-secondary" 
-                      style={{ padding: '4px 8px', fontSize: '11px' }}
-                      onClick={() => setImputeToCert(exp.id)}
-                    >
-                      Imputar a Obra
-                    </button>
+                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      {(exp.paidAmount || 0) < exp.amount && (
+                        <button 
+                          className="btn-primary" 
+                          style={{ padding: '4px 8px', fontSize: '11px' }}
+                          onClick={() => handleRegisterPayment(exp, pending)}
+                          disabled={updatingId === exp.id}
+                        >
+                          💰
+                        </button>
+                      )}
+                      <button 
+                        className="btn-secondary" 
+                        style={{ padding: '4px 8px', fontSize: '11px' }}
+                        onClick={() => setImputeToCert(exp.id)}
+                      >
+                        Imputar
+                      </button>
+                    </div>
                   </td>
                 </tr>
               );

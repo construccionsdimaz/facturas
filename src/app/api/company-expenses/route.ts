@@ -27,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { description, amount, date, category, status, clientId } = body;
+    const { description, amount, date, dueDate, category, status, clientId, paidAmount } = body;
 
     if (!description || !amount || !category) {
       return NextResponse.json(
@@ -35,6 +35,10 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    const parsedAmount = parseFloat(amount);
+    const parsedPaidAmount = paidAmount !== undefined ? Math.round(parseFloat(paidAmount) * 100) / 100 : 0;
+    const computedStatus = status || (parsedPaidAmount >= parsedAmount ? 'PAGADO' : parsedPaidAmount > 0 ? 'PARCIAL' : 'PENDIENTE');
 
     // Find the first user or create a default one
     let user = await db.user.findFirst();
@@ -51,10 +55,12 @@ export async function POST(request: Request) {
     const newExpense = await (db as any).companyExpense.create({
       data: {
         description,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
+        paidAmount: parsedPaidAmount,
         date: date ? new Date(date) : new Date(),
+        dueDate: dueDate ? new Date(dueDate) : null,
         category,
-        status: status || 'PAGADO',
+        status: computedStatus,
         userId: user.id,
         clientId: clientId || null
       }

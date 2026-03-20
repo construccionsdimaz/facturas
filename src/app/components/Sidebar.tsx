@@ -39,6 +39,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <Link href="/company-expenses" className={`${styles.navItem} ${pathname.startsWith('/company-expenses') ? styles.active : ''}`}>
           <span className={styles.icon}>🏢</span> Gastos Empresa
         </Link>
+        <Link href="/treasury" className={`${styles.navItem} ${pathname.startsWith('/treasury') ? styles.active : ''}`}>
+          <span className={styles.icon}>💰</span> Tesorería
+        </Link>
         <Link href="/settings" className={`${styles.navItem} ${pathname.startsWith('/settings') ? styles.active : ''}`}>
           <span className={styles.icon}>⚙️</span> Ajustes
         </Link>

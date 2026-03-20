@@ -32,20 +32,26 @@ export async function POST(
 
   try {
     const data = await req.json();
-    const { description, amount, date, category, clientId, budgetLineId, status, type } = data;
+    const { description, amount, date, dueDate, category, clientId, budgetLineId, status, type, paidAmount } = data;
 
     if (!description || !amount) {
       return NextResponse.json({ error: 'Descripción e importe son obligatorios' }, { status: 400 });
     }
 
+    const parsedAmount = parseFloat(amount);
+    const parsedPaidAmount = paidAmount !== undefined ? Math.round(parseFloat(paidAmount) * 100) / 100 : 0;
+    const computedStatus = status || (parsedPaidAmount >= parsedAmount ? 'PAGADO' : parsedPaidAmount > 0 ? 'PARCIAL' : 'PENDIENTE');
+
     const expense = await (db.projectExpense as any).create({
       data: {
         description,
-        amount: parseFloat(amount),
+        amount: parsedAmount,
+        paidAmount: parsedPaidAmount,
         date: date ? new Date(date) : new Date(),
+        dueDate: dueDate ? new Date(dueDate) : null,
         category,
         type: type || 'DIRECT_BUDGET',
-        status: status || 'PENDIENTE',
+        status: computedStatus,
         projectId: id,
         clientId: clientId || null,
         budgetLineId: budgetLineId || null
