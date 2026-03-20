@@ -12,7 +12,9 @@ export async function GET(
       include: {
         wbs: true,
         location: true,
-        standardActivity: true
+        standardActivity: true,
+        predecessorLinks: true,
+        successorLinks: true
       },
       orderBy: [
         { plannedStartDate: 'asc' },
@@ -55,7 +57,9 @@ export async function POST(
       include: {
         wbs: true,
         location: true,
-        standardActivity: true
+        standardActivity: true,
+        predecessorLinks: true,
+        successorLinks: true
       }
     });
 

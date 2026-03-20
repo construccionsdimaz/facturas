@@ -8,6 +8,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
   const [wbsOptions, setWbsOptions] = useState<any[]>([]);
   const [locationOptions, setLocationOptions] = useState<any[]>([]);
   const [standardActivities, setStandardActivities] = useState<any[]>([]);
+  const [dependencies, setDependencies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   // Filters
@@ -34,16 +35,18 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      const [resAct, resWbs, resLoc, resStd] = await Promise.all([
+      const [resAct, resWbs, resLoc, resStd, resDeps] = await Promise.all([
         fetch(`/api/projects/${projectId}/schedule`),
         fetch(`/api/projects/${projectId}/wbs`),
         fetch(`/api/projects/${projectId}/locations`),
-        fetch(`/api/standard-activities`)
+        fetch(`/api/standard-activities`),
+        fetch(`/api/projects/${projectId}/schedule/dependencies`)
       ]);
       if(resAct.ok) setActivities(await resAct.json());
       if(resWbs.ok) setWbsOptions(await resWbs.json());
       if(resLoc.ok) setLocationOptions(await resLoc.json());
       if(resStd.ok) setStandardActivities(await resStd.json());
+      if(resDeps.ok) setDependencies(await resDeps.json());
     } catch(e) { console.error('Error fetching data', e); }
     setIsLoading(false);
   };
@@ -115,6 +118,30 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
     } catch(err: any) { alert(err.message); }
   };
 
+  const handleAddDependency = async (predecessorId: string, type: string, lag: number) => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/schedule/dependencies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ predecessorId, successorId: editingActivity.id, dependencyType: type, lagDays: lag })
+      });
+      if(!res.ok) {
+        const d = await res.json();
+        throw new Error(d.error || 'Error al enlazar actividad');
+      }
+      // Actualizamos estado refrescando todo. (También actualiza el modal si `fetchData` mantiene editingActivity gracias al refetch que actualiza `activities` aunque el current editingActivity object se queda estático... Para arreglar la UI de depedencias en el modal, resDeps es el que manda y al refetchear `dependencies` se actualizan las listas abajo).
+      fetchData();
+    } catch(err: any) { alert(err.message); }
+  };
+  
+  const handleRemoveDependency = async (depId: string) => {
+    if(!confirm('¿Eliminar esta dependencia constructiva?')) return;
+    try {
+      await fetch(`/api/projects/${projectId}/schedule/dependencies/${depId}`, { method: 'DELETE' });
+      fetchData();
+    } catch(e: any) { alert(e.message); }
+  };
+
   // Status mapping
   const statusColors: any = {
     'PENDIENTE': 'var(--text-muted)',
@@ -156,7 +183,13 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
           <div style={{ fontSize: '36px', fontWeight: 'bold', color: activities.filter(a=>!a.locationId || !a.wbsId).length > 0 ? '#ef4444' : 'var(--text-muted)' }}>
              {activities.filter(a=>!a.locationId || !a.wbsId).length}
           </div>
-          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Huérfanas (Sin Ubicación o WBS)</div>
+          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Falta WBS/Zona</div>
+        </div>
+        <div className="glass-panel" style={{ padding: '24px', textAlign: 'center', borderColor: activities.filter(a=>(!a.predecessorLinks || a.predecessorLinks.length === 0) && (!a.successorLinks || a.successorLinks.length === 0)).length > 0 ? '#f59e0b' : 'transparent' }}>
+          <div style={{ fontSize: '36px', fontWeight: 'bold', color: activities.filter(a=>(!a.predecessorLinks || a.predecessorLinks.length === 0) && (!a.successorLinks || a.successorLinks.length === 0)).length > 0 ? '#f59e0b' : 'var(--text-muted)' }}>
+             {activities.filter(a=>(!a.predecessorLinks || a.predecessorLinks.length === 0) && (!a.successorLinks || a.successorLinks.length === 0)).length}
+          </div>
+          <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Huérfanas Lógicas</div>
         </div>
       </div>
 
@@ -205,6 +238,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
                     <th>Anclaje Físico y Coste</th>
                     <th>Fechas Base</th>
                     <th>Estado de Campo</th>
+                    <th>Red y Enlaces</th>
                     <th style={{textAlign:'right'}}>Acciones</th>
                   </tr>
                 </thead>
@@ -249,6 +283,13 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
                         }}>
                           {act.status.replace('_', ' ')}
                         </span>
+                      </td>
+                      <td>
+                        <div style={{fontSize:'12px', color:'var(--text-secondary)', display:'flex', gap:'8px', alignItems:'center'}}>
+                          <span style={{color: (!act.predecessorLinks || act.predecessorLinks.length === 0) ? '#f59e0b' : 'var(--accent-primary)'}} title="Predecesoras (Actividades que bloquean a esta)">⬅️ {act.predecessorLinks?.length || 0}</span>
+                          <span>|</span>
+                          <span style={{color: (!act.successorLinks || act.successorLinks.length === 0) ? '#f59e0b' : 'var(--accent-primary)'}} title="Sucesoras (Actividades bloqueadas por esta)">➡️ {act.successorLinks?.length || 0}</span>
+                        </div>
                       </td>
                       <td style={{textAlign:'right'}}>
                         <button onClick={() => openForm(act)} style={{ background:'none', border:'none', color:'var(--accent-primary)', cursor:'pointer', marginRight:'12px' }}>Modificar</button>
@@ -360,6 +401,84 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
                 </div>
 
               </div>
+
+              {editingActivity && (
+                <div style={{ marginTop: '24px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '24px' }}>
+                  <h3 style={{ fontSize: '18px', display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 16px 0' }}>
+                    🔗 Lógica Constructiva (Red Temporal)
+                  </h3>
+                  <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '16px' }}>
+                    Establece qué actividades deben terminar o empezar antes de que esta actividad opere. El sistema valida automáticamente bucles infinitos.
+                  </p>
+                  
+                  {/* PREDECESORAS (Qué bloquea a esta tarea) */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <div style={{fontSize:'14px', fontWeight:'bold', color:'var(--accent-primary)', marginBottom:'12px'}}>⬅️ Esta tarea necesita que se cumpla primero:</div>
+                    {dependencies.filter(d=>d.successorId === editingActivity.id).length > 0 ? (
+                      <table className={styles.table} style={{fontSize:'12px', marginBottom:'16px'}}>
+                        <tbody>
+                          {dependencies.filter(d=>d.successorId === editingActivity.id).map(dep => (
+                            <tr key={dep.id}>
+                               <td style={{width:'50px'}}><b>{dep.dependencyType}</b></td>
+                               <td>{dep.predecessor?.name} <span style={{color:'var(--text-muted)'}}>[{dep.predecessor?.code}]</span></td>
+                               <td>{dep.lagDays !== 0 ? (dep.lagDays > 0 ? `Retardo: +${dep.lagDays}d` : `Solape: ${dep.lagDays}d`) : 'Sin desfase'}</td>
+                               <td style={{textAlign:'right'}}>
+                                 <button type="button" onClick={()=>handleRemoveDependency(dep.id)} style={{color:'#ef4444', background:'none', border:'none', cursor:'pointer'}}>Quitar</button>
+                               </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ fontSize:'12px', color:'var(--text-muted)', fontStyle:'italic', padding:'8px', background:'rgba(255,255,255,0.02)', borderRadius:'4px', marginBottom:'16px' }}>No depende de ninguna actividad previa.</div>
+                    )}
+                    
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', background: 'rgba(59, 130, 246, 0.05)', padding: '12px', borderRadius: '8px' }}>
+                      <select id="newPredSelect" className="input-modern" style={{ flex: 1, fontSize:'13px' }}>
+                         <option value="">Añadir nueva predecesora...</option>
+                         {activities.filter(a=>a.id !== editingActivity.id).map(a => (
+                           <option key={a.id} value={a.id}>{a.code ? `[${a.code}] ` : ''}{a.name}</option>
+                         ))}
+                      </select>
+                      <select id="newPredType" className="input-modern" style={{ width:'80px', fontSize:'13px' }}>
+                        <option value="FS">FS (Fin-Inicio)</option>
+                        <option value="SS">SS (Inicio-Inicio)</option>
+                        <option value="FF">FF (Fin-Fin)</option>
+                      </select>
+                      <input id="newPredLag" type="number" step="0.5" className="input-modern" placeholder="Días lag" style={{ width:'80px', fontSize:'13px' }} defaultValue={0} title="Positivo para espera, negativo para solape" />
+                      <button type="button" className="btn-primary" style={{ padding: '6px 12px', fontSize:'12px' }} onClick={() => {
+                        const predId = (document.getElementById('newPredSelect') as HTMLSelectElement).value;
+                        const type = (document.getElementById('newPredType') as HTMLSelectElement).value;
+                        const lag = parseFloat((document.getElementById('newPredLag') as HTMLInputElement).value) || 0;
+                        if(predId) handleAddDependency(predId, type, lag);
+                      }}>Vincular</button>
+                    </div>
+                  </div>
+
+                  {/* SUCESORAS */}
+                  <div>
+                    <div style={{fontSize:'14px', fontWeight:'bold', color:'var(--accent-primary)', marginBottom:'12px'}}>➡️ Esta tarea está bloqueando o condicionando a:</div>
+                    {dependencies.filter(d=>d.predecessorId === editingActivity.id).length > 0 ? (
+                      <table className={styles.table} style={{fontSize:'12px'}}>
+                        <tbody>
+                          {dependencies.filter(d=>d.predecessorId === editingActivity.id).map(dep => (
+                            <tr key={dep.id}>
+                               <td style={{width:'50px'}}><b>{dep.dependencyType}</b></td>
+                               <td>{dep.successor?.name} <span style={{color:'var(--text-muted)'}}>[{dep.successor?.code}]</span></td>
+                               <td>{dep.lagDays !== 0 ? (dep.lagDays > 0 ? `Retardo: +${dep.lagDays}d` : `Solape: ${dep.lagDays}d`) : 'Sin desfase'}</td>
+                               <td style={{textAlign:'right'}}>
+                                 <button type="button" onClick={()=>handleRemoveDependency(dep.id)} style={{color:'#ef4444', background:'none', border:'none', cursor:'pointer'}}>Quitar</button>
+                               </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : (
+                      <div style={{ fontSize:'12px', color:'var(--text-muted)', fontStyle:'italic', padding:'8px', background:'rgba(255,255,255,0.02)', borderRadius:'4px' }}>No condiciona a ninguna otra actividad futura.</div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '20px' }}>
                 <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>

@@ -656,6 +656,32 @@ model ProjectActivity {
   
   observations    String?  @db.Text
   
+  // Relaciones direccionales de la red del cronograma
+  predecessorLinks ActivityDependency[] @relation("SuccessorLinks")
+  successorLinks   ActivityDependency[] @relation("PredecessorLinks")
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Phase 53: Dependencias y Lógica del Cronograma
+model ActivityDependency {
+  id              String   @id @default(cuid())
+  
+  // Nodos de la red
+  predecessorId   String
+  predecessor     ProjectActivity @relation("SuccessorLinks", fields: [predecessorId], references: [id], onDelete: Cascade)
+  
+  successorId     String
+  successor       ProjectActivity @relation("PredecessorLinks", fields: [successorId], references: [id], onDelete: Cascade)
+  
+  // Parámetros constructivos
+  dependencyType  String   @default("FS") // FS, SS, FF, SF
+  lagDays         Float    @default(0)    // Desfase en días (positivo=espera, negativo=solape)
+  observations    String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([predecessorId, successorId])
 }
