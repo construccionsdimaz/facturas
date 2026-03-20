@@ -3,10 +3,10 @@ import { db } from '@/lib/db';
 
 export async function DELETE(
   req: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const movementId = params.id;
+    const { id: movementId } = await params;
     
     // Get movement before deleting to revert sync
     const movement = await (db as any).movement.findUnique({ where: { id: movementId } });
