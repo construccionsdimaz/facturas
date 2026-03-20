@@ -104,10 +104,10 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [certRetention, setCertRetention] = useState(5); // Default 5%
 
 
-  const totalInvoiced = project.invoices.reduce((sum, inv) => sum + inv.total, 0);
-  const totalExpenses = project.expenses.reduce((sum, exp) => sum + exp.amount, 0);
-  const totalBudgeted = project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0);
-  const totalCertified = project.budgetLines.reduce((sum, l) => sum + (l.certifiedAmount || 0), 0);
+  const totalInvoiced = Math.round(project.invoices.reduce((sum, inv) => sum + inv.total, 0) * 100) / 100;
+  const totalExpenses = Math.round(project.expenses.reduce((sum, exp) => sum + exp.amount, 0) * 100) / 100;
+  const totalBudgeted = Math.round(project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0) * 100) / 100;
+  const totalCertified = Math.round(project.budgetLines.reduce((sum, l) => sum + (l.certifiedAmount || 0), 0) * 100) / 100;
   const netResult = totalInvoiced - totalExpenses;
   const marginPercentage = totalInvoiced > 0 ? (netResult / totalInvoiced) * 100 : 0;
   const pendingToInvoice = Math.max(0, totalBudgeted - totalInvoiced);
@@ -1328,9 +1328,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                     </thead>
                     <tbody>
                       {project.budgetLines.map((line: any) => {
-                        const lineExpenses = project.expenses
+                        const lineExpenses = Math.round(project.expenses
                           .filter((exp: any) => exp.budgetLineId === line.id)
-                          .reduce((sum: number, exp: any) => sum + exp.amount, 0);
+                          .reduce((sum: number, exp: any) => sum + exp.amount, 0) * 100) / 100;
                         const diff = line.estimatedAmount - lineExpenses;
                         const percent = line.estimatedAmount > 0 ? (lineExpenses / line.estimatedAmount) * 100 : 0;
                         
@@ -1457,7 +1457,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   {!project.certifications || project.certifications.length === 0 ? (
                     <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay certificaciones emitidas.</td></tr>
                   ) : project.certifications.map((cert: any) => {
-                    const totalAOrigen = cert.lines.reduce((sum: number, l: any) => sum + (l.totalToDate || 0), 0);
+                    const totalAOrigen = Math.round(cert.lines.reduce((sum: number, l: any) => sum + (l.totalToDate || 0), 0) * 100) / 100;
                     
                     return (
                       <tr key={cert.id}>
