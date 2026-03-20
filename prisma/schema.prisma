@@ -39,6 +39,7 @@ model User {
   invoices  Invoice[]
   estimates Estimate[]
   projects  Project[]
+  companyExpenses CompanyExpense[]
 }
 
 // Client represents the people/companies you are billing
@@ -184,6 +185,7 @@ model Project {
   certifications ProjectCertification[]
   logs        ProjectLog[]
   documents   ProjectDocument[]
+  imputedExpenses ImputedExpense[]
 }
 
 model ProjectBudgetLine {
@@ -220,6 +222,7 @@ model ProjectExpense {
   amount          Float
   date            DateTime @default(now())
   category        String?  // Materiales, Mano de Obra, Subcontrata, etc.
+  type            ProjectExpenseType @default(DIRECT_BUDGET)
   status          String   @default("PENDIENTE") // PENDIENTE, PAGADO
   
   projectId       String
@@ -233,6 +236,47 @@ model ProjectExpense {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+enum ProjectExpenseType {
+  DIRECT_BUDGET   // Vinculado a una partida específica
+  DIRECT_PROJECT  // Directo de obra pero sin partida (herramientas, transporte, etc.)
+  LABOR           // Mano de obra propia imputada directamente
+}
+
+// Gastos generales de la empresa (Estructura) - Phase 40
+model CompanyExpense {
+  id              String   @id @default(cuid())
+  description     String
+  amount          Float
+  date            DateTime @default(now())
+  category        String   // Alquiler, Gestoría, Seguros, Oficina, etc.
+  status          String   @default("PAGADO")
+  
+  userId          String
+  user            User     @relation(fields: [userId], references: [id])
+  
+  imputations     ImputedExpense[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Imputación de gastos de estructura a obras específicas - Phase 40
+model ImputedExpense {
+  id                String   @id @default(cuid())
+  amount            Float
+  date              DateTime @default(now())
+  notes             String?
+  
+  companyExpenseId  String
+  companyExpense    CompanyExpense @relation(fields: [companyExpenseId], references: [id], onDelete: Cascade)
+  
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 }
 
 // Project Certification (Certificaciones de Obra)

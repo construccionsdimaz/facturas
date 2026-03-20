@@ -77,6 +77,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [newExpClientId, setNewExpClientId] = useState('');
   const [newExpStatus, setNewExpStatus] = useState('PENDIENTE');
   const [newExpBudgetLineId, setNewExpBudgetLineId] = useState('');
+  const [newExpType, setNewExpType] = useState<'DIRECT_BUDGET' | 'DIRECT_PROJECT' | 'LABOR'>('DIRECT_BUDGET');
   const [isSavingExpense, setIsSavingExpense] = useState(false);
   
   // Edit state
@@ -104,12 +105,31 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [certRetention, setCertRetention] = useState(5); // Default 5%
 
 
-  const totalInvoiced = Math.round(project.invoices.reduce((sum, inv) => sum + inv.total, 0) * 100) / 100;
-  const totalExpenses = Math.round(project.expenses.reduce((sum, exp) => sum + exp.amount, 0) * 100) / 100;
+  const totalInvoiced = Math.round(project.invoices.reduce((sum: number, inv: any) => sum + inv.total, 0) * 100) / 100;
+  
+  // Costes desglosados (Phase 40)
+  const directBudgetExpenses = Math.round(project.expenses
+    .filter((exp: any) => exp.type === 'DIRECT_BUDGET' || (!exp.type && exp.budgetLineId))
+    .reduce((sum: number, exp: any) => sum + exp.amount, 0) * 100) / 100;
+    
+  const directProjectExpenses = Math.round(project.expenses
+    .filter((exp: any) => exp.type === 'DIRECT_PROJECT')
+    .reduce((sum: number, exp: any) => sum + exp.amount, 0) * 100) / 100;
+    
+  const laborExpenses = Math.round(project.expenses
+    .filter((exp: any) => exp.type === 'LABOR')
+    .reduce((sum: number, exp: any) => sum + exp.amount, 0) * 100) / 100;
+
+  const imputedCompanyExpenses = Math.round(((project as any).imputedExpenses?.reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0) * 100) / 100;
+
+  const totalExpenses = Math.round((directBudgetExpenses + directProjectExpenses + laborExpenses + imputedCompanyExpenses) * 100) / 100;
   const totalBudgeted = Math.round(project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0) * 100) / 100;
   const totalCertified = Math.round(project.budgetLines.reduce((sum, l) => sum + (l.certifiedAmount || 0), 0) * 100) / 100;
-  const netResult = totalInvoiced - totalExpenses;
+  
+  const grossMargin = totalInvoiced - (directBudgetExpenses + directProjectExpenses);
+  const netResult = totalInvoiced - totalExpenses; // Rentabilidad Final
   const marginPercentage = totalInvoiced > 0 ? (netResult / totalInvoiced) * 100 : 0;
+  
   const pendingToInvoice = Math.max(0, totalBudgeted - totalInvoiced);
   const pendingToCertify = Math.max(0, totalBudgeted - totalCertified);
 
@@ -472,6 +492,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           amount: Math.round((parseFloat(newExpAmount) || 0) * 100) / 100,
           date: newExpDate,
           category: newExpCategory,
+          type: newExpType,
           clientId: newExpClientId || null,
           budgetLineId: newExpBudgetLineId || null,
           status: newExpStatus
@@ -490,6 +511,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       setNewExpStatus('PENDIENTE');
       setNewExpCategory('Materiales');
       setNewExpBudgetLineId('');
+      setNewExpType('DIRECT_BUDGET');
     } catch (error) {
       alert('Error al añadir el gasto');
     } finally {
@@ -664,13 +686,13 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             </div>
           </div>
           <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid #ff4444' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>GASTOS REALES</div>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>GASTOS TOTALES (Inc. Estructura)</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: '#ff4444' }}>
               {totalExpenses.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
           </div>
-          <div className="glass-panel" style={{ padding: '24px' }}>
-            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>MARGEN ESTIMADO</div>
+          <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid #10b981' }}>
+            <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>RENTABILIDAD FINAL</div>
             <div style={{ fontSize: '24px', fontWeight: '700', color: netResult >= 0 ? '#10b981' : '#ff4444' }}>
               {netResult.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €
             </div>
@@ -1001,7 +1023,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               {isAddingExpense && (
                 <div className="glass-panel" style={{ padding: '24px', marginBottom: '32px', border: '1px solid var(--accent-primary)' }}>
                   <form onSubmit={handleAddExpense}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 140px 1fr auto', gap: '16px', alignItems: 'flex-start' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr 1fr 1fr auto', gap: '16px', alignItems: 'flex-start' }}>
                       <div className={styles.formGroup}>
                         <label>Descripción / Concepto *</label>
                         <input 
@@ -1012,6 +1034,21 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           onChange={e => setNewExpDesc(e.target.value)}
                           required
                         />
+                      </div>
+                      <div className={styles.formGroup}>
+                        <label>Tipo de Coste</label>
+                        <select 
+                          className="input-modern" 
+                          value={newExpType}
+                          onChange={e => {
+                            setNewExpType(e.target.value as any);
+                            if (e.target.value !== 'DIRECT_BUDGET') setNewExpBudgetLineId('');
+                          }}
+                        >
+                          <option value="DIRECT_BUDGET">Coste de Partida</option>
+                          <option value="DIRECT_PROJECT">Coste de Obra</option>
+                          <option value="LABOR">Mano de Obra</option>
+                        </select>
                       </div>
                       <div className={styles.formGroup}>
                         <label>Categoría</label>
@@ -1044,29 +1081,32 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           ))}
                         </select>
                       </div>
+                      {newExpType === 'DIRECT_BUDGET' && (
+                        <div className={styles.formGroup}>
+                          <label>Vincular a Partida</label>
+                          <select 
+                            className="input-modern" 
+                            value={newExpBudgetLineId}
+                            onChange={e => setNewExpBudgetLineId(e.target.value)}
+                            required={newExpType === 'DIRECT_BUDGET'}
+                          >
+                            <option value="">Selecciona partida...</option>
+                            {project.budgetLines.map(l => (
+                              <option key={l.id} value={l.id}>{l.name}</option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
                       <div className={styles.formGroup}>
-                        <label>Estado Cobro</label>
-                        <select 
+                        <label>Importe (€)</label>
+                        <input 
+                          type="number" 
+                          step="0.01" 
                           className="input-modern" 
-                          value={newExpStatus}
-                          onChange={e => setNewExpStatus(e.target.value)}
-                        >
-                          <option value="PENDIENTE">PENDIENTE</option>
-                          <option value="PAGADO">PAGADO</option>
-                        </select>
-                      </div>
-                      <div className={styles.formGroup}>
-                        <label>Vincular a Partida</label>
-                        <select 
-                          className="input-modern" 
-                          value={newExpBudgetLineId}
-                          onChange={e => setNewExpBudgetLineId(e.target.value)}
-                        >
-                          <option value="">(Gasto general)</option>
-                          {project.budgetLines.map(l => (
-                            <option key={l.id} value={l.id}>{l.name}</option>
-                          ))}
-                        </select>
+                          value={newExpAmount}
+                          onChange={e => setNewExpAmount(e.target.value)}
+                          required
+                        />
                       </div>
                       <div style={{ display: 'flex', gap: '8px', marginTop: '24px' }}>
                         <button type="button" className="btn-secondary" onClick={() => setIsAddingExpense(false)} disabled={isSavingExpense}>
@@ -1110,11 +1150,12 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   <thead>
                     <tr>
                       <th>Fecha</th>
-                      <th>Concepto / Proveedor</th>
+                      <th>Descripción</th>
+                      <th>Tipo</th>
                       <th>Categoría</th>
                       <th style={{ textAlign: 'right' }}>Importe</th>
-                      <th style={{ textAlign: 'center' }}>Cobro</th>
-                      <th style={{ width: '80px' }}></th>
+                      <th style={{ textAlign: 'center' }}>Estado</th>
+                      <th style={{ textAlign: 'center' }}></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -1128,6 +1169,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           <div style={{ fontSize: '12px', color: 'var(--accent-primary)' }}>
                             {exp.client ? exp.client.name : 'Varios / Otros'}
                           </div>
+                        </td>
+                        <td>
+                          {exp.type === 'DIRECT_BUDGET' ? 'Partida' : exp.type === 'DIRECT_PROJECT' ? 'Obra' : 'Mano Obra'}
                         </td>
                         <td>
                           <span className="badge" style={{ background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)' }}>
@@ -1168,85 +1212,78 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             </div>
           ) : activeTab === 'analysis' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '24px' }}>
+              {/* Árbol de Costes y Rentabilidad (Phase 40) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                <div className="glass-panel" style={{ padding: '24px' }}>
+                  <h4 style={{ marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>📊 Desglose de Rentabilidad</h4>
+                  <table className={invStyles.table} style={{ fontSize: '15px' }}>
+                    <tbody>
+                      <tr style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
+                        <td style={{ fontWeight: '600' }}>INGRESOS (Facturado)</td>
+                        <td style={{ textAlign: 'right', fontWeight: '800', color: '#10b981' }}>{formatCurrency(totalInvoiced)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Directos de Partida</td>
+                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(directBudgetExpenses)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Directos de Obra</td>
+                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(directProjectExpenses)}</td>
+                      </tr>
+                      <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
+                        <td style={{ fontWeight: '700' }}>MARGEN BRUTO</td>
+                        <td style={{ textAlign: 'right', fontWeight: '800', color: grossMargin >= 0 ? 'var(--accent-primary)' : '#ff4444' }}>
+                          {formatCurrency(grossMargin)}
+                          <div style={{ fontSize: '11px', fontWeight: '500' }}>
+                            ({totalInvoiced > 0 ? ((grossMargin / totalInvoiced) * 100).toFixed(1) : 0}%)
+                          </div>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Mano de Obra Propia</td>
+                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(laborExpenses)}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Indirectos (Estructura)</td>
+                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(imputedCompanyExpenses)}</td>
+                      </tr>
+                      <tr style={{ borderTop: '2px solid var(--accent-primary)', background: 'rgba(59, 130, 246, 0.1)' }}>
+                        <td style={{ fontWeight: '800', fontSize: '16px' }}>RESULTADO REAL (Rentabilidad)</td>
+                        <td style={{ textAlign: 'right', fontWeight: '900', fontSize: '20px', color: netResult >= 0 ? '#10b981' : '#ff4444' }}>
+                          {formatCurrency(netResult)}
+                          <div style={{ fontSize: '12px', fontWeight: '600' }}>
+                            ({marginPercentage.toFixed(1)}%)
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
                 <div className="glass-panel" style={{ padding: '24px' }}>
                   <h4 style={{ marginBottom: '20px' }}>Ejecución vs Presupuesto</h4>
-                  <div style={{ height: '300px', width: '100%' }}>
+                  <div style={{ height: '220px', width: '100%' }}>
                     <ResponsiveContainer width="100%" height="100%">
                       <BarChart data={budgetData}>
                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
                         <XAxis dataKey="name" stroke="var(--text-muted)" />
                         <YAxis stroke="var(--text-muted)" />
-                        <Tooltip 
-                          contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
-                        />
+                        <Tooltip contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }} />
                         <Legend />
                         <Bar dataKey="Presupuestado" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                        <Bar dataKey="Certificado" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
                         <Bar dataKey="Facturado" fill="#10b981" radius={[4, 4, 0, 0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <div style={{ marginTop: '20px', fontSize: '14px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span>Pendiente de Certificar:</span>
-                      <span style={{ fontWeight: '700', color: 'var(--accent-primary)' }}>{formatCurrency(pendingToCertify)}</span>
+                  <div style={{ marginTop: '20px', fontSize: '13px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>Pdte. Certificar:</span>
+                      <span style={{ fontWeight: '600', color: '#8b5cf6' }}>{formatCurrency(pendingToCertify)}</span>
                     </div>
-                    <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden', marginBottom: '16px' }}>
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          height: '100%', 
-                          width: `${Math.min(100, (totalCertified / totalBudgeted) * 100)}%`, 
-                          background: 'linear-gradient(90deg, #3b82f6, #10b981)',
-                          transition: 'width 0.5s ease-in-out'
-                        }} 
-                      />
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span>Pendiente de Facturar:</span>
-                      <span style={{ fontWeight: '700', color: '#f59e0b' }}>{formatCurrency(pendingToInvoice)}</span>
-                    </div>
-                    <div className="progress-bar-bg" style={{ height: '8px', background: 'rgba(255,255,255,0.05)', borderRadius: '4px', overflow: 'hidden' }}>
-                      <div 
-                        className="progress-bar-fill" 
-                        style={{ 
-                          height: '100%', 
-                          width: `${Math.min(100, (totalInvoiced / totalBudgeted) * 100)}%`, 
-                          background: 'linear-gradient(90deg, #10b981, #f59e0b)',
-                          transition: 'width 0.5s ease-in-out'
-                        }} 
-                      />
-                    </div>
-                    <div style={{ textAlign: 'right', fontSize: '11px', marginTop: '4px', color: 'var(--text-muted)' }}>
-                      {((totalInvoiced / totalBudgeted) * 100 || 0).toFixed(1)}% facturado
-                    </div>
-                  </div>
-                </div>
-
-                <div className="glass-panel" style={{ padding: '24px' }}>
-                  <h4 style={{ marginBottom: '20px' }}>Rentabilidad Real</h4>
-                  <div style={{ height: '300px', width: '100%' }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={profitData}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-                        <XAxis dataKey="name" stroke="var(--text-muted)" />
-                        <YAxis stroke="var(--text-muted)" />
-                        <Tooltip 
-                          contentStyle={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: '#fff' }}
-                        />
-                        <Legend />
-                        <Bar dataKey="Ingresos" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        <Bar dataKey="Gastos" fill="#ff4444" radius={[4, 4, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ marginTop: '20px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: '14px' }}>Margen sobre Ingresos:</span>
-                      <span style={{ fontSize: '20px', fontWeight: '800', color: marginPercentage >= 0 ? '#10b981' : '#ff4444' }}>
-                        {marginPercentage.toFixed(1)}%
-                      </span>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                      <span>Pdte. Facturar:</span>
+                      <span style={{ fontWeight: '600', color: '#f59e0b' }}>{formatCurrency(pendingToInvoice)}</span>
                     </div>
                   </div>
                 </div>

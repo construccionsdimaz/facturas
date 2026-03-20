@@ -29,6 +29,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           lines: true
         },
         orderBy: { date: 'desc' }
+      },
+      imputedExpenses: {
+        include: {
+          companyExpense: true
+        },
+        orderBy: { date: 'desc' }
       }
     }
   });

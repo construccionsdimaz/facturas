@@ -32,7 +32,7 @@ export async function POST(
 
   try {
     const data = await req.json();
-    const { description, amount, date, category, clientId, budgetLineId, status } = data;
+    const { description, amount, date, category, clientId, budgetLineId, status, type } = data;
 
     if (!description || !amount) {
       return NextResponse.json({ error: 'Descripción e importe son obligatorios' }, { status: 400 });
@@ -44,6 +44,7 @@ export async function POST(
         amount: parseFloat(amount),
         date: date ? new Date(date) : new Date(),
         category,
+        type: type || 'DIRECT_BUDGET',
         status: status || 'PENDIENTE',
         projectId: id,
         clientId: clientId || null,

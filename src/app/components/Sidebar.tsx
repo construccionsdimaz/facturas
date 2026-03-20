@@ -36,6 +36,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <Link href="/clients" className={`${styles.navItem} ${pathname.startsWith('/clients') ? styles.active : ''}`}>
           <span className={styles.icon}>👥</span> Clientes
         </Link>
+        <Link href="/company-expenses" className={`${styles.navItem} ${pathname.startsWith('/company-expenses') ? styles.active : ''}`}>
+          <span className={styles.icon}>🏢</span> Gastos Empresa
+        </Link>
         <Link href="/settings" className={`${styles.navItem} ${pathname.startsWith('/settings') ? styles.active : ''}`}>
           <span className={styles.icon}>⚙️</span> Ajustes
         </Link>
