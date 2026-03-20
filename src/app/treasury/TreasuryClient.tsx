@@ -385,7 +385,7 @@ export default function TreasuryClient() {
           <div className="glass-panel" style={{ padding: '30px', maxWidth: '500px', width: '100%' }}>
             <h3>Registrar Nuevo Movimiento</h3>
             <form onSubmit={handleAddMovement} style={{ display: 'grid', gap: '15px', marginTop: '20px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' }}>
                 <div className="formGroup">
                   <label>Tipo</label>
                   <select className="input-modern" value={newMov.type} onChange={e => setNewMov({ ...newMov, type: e.target.value as any })}>
@@ -405,7 +405,7 @@ export default function TreasuryClient() {
                   </select>
                 </div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '15px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '15px' }}>
                 <div className="formGroup">
                   <label>Importe (€)</label>
                   <input type="number" step="0.01" className="input-modern" required value={newMov.amount} onChange={e => setNewMov({ ...newMov, amount: e.target.value })} />

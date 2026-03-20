@@ -200,7 +200,7 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
       {isAdding && (
         <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--accent-primary)' }}>
           <form onSubmit={handleAddExpense}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1fr) minmax(200px, 1fr) minmax(150px, 1fr) minmax(120px, 1fr) minmax(120px, 1fr) minmax(100px, 1fr) minmax(120px, 1fr) auto', gap: '16px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', alignItems: 'flex-end' }}>
               <div className={styles.formGroup}>
                 <label>Descripción / Concepto</label>
                 <input 
@@ -320,7 +320,7 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
         </div>
       )}
 
-      <div className="glass-panel" style={{ padding: '24px' }}>
+      <div className={`glass-panel ${invStyles.tableContainer}`}>
         <table className={invStyles.table}>
           <thead>
             <tr>

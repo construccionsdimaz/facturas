@@ -1061,8 +1061,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 </div>
               )}
 
-              <table className={invStyles.table}>
-                <thead>
+              <div className={invStyles.tableContainer}>
+                <table className={invStyles.table}>
+                  <thead>
                   <tr>
                     <th>Concepto</th>
                     <th>Estado</th>
@@ -1228,6 +1229,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   )}
                 </tbody>
               </table>
+            </div>
             </div>
           ) : activeTab === 'expenses' ? (
             <div>
@@ -1589,48 +1591,50 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                 <div className="glass-panel" style={{ padding: '24px' }}>
                   <h4 style={{ marginBottom: '20px', borderBottom: '1px solid rgba(255,255,255,0.1)', paddingBottom: '10px' }}>📊 Desglose de Rentabilidad</h4>
-                  <table className={invStyles.table} style={{ fontSize: '15px' }}>
-                    <tbody>
-                      <tr style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
-                        <td style={{ fontWeight: '600' }}>INGRESOS (Facturado)</td>
-                        <td style={{ textAlign: 'right', fontWeight: '800', color: '#10b981' }}>{formatCurrency(totalInvoiced)}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Directos de Partida</td>
-                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(directBudgetExpenses)}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Directos de Obra</td>
-                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(directProjectExpenses)}</td>
-                      </tr>
-                      <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
-                        <td style={{ fontWeight: '700' }}>MARGEN BRUTO</td>
-                        <td style={{ textAlign: 'right', fontWeight: '800', color: grossMargin >= 0 ? 'var(--accent-primary)' : '#ff4444' }}>
-                          {formatCurrency(grossMargin)}
-                          <div style={{ fontSize: '11px', fontWeight: '500' }}>
-                            ({totalInvoiced > 0 ? ((grossMargin / totalInvoiced) * 100).toFixed(1) : 0}%)
-                          </div>
-                        </td>
-                      </tr>
-                      <tr>
-                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Mano de Obra Propia</td>
-                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(laborExpenses)}</td>
-                      </tr>
-                      <tr>
-                        <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Indirectos (Estructura)</td>
-                        <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(imputedCompanyExpenses)}</td>
-                      </tr>
-                      <tr style={{ borderTop: '2px solid var(--accent-primary)', background: 'rgba(59, 130, 246, 0.1)' }}>
-                        <td style={{ fontWeight: '800', fontSize: '16px' }}>RESULTADO REAL (Rentabilidad)</td>
-                        <td style={{ textAlign: 'right', fontWeight: '900', fontSize: '20px', color: netResult >= 0 ? '#10b981' : '#ff4444' }}>
-                          {formatCurrency(netResult)}
-                          <div style={{ fontSize: '12px', fontWeight: '600' }}>
-                            ({marginPercentage.toFixed(1)}%)
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <div className={invStyles.tableContainer} style={{ background: 'transparent', border: 'none' }}>
+                    <table className={invStyles.table} style={{ fontSize: '15px' }}>
+                      <tbody>
+                        <tr style={{ background: 'rgba(16, 185, 129, 0.1)' }}>
+                          <td style={{ fontWeight: '600' }}>INGRESOS (Facturado)</td>
+                          <td style={{ textAlign: 'right', fontWeight: '800', color: '#10b981' }}>{formatCurrency(totalInvoiced)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Directos de Partida</td>
+                          <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(directBudgetExpenses)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Directos de Obra</td>
+                          <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(directProjectExpenses)}</td>
+                        </tr>
+                        <tr style={{ borderTop: '2px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.03)' }}>
+                          <td style={{ fontWeight: '700' }}>MARGEN BRUTO</td>
+                          <td style={{ textAlign: 'right', fontWeight: '800', color: grossMargin >= 0 ? 'var(--accent-primary)' : '#ff4444' }}>
+                            {formatCurrency(grossMargin)}
+                            <div style={{ fontSize: '11px', fontWeight: '500' }}>
+                              ({totalInvoiced > 0 ? ((grossMargin / totalInvoiced) * 100).toFixed(1) : 0}%)
+                            </div>
+                          </td>
+                        </tr>
+                        <tr>
+                          <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Mano de Obra Propia</td>
+                          <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(laborExpenses)}</td>
+                        </tr>
+                        <tr>
+                          <td style={{ paddingLeft: '20px', color: 'var(--text-muted)' }}>Costes Indirectos (Estructura)</td>
+                          <td style={{ textAlign: 'right', color: '#ff4444' }}>- {formatCurrency(imputedCompanyExpenses)}</td>
+                        </tr>
+                        <tr style={{ borderTop: '2px solid var(--accent-primary)', background: 'rgba(59, 130, 246, 0.1)' }}>
+                          <td style={{ fontWeight: '800', fontSize: '16px' }}>RESULTADO REAL (Rentabilidad)</td>
+                          <td style={{ textAlign: 'right', fontWeight: '900', fontSize: '20px', color: netResult >= 0 ? '#10b981' : '#ff4444' }}>
+                            {formatCurrency(netResult)}
+                            <div style={{ fontSize: '12px', fontWeight: '600' }}>
+                              ({marginPercentage.toFixed(1)}%)
+                            </div>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 <div className="glass-panel" style={{ padding: '24px' }}>
@@ -1690,7 +1694,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
 
                   <div className="glass-panel" style={{ padding: '24px' }}>
                     <h4 style={{ marginBottom: '20px' }}>Gastos por Proveedor</h4>
-                    <div style={{ maxHeight: '250px', overflowY: 'auto' }}>
+                    <div className={invStyles.tableContainer} style={{ maxHeight: '250px' }}>
                       <table className={invStyles.table} style={{ fontSize: '13px' }}>
                         <thead>
                           <tr>
@@ -1795,34 +1799,36 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                   + Nueva Factura
                 </Link>
               </div>
-              <table className={invStyles.table}>
-              <thead>
-                <tr>
-                  <th>Nº Factura</th>
-                  <th>Fecha</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {project.invoices.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay facturas vinculadas.</td></tr>
-                ) : project.invoices.map((inv) => (
-                  <tr key={inv.id}>
-                    <td><Link href={`/invoices/${inv.id}`} className={styles.rowLink}>{inv.number}</Link></td>
-                    <td>{new Date(inv.issueDate).toLocaleDateString()}</td>
-                    <td>{inv.total.toFixed(2)} €</td>
-                    <td>
-                      <span className={`badge badge-${inv.status === 'PAID' ? 'success' : inv.status === 'OVERDUE' ? 'danger' : 'warning'}`}>
-                        {inv.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : activeTab === 'certifications' ? (
+              <div className={invStyles.tableContainer}>
+                <table className={invStyles.table}>
+                  <thead>
+                    <tr>
+                      <th>Nº Factura</th>
+                      <th>Fecha</th>
+                      <th>Total</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {project.invoices.length === 0 ? (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay facturas vinculadas.</td></tr>
+                    ) : project.invoices.map((inv) => (
+                      <tr key={inv.id}>
+                        <td><Link href={`/invoices/${inv.id}`} className={styles.rowLink}>{inv.number}</Link></td>
+                        <td>{new Date(inv.issueDate).toLocaleDateString()}</td>
+                        <td>{inv.total.toFixed(2)} €</td>
+                        <td>
+                          <span className={`badge badge-${inv.status === 'PAID' ? 'success' : inv.status === 'OVERDUE' ? 'danger' : 'warning'}`}>
+                            {inv.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : activeTab === 'certifications' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <div style={{ fontSize: '18px', fontWeight: '600' }}>Certificaciones de Obra</div>
@@ -1942,32 +1948,34 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 + Nuevo Presupuesto
               </Link>
             </div>
-            <table className={invStyles.table}>
-              <thead>
-                <tr>
-                  <th>Nº Presupuesto</th>
-                  <th>Fecha</th>
-                  <th>Total</th>
-                  <th>Estado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {project.estimates.length === 0 ? (
-                  <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay presupuestos vinculados.</td></tr>
-                ) : project.estimates.map((est) => (
-                  <tr key={est.id}>
-                    <td><Link href={`/estimates/${est.id}`} className={styles.rowLink}>{est.number}</Link></td>
-                    <td>{new Date(est.issueDate).toLocaleDateString()}</td>
-                    <td>{est.total.toFixed(2)} €</td>
-                    <td>
-                      <span className={`badge badge-${est.status === 'ACCEPTED' ? 'success' : 'warning'}`}>
-                        {est.status}
-                      </span>
-                    </td>
+            <div className={invStyles.tableContainer}>
+              <table className={invStyles.table}>
+                <thead>
+                  <tr>
+                    <th>Nº Presupuesto</th>
+                    <th>Fecha</th>
+                    <th>Total</th>
+                    <th>Estado</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {project.estimates.length === 0 ? (
+                    <tr><td colSpan={4} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay presupuestos vinculados.</td></tr>
+                  ) : project.estimates.map((est) => (
+                    <tr key={est.id}>
+                      <td><Link href={`/estimates/${est.id}`} className={styles.rowLink}>{est.number}</Link></td>
+                      <td>{new Date(est.issueDate).toLocaleDateString()}</td>
+                      <td>{est.total.toFixed(2)} €</td>
+                      <td>
+                        <span className={`badge badge-${est.status === 'ACCEPTED' ? 'success' : 'warning'}`}>
+                          {est.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         ) : activeTab === 'diario' ? (
           <div>
