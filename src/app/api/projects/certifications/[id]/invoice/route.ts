@@ -64,14 +64,11 @@ export async function POST(
                 description: `Certificación nº ${cert.number} (${cert.period || dateStr}) - ${cert.project.name}\n` +
                              `• Ejecución a Origen (Acumulada): ${cert.totalAmount.toLocaleString('es-ES', { minimumFractionDigits: 2 })} €\n` +
                              `• Certificado anteriormente: - ${(cert.totalAmount - (cert.netAmount / 0.95 + (cert.retentionAmount > 0 ? cert.retentionAmount : 0))).toLocaleString('es-ES', { minimumFractionDigits: 2 })} €`, 
-                // Note: The math above is a bit complex if I don't have the explicit previousAmount here. 
-                // Better approach: I'll just use a clearer description if I can't calculate perfectly here, 
-                // or I fetch the lines to get the real previousAmount.
-                price: cert.totalAmount - (cert.totalAmount - (cert.netAmount + cert.retentionAmount)) 
+                price: Math.round((cert.totalAmount - (cert.totalAmount - (cert.netAmount + cert.retentionAmount))) * 100) / 100
               },
               {
                 description: `Retención de Garantía (5%)`,
-                price: -cert.retentionAmount
+                price: Math.round(-cert.retentionAmount * 100) / 100
               }
             ]
           }

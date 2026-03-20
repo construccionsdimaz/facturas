@@ -371,7 +371,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       return;
     }
 
-    const bruto = certLines.reduce((sum, l) => sum + l.current, 0);
+    const bruto = Math.round(certLines.reduce((sum, l) => sum + l.current, 0) * 100) / 100;
     if (bruto <= 0) {
       alert("La certificación debe tener un importe mayor que 0.");
       return;
@@ -379,8 +379,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
 
     setIsSavingCert(true);
     try {
-      const retencion = bruto * (certRetention / 100);
-      const neto = bruto - retencion;
+      const retencion = Math.round(bruto * (certRetention / 100) * 100) / 100;
+      const neto = Math.round((bruto - retencion) * 100) / 100;
 
       const res = await fetch(`/api/projects/${project.id}/certifications`, {
         method: 'POST',
@@ -394,9 +394,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           netAmount: neto,
           lines: certLines.map(l => ({
             budgetLineId: l.budgetLineId,
-            previousAmount: l.previous,
-            currentAmount: l.current,
-            totalToDate: l.totalToDate || (l.previous + l.current),
+            previousAmount: Math.round((l.previous || 0) * 100) / 100,
+            currentAmount: Math.round((l.current || 0) * 100) / 100,
+            totalToDate: Math.round((l.totalToDate || (l.previous + l.current)) * 100) / 100,
             percentage: l.percentage || (((l.previous + l.current) / (l.estimated || 1)) * 100)
           }))
         })
@@ -439,7 +439,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         body: JSON.stringify({
           name: newLineName,
           description: newLineDesc,
-          estimatedAmount: newLineAmount
+          estimatedAmount: Math.round((parseFloat(newLineAmount) || 0) * 100) / 100
         })
       });
       if (!res.ok) throw new Error('Failed to add');
@@ -469,7 +469,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           description: newExpDesc,
-          amount: newExpAmount,
+          amount: Math.round((parseFloat(newExpAmount) || 0) * 100) / 100,
           date: newExpDate,
           category: newExpCategory,
           clientId: newExpClientId || null,
