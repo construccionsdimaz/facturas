@@ -203,6 +203,7 @@ model Project {
   milestones  ProjectMilestone[]
   constraints ProjectConstraint[]
   locations   ProjectLocation[]
+  wbs         ProjectWBS[]
 }
 
 model ProjectBudgetLine {
@@ -526,4 +527,27 @@ model ProjectLocation {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+// Phase 49: Estructura de Partidas (WBS)
+model ProjectWBS {
+  id              String       @id @default(cuid())
+  projectId       String
+  project         Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Jerarquía
+  parentId        String?
+  parent          ProjectWBS?  @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children        ProjectWBS[] @relation("WBSHierarchy")
+  
+  code            String?      // Código jerárquico (Ej: 01.02.04)
+  name            String       // Albañilería, Demoliciones, Encofrados...
+  level           String       // CAPITULO, SUBCAPITULO, PARTIDA, PAQUETE_TRABAJO
+  status          String       @default("PENDIENTE") // PENDIENTE, EN_PREPARACION, ACTIVA, CERRADA, NO_APLICABLE, BLOQUEADA
+  
+  description     String?      @db.Text
+  observations    String?      @db.Text
+  
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 }

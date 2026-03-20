@@ -14,6 +14,7 @@ import { formatCurrency } from '@/lib/format';
 import GanttChart from '@/components/GanttChart';
 import ProjectSetupTab from './tabs/ProjectSetupTab';
 import ProjectLocationsTab from './tabs/ProjectLocationsTab';
+import ProjectWBSTab from './tabs/ProjectWBSTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -47,7 +48,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -916,6 +917,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             🗺️ Ubicaciones y Zonas
           </button>
           <button
+            onClick={() => setActiveTab('wbs')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'wbs' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'wbs' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📋 Alcance / Partidas
+          </button>
+          <button
             onClick={() => setActiveTab('budget')}
             style={{
               padding: '16px 24px',
@@ -1040,6 +1054,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'ubicaciones' && (
             <ProjectLocationsTab project={project} />
+          )}
+          {activeTab === 'wbs' && (
+            <ProjectWBSTab project={project} />
           )}
           {activeTab === 'planificacion' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
