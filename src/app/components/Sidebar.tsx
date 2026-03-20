@@ -36,6 +36,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <Link href="/standard-activities" className={`${styles.navItem} ${pathname.startsWith('/standard-activities') ? styles.active : ''}`}>
           <span className={styles.icon}>📚</span> Catálogo Act.
         </Link>
+        <Link href="/productivity" className={`${styles.navItem} ${pathname.startsWith('/productivity') ? styles.active : ''}`}>
+          <span className={styles.icon}>⏱️</span> Rendimientos
+        </Link>
         <Link href="/clients" className={`${styles.navItem} ${pathname.startsWith('/clients') ? styles.active : ''}`}>
           <span className={styles.icon}>👥</span> Clientes
         </Link>

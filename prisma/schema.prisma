@@ -581,6 +581,39 @@ model StandardActivity {
   actsAsMilestone     Boolean  @default(false)
   allowsRepetition    Boolean  @default(true) // Puede ejecutarse repetidamente
   
+  productivityRates   ProductivityRate[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Phase 51: Banco de Rendimientos
+model ProductivityRate {
+  id              String   @id @default(cuid())
+  
+  name            String   // Ej: "Alicatado formato estándar interior"
+  
+  // Relación opcional con Actividades Estándar
+  standardActivityId String?
+  standardActivity   StandardActivity? @relation(fields: [standardActivityId], references: [id], onDelete: SetNull)
+  
+  // Datos Cuantitativos
+  value           Float    // Ej: 25.5
+  unit            String   // m2/día, ud/día, ml/día
+  
+  // Contexto y Clasificación
+  category        String   // ALBANILERIA, DEMOLICIONES... (O hereda de Actividad)
+  complexity      String   @default("MEDIA") // BAJA, MEDIA, ALTA
+  workType        String   @default("GENERICO") // OBRA_NUEVA, REFORMA_PARCIAL, REHABILITACION_INTEGRAL
+  locationType    String   @default("INTERIOR") // INTERIOR, EXTERIOR, MIXTO
+  
+  // Calidad del Dato
+  confidenceLevel String   @default("TEORICO") // TEORICO, BASE_PLANIFICACION, HISTORICO_OBSERVADO, ESTIMADO
+  status          String   @default("BORRADOR") // BORRADOR, EN_REVISION, VALIDADO, ACTIVO, OBSOLETO
+  
+  description     String?  @db.Text
+  observations    String?  @db.Text
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
