@@ -3,28 +3,27 @@ import { db } from '@/lib/db';
 
 export async function PATCH(
   req: Request,
-  { params }: { params: Promise<{ lineId: string }> }
+  { params }: { params: Promise<{ id: string, lineId: string }> }
 ) {
-  const { lineId } = await params;
+  const { id: projectId, lineId } = await params;
 
   try {
     const data = await req.json();
-    const { status, name, estimatedAmount, description, startDate, endDate, order } = data;
+    const { name, description, estimatedAmount } = data;
 
-    const budgetLine = await (db as any).projectBudgetLine.update({
-      where: { id: lineId },
+    const updatedLine = await (db as any).projectBudgetLine.update({
+      where: { 
+        id: lineId,
+        projectId: projectId // Ensure it belongs to the project
+      },
       data: {
-        status: status || undefined,
-        name: name || undefined,
-        estimatedAmount: estimatedAmount !== undefined ? parseFloat(estimatedAmount) : undefined,
-        description: description !== undefined ? description : undefined,
-        startDate: startDate !== undefined ? (startDate ? new Date(startDate) : null) : undefined,
-        endDate: endDate !== undefined ? (endDate ? new Date(endDate) : null) : undefined,
-        order: order !== undefined ? parseInt(order) : undefined,
+        name,
+        description,
+        estimatedAmount: typeof estimatedAmount === 'number' ? estimatedAmount : parseFloat(estimatedAmount) || 0,
       }
     });
 
-    return NextResponse.json(budgetLine);
+    return NextResponse.json(updatedLine);
   } catch (error) {
     console.error('Error updating budget line:', error);
     return NextResponse.json({ error: 'Error al actualizar la partida' }, { status: 500 });
@@ -33,11 +32,12 @@ export async function PATCH(
 
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ lineId: string }> }
+  { params }: { params: Promise<{ id: string, lineId: string }> }
 ) {
-  const { lineId } = await params;
+  const { id: projectId, lineId } = await params;
 
   try {
+    // Check if there are certifications or expenses linked
     const line = await (db as any).projectBudgetLine.findUnique({
       where: { id: lineId },
       include: {
@@ -45,8 +45,6 @@ export async function DELETE(
         expenses: true
       }
     });
-
-    if (!line) return NextResponse.json({ error: 'Partida no encontrada' }, { status: 404 });
 
     if (line.certificationLines.length > 0 || line.expenses.length > 0) {
       return NextResponse.json({ 

@@ -105,6 +105,13 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  // Budget Line Edit state
+  const [editingLineId, setEditingLineId] = useState<string | null>(null);
+  const [editLineName, setEditLineName] = useState('');
+  const [editLineAmount, setEditLineAmount] = useState('');
+  const [editLineDesc, setEditLineDesc] = useState('');
+  const [isUpdatingLine, setIsUpdatingLine] = useState(false);
+
   // Certifications state
   const [isAddingCert, setIsAddingCert] = useState(false);
   const [newCertNumber, setNewCertNumber] = useState('');
@@ -255,18 +262,21 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   };
 
   const handleDeleteBudgetLine = async (lineId: string) => {
-    if (!confirm('¿Seguro que quieres eliminar esta partida?')) return;
+    if (!confirm('¿Seguro que quieres eliminar esta partida? Solo se podrá si no hay gastos o certificaciones vinculadas.')) return;
     try {
       const res = await fetch(`/api/projects/budget/${lineId}`, {
         method: 'DELETE'
       });
-      if (!res.ok) throw new Error('Failed to delete');
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error al eliminar');
+      }
       setProject({
         ...project,
         budgetLines: project.budgetLines.filter((l: any) => l.id !== lineId)
       });
-    } catch (error) {
-      alert('Error al eliminar la partida');
+    } catch (error: any) {
+      alert(error.message);
     }
   };
 
@@ -485,6 +495,34 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       alert('Error al añadir la partida');
     } finally {
       setIsSavingLine(false);
+    }
+  };
+
+  const handleUpdateBudgetLine = async (lineId: string) => {
+    if (!editLineName) return;
+    setIsUpdatingLine(true);
+    try {
+      const res = await fetch(`/api/projects/budget/${lineId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editLineName,
+          description: editLineDesc,
+          estimatedAmount: Math.round((parseFloat(editLineAmount) || 0) * 100) / 100
+        })
+      });
+      if (!res.ok) throw new Error('Failed to update');
+      const updatedLine = await res.json();
+      
+      setProject({
+        ...project,
+        budgetLines: project.budgetLines.map((l: any) => l.id === lineId ? updatedLine : l)
+      });
+      setEditingLineId(null);
+    } catch (error) {
+      alert('Error al actualizar la partida');
+    } finally {
+      setIsUpdatingLine(false);
     }
   };
 
@@ -970,8 +1008,26 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                     return (
                       <tr key={line.id}>
                         <td style={{ fontWeight: '600' }}>
-                          <div>{line.name}</div>
-                          {line.description && <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' }}>{line.description}</div>}
+                          {editingLineId === line.id ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <input 
+                                type="text" className="input-modern" value={editLineName}
+                                onChange={e => setEditLineName(e.target.value)}
+                                style={{ fontSize: '12px', padding: '4px 8px' }}
+                              />
+                              <input 
+                                type="text" className="input-modern" value={editLineDesc}
+                                onChange={e => setEditLineDesc(e.target.value)}
+                                placeholder="Descripción..."
+                                style={{ fontSize: '11px', padding: '4px 8px' }}
+                              />
+                            </div>
+                          ) : (
+                            <>
+                              <div>{line.name}</div>
+                              {line.description && <div style={{ fontSize: '12px', color: 'var(--text-muted)', fontWeight: '400' }}>{line.description}</div>}
+                            </>
+                          )}
                         </td>
                         <td>
                           <select
@@ -1009,7 +1065,15 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           </div>
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: 'bold' }}>
-                          {formatCurrency(line.estimatedAmount)}
+                          {editingLineId === line.id ? (
+                            <input 
+                              type="number" step="0.01" className="input-modern" value={editLineAmount}
+                              onChange={e => setEditLineAmount(e.target.value)}
+                              style={{ fontSize: '12px', padding: '4px 8px', textAlign: 'right', width: '100px' }}
+                            />
+                          ) : (
+                            formatCurrency(line.estimatedAmount)
+                          )}
                         </td>
                         <td style={{ textAlign: 'right', fontWeight: '500' }}>
                           {formatCurrency(line.certifiedAmount || 0)}
@@ -1027,13 +1091,49 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           </div>
                         </td>
                         <td style={{ textAlign: 'center' }}>
-                          <button 
-                            onClick={() => handleDeleteBudgetLine(line.id)}
-                            style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
-                            title="Eliminar partida"
-                          >
-                            ×
-                          </button>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                            {editingLineId === line.id ? (
+                              <>
+                                <button 
+                                  onClick={() => handleUpdateBudgetLine(line.id)}
+                                  style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '14px' }}
+                                  disabled={isUpdatingLine}
+                                  title="Guardar"
+                                >
+                                  {isUpdatingLine ? '...' : '✅'}
+                                </button>
+                                <button 
+                                  onClick={() => setEditingLineId(null)}
+                                  style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '14px' }}
+                                  title="Cancelar"
+                                >
+                                  ❌
+                                </button>
+                              </>
+                            ) : (
+                              <>
+                                <button 
+                                  onClick={() => {
+                                    setEditingLineId(line.id);
+                                    setEditLineName(line.name);
+                                    setEditLineAmount(line.estimatedAmount.toString());
+                                    setEditLineDesc(line.description || '');
+                                  }}
+                                  style={{ background: 'none', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', fontSize: '14px' }}
+                                  title="Editar partida"
+                                >
+                                  ✏️
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteBudgetLine(line.id)}
+                                  style={{ background: 'none', border: 'none', color: '#ff4444', cursor: 'pointer', fontSize: '18px' }}
+                                  title="Eliminar partida"
+                                >
+                                  ×
+                                </button>
+                              </>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     );
