@@ -13,6 +13,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import { formatCurrency } from '@/lib/format';
 import GanttChart from '@/components/GanttChart';
 import ProjectSetupTab from './tabs/ProjectSetupTab';
+import ProjectLocationsTab from './tabs/ProjectLocationsTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -46,7 +47,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -902,6 +903,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             ⚙️ Configuración Base
           </button>
           <button
+            onClick={() => setActiveTab('ubicaciones')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'ubicaciones' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'ubicaciones' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🗺️ Ubicaciones y Zonas
+          </button>
+          <button
             onClick={() => setActiveTab('budget')}
             style={{
               padding: '16px 24px',
@@ -1023,6 +1037,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         <div style={{ padding: '24px' }}>
           {activeTab === 'setup' && (
             <ProjectSetupTab project={project} onUpdate={fetchProject} />
+          )}
+          {activeTab === 'ubicaciones' && (
+            <ProjectLocationsTab project={project} />
           )}
           {activeTab === 'planificacion' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>

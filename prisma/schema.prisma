@@ -202,6 +202,7 @@ model Project {
   calendar    ProjectCalendar?
   milestones  ProjectMilestone[]
   constraints ProjectConstraint[]
+  locations   ProjectLocation[]
 }
 
 model ProjectBudgetLine {
@@ -502,4 +503,27 @@ model ProjectConstraint {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Phase 48: Estructura de ubicaciones y zonas
+model ProjectLocation {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Recursividad
+  parentId        String?
+  parent          ProjectLocation?  @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  children        ProjectLocation[] @relation("LocationHierarchy")
+  
+  name            String
+  code            String?
+  type            String   // EDIFICIO, PLANTA, VIVIENDA, ZONA_COMUN, EXTERIOR, HABITACION, BANO, COCINA, etc.
+  status          String   @default("ACTIVA") // PENDIENTE, ACTIVA, CERRADA, NO_APLICABLE, BLOQUEADA, FUERA_ALCANCE
+  
+  description     String?  @db.Text
+  observations    String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
