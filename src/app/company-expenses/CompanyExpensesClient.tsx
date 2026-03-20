@@ -8,10 +8,12 @@ import { formatCurrency } from '@/lib/format';
 interface CompanyExpensesClientProps {
   initialExpenses: any[];
   activeProjects: any[];
+  clients: any[];
 }
 
-export default function CompanyExpensesClient({ initialExpenses, activeProjects }: CompanyExpensesClientProps) {
+export default function CompanyExpensesClient({ initialExpenses, activeProjects, clients }: CompanyExpensesClientProps) {
   const [expenses, setExpenses] = useState(initialExpenses);
+  const [localClients, setLocalClients] = useState(clients);
   const [isAdding, setIsAdding] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
@@ -20,6 +22,15 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
   const [newAmount, setNewAmount] = useState('');
   const [newCategory, setNewCategory] = useState('Oficina');
   const [newDate, setNewDate] = useState(new Date().toISOString().split('T')[0]);
+  const [newSupplierId, setNewSupplierId] = useState('');
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+
+  // Quick create supplier state
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [quickSupplierName, setQuickSupplierName] = useState('');
+  const [quickSupplierCategory, setQuickSupplierCategory] = useState<'PROVEEDOR' | 'SUBCONTRATA' | 'MIXTO'>('PROVEEDOR');
+  const [isSavingQuickSupplier, setIsSavingQuickSupplier] = useState(false);
 
   // Imputation State
   const [imputeToCert, setImputeToCert] = useState<string | null>(null);
@@ -39,7 +50,8 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
           description: newDesc,
           amount: parseFloat(newAmount),
           category: newCategory,
-          date: newDate
+          date: newDate,
+          clientId: newSupplierId || null
         })
       });
       if (!res.ok) throw new Error('Failed to add');
@@ -48,6 +60,8 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
       setIsAdding(false);
       setNewDesc('');
       setNewAmount('');
+      setNewSupplierId('');
+      setSupplierSearch('');
     } catch (e) {
       alert('Error al añadir gasto');
     } finally {
@@ -93,10 +107,43 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
     }
   };
 
+  const handleQuickCreateSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickSupplierName) return;
+    setIsSavingQuickSupplier(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: quickSupplierName,
+          category: quickSupplierCategory
+        })
+      });
+      if (!res.ok) throw new Error('Failed to create');
+      const newSupplier = await res.json();
+      
+      setLocalClients([...localClients, newSupplier]);
+      setNewSupplierId(newSupplier.id);
+      setSupplierSearch(newSupplier.name);
+      setShowQuickCreateModal(false);
+      setQuickSupplierName('');
+    } catch (error) {
+      console.error(error);
+      alert('Error al crear el proveedor');
+    } finally {
+      setIsSavingQuickSupplier(false);
+    }
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="btn-primary" onClick={() => setIsAdding(!isAdding)}>
+        <button className="btn-primary" onClick={() => {
+          setIsAdding(!isAdding);
+          setSupplierSearch('');
+          setNewSupplierId('');
+        }}>
           {isAdding ? 'Cerrar' : '+ Nuevo Gasto de Estructura'}
         </button>
       </div>
@@ -104,13 +151,82 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
       {isAdding && (
         <div className="glass-panel" style={{ padding: '24px', border: '1px solid var(--accent-primary)' }}>
           <form onSubmit={handleAddExpense}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr auto', gap: '16px', alignItems: 'flex-end' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr 1fr 0.8fr auto', gap: '16px', alignItems: 'flex-end' }}>
               <div className={styles.formGroup}>
                 <label>Descripción / Concepto</label>
                 <input 
                   type="text" className="input-modern" value={newDesc} 
                   onChange={e => setNewDesc(e.target.value)} required 
                 />
+              </div>
+              <div className={styles.formGroup} style={{ position: 'relative' }}>
+                <label>Proveedor / Entidad</label>
+                <input
+                  type="text"
+                  className="input-modern"
+                  placeholder="Buscar o crear..."
+                  value={supplierSearch}
+                  onChange={e => {
+                    setSupplierSearch(e.target.value);
+                    setShowSupplierDropdown(true);
+                    if (!e.target.value) setNewSupplierId('');
+                  }}
+                  onFocus={() => setShowSupplierDropdown(true)}
+                />
+                {showSupplierDropdown && (
+                  <div style={{
+                    position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110,
+                    background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
+                    borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                  }}>
+                    {localClients
+                      .filter(c => c.name.toLowerCase().includes(supplierSearch.toLowerCase()))
+                      .map(c => (
+                        <div
+                          key={c.id}
+                          onMouseDown={() => {
+                            setNewSupplierId(c.id);
+                            setSupplierSearch(c.name);
+                            setShowSupplierDropdown(false);
+                          }}
+                          style={{
+                            padding: '10px 14px', cursor: 'pointer',
+                            borderBottom: '1px solid rgba(255,255,255,0.04)',
+                            transition: 'background 0.15s',
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                          onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                        >
+                          <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.name}</div>
+                          <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{c.category}</div>
+                        </div>
+                      ))}
+                    <div
+                      onMouseDown={() => {
+                        setQuickSupplierName(supplierSearch);
+                        setShowQuickCreateModal(true);
+                        setShowSupplierDropdown(false);
+                      }}
+                      style={{
+                        padding: '12px 14px', cursor: 'pointer',
+                        background: 'rgba(59,130,246,0.1)',
+                        color: 'var(--accent-primary)',
+                        fontWeight: '700',
+                        fontSize: '13px',
+                        textAlign: 'center',
+                        borderTop: '1px solid rgba(59,130,246,0.2)'
+                      }}
+                    >
+                      + Registrar "{supplierSearch || 'nuevo'}"
+                    </div>
+                  </div>
+                )}
+                {newSupplierId && (
+                  <div style={{ fontSize: '10px', color: '#10b981', marginTop: '2px', position: 'absolute' }}>
+                    ✓ Seleccionado
+                  </div>
+                )}
               </div>
               <div className={styles.formGroup}>
                 <label>Categoría</label>
@@ -149,6 +265,7 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
           <thead>
             <tr>
               <th>Fecha</th>
+              <th>Proveedor</th>
               <th>Descripción</th>
               <th>Categoría</th>
               <th style={{ textAlign: 'right' }}>Importe Total</th>
@@ -167,6 +284,16 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
               return (
                 <tr key={exp.id}>
                   <td>{new Date(exp.date).toLocaleDateString()}</td>
+                  <td>
+                    {exp.client ? (
+                      <div>
+                        <strong>{exp.client.name}</strong>
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>{exp.client.taxId || 'Sin NIF'}</div>
+                      </div>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>(Varios / Sin asignar)</span>
+                    )}
+                  </td>
                   <td><strong>{exp.description}</strong></td>
                   <td><span className="badge" style={{ background: 'rgba(255,255,255,0.05)' }}>{exp.category}</span></td>
                   <td style={{ textAlign: 'right', fontWeight: '700' }}>{formatCurrency(exp.amount)}</td>
@@ -230,6 +357,49 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects 
                   <button type="button" className="btn-secondary" onClick={() => setImputeToCert(null)}>Cancelar</button>
                   <button type="submit" className="btn-primary" disabled={isImputing}>
                     {isImputing ? 'Guardando...' : 'Confirmar Imputación'}
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+      {showQuickCreateModal && (
+        <div className="modal-backdrop" style={{ zIndex: 2000 }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '450px' }}>
+            <h3>Registrar Nueva Entidad / Proveedor</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+              Añade rápidamente un nuevo proveedor para este gasto estructural.
+            </p>
+            <form onSubmit={handleQuickCreateSupplier}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className={styles.formGroup}>
+                  <label>Nombre Fiscal / Comercial *</label>
+                  <input
+                    type="text"
+                    className="input-modern"
+                    value={quickSupplierName}
+                    onChange={e => setQuickSupplierName(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Categoría Principal</label>
+                  <select
+                    className="input-modern"
+                    value={quickSupplierCategory}
+                    onChange={e => setQuickSupplierCategory(e.target.value as any)}
+                  >
+                    <option value="PROVEEDOR">Proveedor (General)</option>
+                    <option value="SUBCONTRATA">Subcontrata</option>
+                    <option value="MIXTO">Mixto</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowQuickCreateModal(false)}>Cancelar</button>
+                  <button type="submit" className="btn-primary" disabled={isSavingQuickSupplier}>
+                    {isSavingQuickSupplier ? 'Guardando...' : 'Crear y Seleccionar'}
                   </button>
                 </div>
               </div>

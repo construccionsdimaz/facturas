@@ -61,6 +61,7 @@ model Client {
   estimates Estimate[]
   projects  Project[]
   expenses  ProjectExpense[]
+  companyExpenses CompanyExpense[]
 }
 
 // Invoice record
@@ -255,6 +256,9 @@ model CompanyExpense {
   
   userId          String
   user            User     @relation(fields: [userId], references: [id])
+  
+  clientId        String?
+  client          Client?  @relation(fields: [clientId], references: [id])
   
   imputations     ImputedExpense[]
   

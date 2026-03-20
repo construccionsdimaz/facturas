@@ -9,7 +9,8 @@ export async function GET() {
           include: {
             project: true
           }
-        }
+        },
+        client: true
       },
       orderBy: {
         date: 'desc'
@@ -26,7 +27,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { description, amount, date, category, status } = body;
+    const { description, amount, date, category, status, clientId } = body;
 
     if (!description || !amount || !category) {
       return NextResponse.json(
@@ -54,7 +55,8 @@ export async function POST(request: Request) {
         date: date ? new Date(date) : new Date(),
         category,
         status: status || 'PAGADO',
-        userId: user.id
+        userId: user.id,
+        clientId: clientId || null
       }
     });
 

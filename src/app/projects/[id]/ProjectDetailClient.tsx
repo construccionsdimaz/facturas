@@ -34,6 +34,7 @@ interface ProjectDetailClientProps {
 export default function ProjectDetailClient({ project: initialProject, clients }: ProjectDetailClientProps) {
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
+  const [localClients, setLocalClients] = useState(clients);
   const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>('budget');
   
   // Site Journal & Documents
@@ -91,6 +92,14 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   // Search state
   const [clientSearch, setClientSearch] = useState(project.client.name);
   const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [supplierSearch, setSupplierSearch] = useState('');
+  const [showSupplierDropdown, setShowSupplierDropdown] = useState(false);
+
+  // Quick create supplier state
+  const [showQuickCreateModal, setShowQuickCreateModal] = useState(false);
+  const [quickSupplierName, setQuickSupplierName] = useState('');
+  const [quickSupplierCategory, setQuickSupplierCategory] = useState<'PROVEEDOR' | 'SUBCONTRATA' | 'MIXTO'>('PROVEEDOR');
+  const [isSavingQuickSupplier, setIsSavingQuickSupplier] = useState(false);
 
   // Delete state
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -508,6 +517,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       setNewExpDesc('');
       setNewExpAmount('');
       setNewExpClientId('');
+      setSupplierSearch('');
       setNewExpStatus('PENDIENTE');
       setNewExpCategory('Materiales');
       setNewExpBudgetLineId('');
@@ -516,6 +526,35 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       alert('Error al añadir el gasto');
     } finally {
       setIsSavingExpense(false);
+    }
+  };
+
+  const handleQuickCreateSupplier = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!quickSupplierName) return;
+    setIsSavingQuickSupplier(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: quickSupplierName,
+          category: quickSupplierCategory
+        })
+      });
+      if (!res.ok) throw new Error('Failed to create');
+      const newSupplier = await res.json();
+      
+      setLocalClients([...localClients, newSupplier]);
+      setNewExpClientId(newSupplier.id);
+      setSupplierSearch(newSupplier.name);
+      setShowQuickCreateModal(false);
+      setQuickSupplierName('');
+    } catch (error) {
+      console.error(error);
+      alert('Error al crear el proveedor');
+    } finally {
+      setIsSavingQuickSupplier(false);
     }
   };
 
@@ -1064,22 +1103,75 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                           <option value="Otros">Otros</option>
                         </select>
                       </div>
-                      <div className={styles.formGroup}>
+                      <div className={styles.formGroup} style={{ position: 'relative' }}>
                         <label>Proveedor / Subcontrata</label>
-                        <select 
-                          className="input-modern" 
-                          value={newExpClientId}
-                          onChange={e => setNewExpClientId(e.target.value)}
-                        >
-                          <option value="">(Sin asignar / Varios)</option>
-                          {clients
-                            .filter(c => c.category !== 'CLIENTE' || c.category === 'MIXTO')
-                            .map(c => (
-                            <option key={c.id} value={c.id}>
-                              {c.name} ({c.category})
-                            </option>
-                          ))}
-                        </select>
+                        <input
+                          type="text"
+                          className="input-modern"
+                          placeholder="Buscar o crear..."
+                          value={supplierSearch}
+                          onChange={e => {
+                            setSupplierSearch(e.target.value);
+                            setShowSupplierDropdown(true);
+                            if (!e.target.value) setNewExpClientId('');
+                          }}
+                          onFocus={() => setShowSupplierDropdown(true)}
+                        />
+                        {showSupplierDropdown && (
+                          <div style={{
+                            position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 110,
+                            background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)',
+                            borderRadius: '8px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto',
+                            boxShadow: '0 8px 32px rgba(0,0,0,0.4)'
+                          }}>
+                            {localClients
+                              .filter(c => (c.category !== 'CLIENTE' || c.category === 'MIXTO') && 
+                                           c.name.toLowerCase().includes(supplierSearch.toLowerCase()))
+                              .map(c => (
+                                <div
+                                  key={c.id}
+                                  onMouseDown={() => {
+                                    setNewExpClientId(c.id);
+                                    setSupplierSearch(c.name);
+                                    setShowSupplierDropdown(false);
+                                  }}
+                                  style={{
+                                    padding: '10px 14px', cursor: 'pointer',
+                                    borderBottom: '1px solid rgba(255,255,255,0.04)',
+                                    transition: 'background 0.15s',
+                                  }}
+                                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(59,130,246,0.1)')}
+                                  onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                                >
+                                  <div style={{ fontWeight: 600, fontSize: '13px' }}>{c.name}</div>
+                                  <div style={{ fontSize: '10px', color: 'var(--text-secondary)' }}>{c.category}</div>
+                                </div>
+                              ))}
+                            <div
+                              onMouseDown={() => {
+                                setQuickSupplierName(supplierSearch);
+                                setShowQuickCreateModal(true);
+                                setShowSupplierDropdown(false);
+                              }}
+                              style={{
+                                padding: '12px 14px', cursor: 'pointer',
+                                background: 'rgba(59,130,246,0.1)',
+                                color: 'var(--accent-primary)',
+                                fontWeight: '700',
+                                fontSize: '13px',
+                                textAlign: 'center',
+                                borderTop: '1px solid rgba(59,130,246,0.2)'
+                              }}
+                            >
+                              + Registrar "{supplierSearch || 'nuevo'}"
+                            </div>
+                          </div>
+                        )}
+                        {newExpClientId && (
+                          <div style={{ fontSize: '10px', color: '#10b981', marginTop: '2px', position: 'absolute' }}>
+                            ✓ Seleccionado
+                          </div>
+                        )}
                       </div>
                       {newExpType === 'DIRECT_BUDGET' && (
                         <div className={styles.formGroup}>
@@ -2063,6 +2155,49 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                 <button className="btn-primary" style={{ flex: 1 }} onClick={handleUpdateCertification}>Guardar</button>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+      {showQuickCreateModal && (
+        <div className="modal-backdrop" style={{ zIndex: 2000 }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '450px' }}>
+            <h3>Registrar Nuevo Proveedor</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '20px' }}>
+              Añade rápidamente un nuevo contacto para este gasto.
+            </p>
+            <form onSubmit={handleQuickCreateSupplier}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div className={styles.formGroup}>
+                  <label>Nombre Fiscal / Comercial *</label>
+                  <input
+                    type="text"
+                    className="input-modern"
+                    value={quickSupplierName}
+                    onChange={e => setQuickSupplierName(e.target.value)}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div className={styles.formGroup}>
+                  <label>Categoría Principal</label>
+                  <select
+                    className="input-modern"
+                    value={quickSupplierCategory}
+                    onChange={e => setQuickSupplierCategory(e.target.value as any)}
+                  >
+                    <option value="PROVEEDOR">Proveedor (Materiales/Servicios)</option>
+                    <option value="SUBCONTRATA">Subcontrata (Mano de obra ext.)</option>
+                    <option value="MIXTO">Mixto</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '12px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => setShowQuickCreateModal(false)}>Cancelar</button>
+                  <button type="submit" className="btn-primary" disabled={isSavingQuickSupplier}>
+                    {isSavingQuickSupplier ? 'Guardando...' : 'Crear y Seleccionar'}
+                  </button>
+                </div>
+              </div>
+            </form>
           </div>
         </div>
       )}

@@ -11,7 +11,8 @@ export default async function CompanyExpensesPage() {
         include: {
           project: true
         }
-      }
+      },
+      client: true
     },
     orderBy: {
       date: 'desc'
@@ -20,6 +21,10 @@ export default async function CompanyExpensesPage() {
 
   const projects = await db.project.findMany({
     where: { status: 'ACTIVE' },
+    orderBy: { name: 'asc' }
+  });
+
+  const clients = await db.client.findMany({
     orderBy: { name: 'asc' }
   });
 
@@ -32,7 +37,7 @@ export default async function CompanyExpensesPage() {
         </div>
       </div>
 
-      <CompanyExpensesClient initialExpenses={expenses} activeProjects={projects} />
+      <CompanyExpensesClient initialExpenses={expenses} activeProjects={projects} clients={clients} />
     </div>
   );
 }
