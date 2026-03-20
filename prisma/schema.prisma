@@ -551,3 +551,36 @@ model ProjectWBS {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 }
+
+// Phase 50: Biblioteca de Actividades Estándar
+model StandardActivity {
+  id              String   @id @default(cuid())
+  
+  // Datos Generales
+  code            String?  @unique // Ej: ALB-01
+  name            String
+  category        String   // ALBANILERIA, DEMOLICIONES, INSTALACIONES, etc.
+  description     String?  @db.Text
+  observations    String?  @db.Text
+  status          String   @default("ACTIVA") // BORRADOR, REVISION, ACTIVA, ARCHIVADA, OBSOLETA
+  
+  // Atributos y Banderas Funcionales
+  defaultUnit         String?  @default("ud") // m2, m3, ud, ml...
+  requiresQuantity    Boolean  @default(false)
+  requiresLocation    Boolean  @default(true)
+  requiresManager     Boolean  @default(false)
+  requiresCrew        Boolean  @default(false)
+  
+  canBeInSchedule     Boolean  @default(true)
+  canBeInLookahead    Boolean  @default(true)
+  canBeInWeeklyPlan   Boolean  @default(true)
+  
+  requiresInspection  Boolean  @default(false)
+  relatedToPurchases  Boolean  @default(false)
+  generatesWait       Boolean  @default(false) // Fraguado, secado...
+  actsAsMilestone     Boolean  @default(false)
+  allowsRepetition    Boolean  @default(true) // Puede ejecutarse repetidamente
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
