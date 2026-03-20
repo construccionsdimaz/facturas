@@ -15,6 +15,7 @@ import GanttChart from '@/components/GanttChart';
 import ProjectSetupTab from './tabs/ProjectSetupTab';
 import ProjectLocationsTab from './tabs/ProjectLocationsTab';
 import ProjectWBSTab from './tabs/ProjectWBSTab';
+import ProjectScheduleTab from './tabs/ProjectScheduleTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -48,7 +49,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -1008,17 +1009,17 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             Certificaciones ({project.certifications?.length || 0})
           </button>
           <button
-            onClick={() => setActiveTab('planificacion')}
+            onClick={() => setActiveTab('schedule')}
             style={{
               padding: '16px 24px',
-              color: activeTab === 'planificacion' ? 'var(--accent-primary)' : 'var(--text-muted)',
-              borderBottom: activeTab === 'planificacion' ? '2px solid var(--accent-primary)' : 'none',
+              color: activeTab === 'schedule' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'schedule' ? '2px solid var(--accent-primary)' : 'none',
               background: 'none',
               fontWeight: '600',
               whiteSpace: 'nowrap'
             }}
           >
-            📅 Planificación
+            📅 Cronograma Control
           </button>
           <button
             onClick={() => setActiveTab('diario')}
@@ -1058,22 +1059,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           {activeTab === 'wbs' && (
             <ProjectWBSTab project={project} />
           )}
-          {activeTab === 'planificacion' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: '18px', fontWeight: '600' }}>Cronograma de la Obra (Gantt)</div>
-                <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-                  Las barras muestran el periodo de ejecución y el relleno indica el avance certificado.
-                </div>
-              </div>
-              <GanttChart budgetLines={project.budgetLines} />
-              
-              <div className="glass-panel" style={{ padding: '20px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
-                <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
-                  💡 **Consejo:** Para cambiar las fechas de una partida, ve a la pestaña de **Presupuesto** y usa los selectores de fecha en la columna "Inicio / Fin".
-                </p>
-              </div>
-            </div>
+          {activeTab === 'schedule' && (
+            <ProjectScheduleTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (

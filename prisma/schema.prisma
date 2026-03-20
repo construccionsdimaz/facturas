@@ -204,6 +204,7 @@ model Project {
   constraints ProjectConstraint[]
   locations   ProjectLocation[]
   wbs         ProjectWBS[]
+  activities  ProjectActivity[]
 }
 
 model ProjectBudgetLine {
@@ -517,6 +518,8 @@ model ProjectLocation {
   parent          ProjectLocation?  @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
   children        ProjectLocation[] @relation("LocationHierarchy")
   
+  activities      ProjectActivity[]
+  
   name            String
   code            String?
   type            String   // EDIFICIO, PLANTA, VIVIENDA, ZONA_COMUN, EXTERIOR, HABITACION, BANO, COCINA, etc.
@@ -539,6 +542,8 @@ model ProjectWBS {
   parentId        String?
   parent          ProjectWBS?  @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
   children        ProjectWBS[] @relation("WBSHierarchy")
+  
+  activities      ProjectActivity[]
   
   code            String?      // Código jerárquico (Ej: 01.02.04)
   name            String       // Albañilería, Demoliciones, Encofrados...
@@ -582,6 +587,7 @@ model StandardActivity {
   allowsRepetition    Boolean  @default(true) // Puede ejecutarse repetidamente
   
   productivityRates   ProductivityRate[]
+  projectActivities   ProjectActivity[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -612,6 +618,42 @@ model ProductivityRate {
   status          String   @default("BORRADOR") // BORRADOR, EN_REVISION, VALIDADO, ACTIVO, OBSOLETO
   
   description     String?  @db.Text
+  observations    String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Phase 52: Cronograma de Control
+model ProjectActivity {
+  id              String   @id @default(cuid())
+  
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  // Conexiones Nucleares
+  wbsId           String?
+  wbs             ProjectWBS? @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  
+  locationId      String?
+  location        ProjectLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  
+  standardActivityId String?
+  standardActivity StandardActivity? @relation(fields: [standardActivityId], references: [id], onDelete: SetNull)
+
+  // Datos Operativos
+  name            String
+  code            String?
+  responsible     String?
+  
+  // Temporalidad Básica
+  plannedDuration Float?   // En días
+  plannedStartDate DateTime?
+  plannedEndDate   DateTime?
+  
+  status          String   @default("PENDIENTE") 
+  // Estados: PENDIENTE, PREPARADA, PLANIFICADA, EN_CURSO, PAUSADA, TERMINADA, BLOQUEADA, CANCELADA
+  
   observations    String?  @db.Text
   
   createdAt       DateTime @default(now())
