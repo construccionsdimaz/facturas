@@ -53,11 +53,20 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const [isSavingLog, setIsSavingLog] = useState(false);
   
   // Budget management state
+  const [isSavingLine, setIsSavingLine] = useState(false);
   const [isAddingLine, setIsAddingLine] = useState(false);
   const [newLineName, setNewLineName] = useState('');
   const [newLineAmount, setNewLineAmount] = useState('');
   const [newLineDesc, setNewLineDesc] = useState('');
-  const [isSavingLine, setIsSavingLine] = useState(false);
+
+  // Reset adding states when changing tabs to prevent UI leaks
+  useEffect(() => {
+    setIsAddingLine(false);
+    setIsAddingExpense(false);
+    setIsAddingCert(false);
+    setIsAddingLog(false);
+    setIsAddingDoc(false);
+  }, [activeTab]);
 
   // Expenses management state
   const [isAddingExpense, setIsAddingExpense] = useState(false);
