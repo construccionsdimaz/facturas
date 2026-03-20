@@ -115,28 +115,38 @@ export default function CompanyExpensesClient({ initialExpenses, activeProjects,
   };
 
   const handleRegisterPayment = async (expense: any, amountToAdd: number) => {
-    const totalNewPaid = Math.round(((expense.paidAmount || 0) + amountToAdd) * 100) / 100;
-    if (totalNewPaid > expense.amount) {
-      alert('El importe pagado no puede superar el total del gasto.');
-      return;
-    }
+    if (amountToAdd <= 0) return;
 
     setUpdatingId(expense.id);
     try {
-      const res = await fetch(`/api/treasury/${expense.id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/movements', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paidAmount: totalNewPaid,
-          source: 'COMPANY'
+          amount: Math.round(amountToAdd * 100) / 100,
+          type: 'EXIT',
+          category: 'PAGO_ESTRUCTURA',
+          date: new Date().toISOString(),
+          description: `Pago de gasto de estructura: ${expense.description}`,
+          companyExpenseId: expense.id
         })
       });
 
       if (res.ok) {
-        const updated = await res.json();
-        setExpenses(expenses.map(e => e.id === expense.id ? { ...e, ...updated } : e));
+        const movement = await res.json();
+        // Reflect change in local state
+        setExpenses(expenses.map(e => 
+          e.id === expense.id 
+            ? { 
+                ...e, 
+                paidAmount: Math.round(((e.paidAmount || 0) + amountToAdd) * 100) / 100,
+                status: ((e.paidAmount || 0) + amountToAdd) >= e.amount ? 'PAGADO' : 'PARCIAL'
+              } 
+            : e
+        ));
       } else {
-        alert('Error al registrar el pago');
+        const error = await res.json();
+        alert(error.error || 'Error al registrar el pago');
       }
     } catch (error) {
       console.error(error);

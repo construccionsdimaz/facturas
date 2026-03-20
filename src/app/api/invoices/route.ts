@@ -1,12 +1,26 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const statusStr = searchParams.get('status');
+    const projectId = searchParams.get('projectId');
+    
+    const where: any = {};
+    if (statusStr) {
+      where.status = { in: statusStr.split(',') };
+    }
+    if (projectId) {
+      where.projectId = projectId;
+    }
+
     const invoices = await db.invoice.findMany({
+      where,
       include: {
         client: true,
         items: true,
+        project: true
       },
       orderBy: {
         createdAt: 'desc',

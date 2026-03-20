@@ -40,6 +40,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   // Site Journal & Documents
   const [logs, setLogs] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  const [movements, setMovements] = useState<any[]>([]);
   
   // Certification Editing
   const [editingCert, setEditingCert] = useState<any | null>(null);
@@ -140,12 +141,25 @@ export default function ProjectDetailClient({ project: initialProject, clients }
 
   const imputedCompanyExpenses = Math.round(((project as any).imputedExpenses?.reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0) * 100) / 100;
 
+  // Treasury Calculations (Phase 44)
+  const entryMovements = movements.filter(m => m.type === 'ENTRY');
+  const exitMovements = movements.filter(m => m.type === 'EXIT');
+  
+  const totalCollected = Math.round(entryMovements.reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
+  const collectedFromInvoices = Math.round(entryMovements.filter(m => m.category === 'COBRO_FACTURA').reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
+  const advances = Math.round(entryMovements.filter(m => m.category === 'ANTICIPO').reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
+  const directIncome = Math.round(entryMovements.filter(m => m.category === 'INGRESO_DIRECTO').reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
+  
+  const realCashOut = Math.round(exitMovements.reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
+  const pendingCollection = Math.max(0, totalInvoiced - collectedFromInvoices);
+
   const totalExpenses = Math.round((directBudgetExpenses + directProjectExpenses + laborExpenses + imputedCompanyExpenses) * 100) / 100;
   const totalBudgeted = Math.round(project.budgetLines.reduce((sum, l) => sum + l.estimatedAmount, 0) * 100) / 100;
   const totalCertified = Math.round(project.budgetLines.reduce((sum, l) => sum + (l.certifiedAmount || 0), 0) * 100) / 100;
   
   const grossMargin = totalInvoiced - (directBudgetExpenses + directProjectExpenses);
-  const netResult = totalInvoiced - totalExpenses; // Rentabilidad Final
+  const netResult = totalInvoiced - totalExpenses; // Rentabilidad Final (Contable)
+  const realResult = totalCollected - realCashOut; // Rentabilidad Real (Caja)
   const marginPercentage = totalInvoiced > 0 ? (netResult / totalInvoiced) * 100 : 0;
   
   const pendingToInvoice = Math.max(0, totalBudgeted - totalInvoiced);
@@ -197,7 +211,15 @@ export default function ProjectDetailClient({ project: initialProject, clients }
     } else if (activeTab === 'documents') {
       fetchDocs();
     }
+    fetchMovements();
   }, [activeTab]);
+
+  const fetchMovements = async () => {
+    try {
+      const res = await fetch(`/api/movements?projectId=${project.id}`);
+      if (res.ok) setMovements(await res.json());
+    } catch (e) { console.error(e); }
+  };
 
   const handleUpdate = async () => {
     if (!editedName || !editedClientId) {
@@ -574,30 +596,41 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   };
 
   const handleRegisterExpensePayment = async (expense: any, amountToAdd: number) => {
-    const totalNewPaid = Math.round(((expense.paidAmount || 0) + amountToAdd) * 100) / 100;
-    if (totalNewPaid > expense.amount) {
-      alert('El importe pagado no puede superar el total del gasto.');
-      return;
-    }
-
+    if (amountToAdd <= 0) return;
+    
     try {
-      const res = await fetch(`/api/treasury/${expense.id}`, {
-        method: 'PATCH',
+      const res = await fetch('/api/movements', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          paidAmount: totalNewPaid,
-          source: 'PROJECT'
+          amount: Math.round(amountToAdd * 100) / 100,
+          type: 'EXIT',
+          category: 'PAGO_PROVEEDOR',
+          date: new Date().toISOString(),
+          description: `Pago a ${expense.client?.name || 'proveedor'} por ${expense.description}`,
+          projectId: project.id,
+          projectExpenseId: expense.id
         })
       });
 
       if (res.ok) {
-        const updated = await res.json();
+        const movement = await res.json();
+        // Since the backend updates the expense, we need to reflect that in local state
         setProject({
           ...project,
-          expenses: project.expenses.map((e: any) => e.id === expense.id ? { ...e, ...updated } : e)
+          expenses: project.expenses.map((e: any) => 
+            e.id === expense.id 
+              ? { 
+                  ...e, 
+                  paidAmount: Math.round(((e.paidAmount || 0) + amountToAdd) * 100) / 100,
+                  status: ((e.paidAmount || 0) + amountToAdd) >= e.amount ? 'PAGADO' : 'PARCIAL'
+                } 
+              : e
+          )
         });
       } else {
-        alert('Error al registrar el pago');
+        const error = await res.json();
+        alert(error.error || 'Error al registrar el pago');
       }
     } catch (error) {
       console.error(error);
@@ -1475,6 +1508,75 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             </div>
           ) : activeTab === 'analysis' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '8px' }}>
+                {/* BLOQUE INGRESOS (FACTURACIÓN) */}
+                <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid #3b82f6' }}>
+                  <h4 style={{ color: '#3b82f6', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    📊 Facturación (Ingresos Contables)
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Total Facturado:</span>
+                      <span style={{ fontWeight: '700' }}>{formatCurrency(totalInvoiced)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Total Cobrado:</span>
+                      <span style={{ fontWeight: '700', color: '#10b981' }}>{formatCurrency(collectedFromInvoices)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontWeight: '700' }}>Pendiente de Cobro:</span>
+                      <span style={{ fontWeight: '800', color: '#ef4444' }}>{formatCurrency(pendingCollection)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOQUE TESORERÍA (MOVIMIENTOS) */}
+                <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid #10b981' }}>
+                  <h4 style={{ color: '#10b981', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    💰 Tesorería (Dinero Real)
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Dinero Total Recibido:</span>
+                      <span style={{ fontWeight: '800', color: '#10b981', fontSize: '1.1em' }}>{formatCurrency(totalCollected)}</span>
+                    </div>
+                    <div style={{ padding: '10px', background: 'rgba(255,255,255,0.02)', borderRadius: '8px', marginTop: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '4px' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Anticipos:</span>
+                        <span>{formatCurrency(advances)}</span>
+                      </div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                        <span style={{ color: 'var(--text-muted)' }}>Ingresos Directos:</span>
+                        <span>{formatCurrency(directIncome)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* BLOQUE RESULTADO */}
+                <div className="glass-panel" style={{ padding: '24px', borderLeft: '4px solid #f59e0b' }}>
+                  <h4 style={{ color: '#f59e0b', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    📈 Resultados y Márgenes
+                  </h4>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Margen Bruto (Facturación):</span>
+                      <span style={{ fontWeight: '700' }}>{formatCurrency(grossMargin)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Resultado Contable Final:</span>
+                      <span style={{ fontWeight: '700' }}>{formatCurrency(netResult)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <span style={{ fontWeight: '800' }}>Margen Real (Caja):</span>
+                      <span style={{ fontWeight: '800', color: realResult >= 0 ? '#10b981' : '#ef4444', fontSize: '1.2em' }}>
+                        {formatCurrency(realResult)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               {/* Árbol de Costes y Rentabilidad (Phase 40) */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                 <div className="glass-panel" style={{ padding: '24px' }}>

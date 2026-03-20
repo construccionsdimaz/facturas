@@ -62,6 +62,7 @@ model Client {
   projects  Project[]
   expenses  ProjectExpense[]
   companyExpenses CompanyExpense[]
+  movements Movement[]
 }
 
 // Invoice record
@@ -101,6 +102,7 @@ model Invoice {
   // Relations to source documents
   certifications ProjectCertification[]
   estimate       Estimate?
+  movements      Movement[]
 }
 
 // Individual items (concepts) within an invoice
@@ -187,6 +189,7 @@ model Project {
   logs        ProjectLog[]
   documents   ProjectDocument[]
   imputedExpenses ImputedExpense[]
+  movements    Movement[]
 }
 
 model ProjectBudgetLine {
@@ -239,6 +242,7 @@ model ProjectExpense {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  movements       Movement[]
 }
 
 enum ProjectExpenseType {
@@ -268,6 +272,7 @@ model CompanyExpense {
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  movements       Movement[]
 }
 
 // Imputación de gastos de estructura a obras específicas - Phase 40
@@ -367,4 +372,52 @@ model ProjectDocument {
   
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// Phase 44: Real Treasury & Cash Flow
+model Movement {
+  id              String           @id @default(cuid())
+  amount          Float
+  date            DateTime         @default(now())
+  method          String           @default("TRANSFERENCIA") // EFECTIVO, TRANSFERENCIA, TARJETA, BIZUM, OTROS
+  description     String
+  type            MovementType     // ENTRY (Inflow), EXIT (Outflow)
+  category        MovementCategory
+  
+  // Relations
+  projectId       String?
+  project         Project?         @relation(fields: [projectId], references: [id])
+  
+  clientId        String?
+  client          Client?          @relation(fields: [clientId], references: [id])
+  
+  invoiceId       String?
+  invoice         Invoice?         @relation(fields: [invoiceId], references: [id])
+  
+  projectExpenseId String?
+  projectExpense   ProjectExpense? @relation(fields: [projectExpenseId], references: [id])
+  
+  companyExpenseId String?
+  companyExpense   CompanyExpense? @relation(fields: [companyExpenseId], references: [id])
+  
+  // States specific to ENTRY (Anticipos, etc.)
+  isFacturado     Boolean          @default(false)
+  
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+}
+
+enum MovementType {
+  ENTRY
+  EXIT
+}
+
+enum MovementCategory {
+  ANTICIPO          // Entry: Money received before invoice
+  COBRO_FACTURA     // Entry: Money received for an invoice
+  INGRESO_DIRECTO   // Entry: Money received without invoice (Direct income)
+  PAGO_PROVEEDOR    // Exit: Payment to supplier/subcontractor
+  NOMINA            // Exit: Salary payment
+  ESTRUCTURA        // Exit: Company general expense
+  OTROS             // Both: Internal transfers, loans, etc.
 }
