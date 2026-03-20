@@ -39,6 +39,10 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   // Site Journal & Documents
   const [logs, setLogs] = useState<any[]>([]);
   const [documents, setDocuments] = useState<any[]>([]);
+  
+  // Certification Editing
+  const [editingCert, setEditingCert] = useState<any | null>(null);
+  
   const [isFetchingLogs, setIsFetchingLogs] = useState(false);
   const [isFetchingDocs, setIsFetchingDocs] = useState(false);
   const [isAddingLog, setIsAddingLog] = useState(false);
@@ -262,6 +266,66 @@ export default function ProjectDetailClient({ project: initialProject, clients }
     } catch (error) {
       console.error(error);
       alert('Error al actualizar la fecha');
+    }
+  };
+
+  const handleDeleteCertification = async (certId: string) => {
+    if (!confirm('¿Estás seguro de que deseas eliminar esta certificación? Los importes certificados se restarán automáticamente de las partidas de la obra.')) return;
+
+    try {
+      const res = await fetch(`/api/projects/certifications/${certId}`, {
+        method: 'DELETE'
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to delete certification');
+      }
+
+      setProject({
+        ...project,
+        certifications: project.certifications.filter((c: any) => c.id !== certId)
+      });
+      
+      // Refresh project data to get updated budget line amounts
+      const updatedProjectRes = await fetch(`/api/projects/${project.id}`);
+      if (updatedProjectRes.ok) {
+        const updatedProject = await updatedProjectRes.json();
+        setProject(updatedProject);
+      }
+
+      alert('Certificación eliminada correctamente');
+    } catch (error: any) {
+      console.error(error);
+      alert(`Error al eliminar la certificación: ${error.message}`);
+    }
+  };
+
+  const handleUpdateCertification = async () => {
+    if (!editingCert) return;
+    
+    try {
+      const res = await fetch(`/api/projects/certifications/${editingCert.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          number: editingCert.number,
+          date: editingCert.date,
+          period: editingCert.period
+        })
+      });
+
+      if (!res.ok) throw new Error('Failed to update certification');
+      
+      const updated = await res.json();
+      setProject({
+        ...project,
+        certifications: project.certifications.map((c: any) => c.id === updated.id ? { ...c, ...updated } : c)
+      });
+      setEditingCert(null);
+    } catch (error) {
+      console.error(error);
+      alert('Error al actualizar la certificación');
     }
   };
 
@@ -1375,13 +1439,14 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                     <th style={{ textAlign: 'right' }}>Líquido Mes</th>
                     <th style={{ textAlign: 'right' }}>Retención</th>
                     <th style={{ textAlign: 'right' }}>Neto</th>
-                    <th>Estado</th>
+                    <th style={{ textAlign: 'center' }}>Estado</th>
                     <th>Factura</th>
+                    <th style={{ textAlign: 'right' }}>Acciones</th>
                   </tr>
                 </thead>
                 <tbody>
                   {!project.certifications || project.certifications.length === 0 ? (
-                    <tr><td colSpan={9} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay certificaciones emitidas.</td></tr>
+                    <tr><td colSpan={10} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>No hay certificaciones emitidas.</td></tr>
                   ) : project.certifications.map((cert: any) => {
                     const totalAOrigen = cert.lines.reduce((sum: number, l: any) => sum + (l.totalToDate || 0), 0);
                     
@@ -1402,7 +1467,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                         <td style={{ textAlign: 'right', fontWeight: '700', color: 'var(--accent-primary)' }}>
                           {formatCurrency(cert.netAmount)}
                         </td>
-                        <td>
+                        <td style={{ textAlign: 'center' }}>
                           <span className={`badge badge-${cert.status === 'ISSUED' ? 'success' : 'warning'}`}>
                             {cert.status === 'ISSUED' ? 'EMITIDA' : cert.status}
                           </span>
@@ -1419,6 +1484,30 @@ export default function ProjectDetailClient({ project: initialProject, clients }
                               Facturar
                             </button>
                           )}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                              {cert.status === 'DRAFT' && !cert.invoiceId && (
+                                <>
+                                  <button 
+                                    className="btn-secondary" 
+                                    style={{ padding: '4px 8px', fontSize: '12px' }}
+                                    onClick={() => setEditingCert(cert)}
+                                    title="Editar datos básicos"
+                                  >
+                                    ✏️
+                                  </button>
+                                  <button 
+                                    className="btn-secondary" 
+                                    style={{ padding: '4px 8px', fontSize: '12px', background: 'rgba(255, 68, 68, 0.1)', color: '#ff4444', borderColor: 'rgba(255, 68, 68, 0.2)' }}
+                                    onClick={() => handleDeleteCertification(cert.id)}
+                                    title="Eliminar certificación"
+                                  >
+                                    🗑️
+                                  </button>
+                                </>
+                              )}
+                          </div>
                         </td>
                       </tr>
                     );
@@ -1889,6 +1978,48 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         onConfirm={handleDelete}
         onCancel={() => setShowDeleteModal(false)}
       />
+
+      {/* Edit Certification Modal */}
+      {editingCert && (
+        <div className="modal-overlay" style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.8)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '400px', padding: '24px' }}>
+            <h3 style={{ marginBottom: '20px' }}>Editar Certificación</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-muted)' }}>Número</label>
+                <input 
+                  type="text" 
+                  className={invStyles.inputModern} 
+                  value={editingCert.number}
+                  onChange={(e) => setEditingCert({ ...editingCert, number: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-muted)' }}>Fecha</label>
+                <input 
+                  type="date" 
+                  className={invStyles.inputModern} 
+                  value={new Date(editingCert.date).toISOString().split('T')[0]}
+                  onChange={(e) => setEditingCert({ ...editingCert, date: e.target.value })}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', marginBottom: '4px', color: 'var(--text-muted)' }}>Periodo</label>
+                <input 
+                  type="text" 
+                  className={invStyles.inputModern} 
+                  value={editingCert.period}
+                  onChange={(e) => setEditingCert({ ...editingCert, period: e.target.value })}
+                />
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                <button className="btn-secondary" style={{ flex: 1 }} onClick={() => setEditingCert(null)}>Cancelar</button>
+                <button className="btn-primary" style={{ flex: 1 }} onClick={handleUpdateCertification}>Guardar</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
