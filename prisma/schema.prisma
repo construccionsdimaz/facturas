@@ -12,33 +12,33 @@ datasource db {
 
 // User represents the company/owner of the app (you and your team)
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  role      String   @default("ADMIN") // ADMIN, ACCOUNTANT, etc
-  
+  id    String  @id @default(cuid())
+  email String  @unique
+  name  String?
+  role  String  @default("ADMIN") // ADMIN, ACCOUNTANT, etc
+
   // Company Profile Settings
-  companyName    String?
-  companyAddress String?
-  companyCity    String?
-  companyZip     String?
+  companyName     String?
+  companyAddress  String?
+  companyCity     String?
+  companyZip      String?
   companyProvince String?
-  companyTaxId   String?
-  companyLogo    String? 
-  logoZoom       Float    @default(1)
-  logoX          Float    @default(0)
-  logoY          Float    @default(0)
-  paymentMethod  String?
-  bankAccount    String?
-  dataProtection String?
-  
+  companyTaxId    String?
+  companyLogo     String?
+  logoZoom        Float   @default(1)
+  logoX           Float   @default(0)
+  logoY           Float   @default(0)
+  paymentMethod   String?
+  bankAccount     String?
+  dataProtection  String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  clients   Client[] // The clients that belong to this user
-  invoices  Invoice[]
-  estimates Estimate[]
-  projects  Project[]
+
+  clients         Client[] // The clients that belong to this user
+  invoices        Invoice[]
+  estimates       Estimate[]
+  projects        Project[]
   companyExpenses CompanyExpense[]
 }
 
@@ -49,56 +49,56 @@ model Client {
   email     String?
   address   String?
   phone     String?
-  taxId     String?  // NIF/CIF/DNI/NIE
+  taxId     String? // NIF/CIF/DNI/NIE
   category  String   @default("CLIENTE") // CLIENTE, PROVEEDOR, COLABORADOR, SUBCONTRATA, INVERSOR, MIXTO
-  subType   String?  // PARTICULAR, EMPRESA, PROMOTOR, COMUNIDAD (relevant for CLIENTE/MIXTO)
+  subType   String? // PARTICULAR, EMPRESA, PROMOTOR, COMUNIDAD (relevant for CLIENTE/MIXTO)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  invoices  Invoice[]
-  estimates Estimate[]
-  projects  Project[]
-  expenses  ProjectExpense[]
+
+  userId          String
+  user            User             @relation(fields: [userId], references: [id])
+  invoices        Invoice[]
+  estimates       Estimate[]
+  projects        Project[]
+  expenses        ProjectExpense[]
   companyExpenses CompanyExpense[]
-  movements Movement[]
+  movements       Movement[]
 }
 
 // Invoice record
 model Invoice {
-  id          String   @id @default(cuid())
-  number      String   @unique // INV-2026-001
-  issueDate   DateTime @default(now())
-  dueDate     DateTime?
-  status      String   @default("DRAFT") // DRAFT, ISSUED, PARTIAL, PAID, CANCELLED
-  isSent      Boolean  @default(false)
-  
-  subtotal    Float    @default(0)
-  taxRate     Float    @default(21.0)
-  taxAmount   Float    @default(0)
-  paidAmount  Float    @default(0)
-  total       Float    @default(0)
-  
-  currency    String   @default("EUR")
-  language    String   @default("ES") // ES, CA, EN
-  notes       String?
+  id        String    @id @default(cuid())
+  number    String    @unique // INV-2026-001
+  issueDate DateTime  @default(now())
+  dueDate   DateTime?
+  status    String    @default("DRAFT") // DRAFT, ISSUED, PARTIAL, PAID, CANCELLED
+  isSent    Boolean   @default(false)
+
+  subtotal   Float @default(0)
+  taxRate    Float @default(21.0)
+  taxAmount  Float @default(0)
+  paidAmount Float @default(0)
+  total      Float @default(0)
+
+  currency      String  @default("EUR")
+  language      String  @default("ES") // ES, CA, EN
+  notes         String?
   paymentMethod String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
-  
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id])
-  
-  items       InvoiceItem[]
-  
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  items InvoiceItem[]
+
   // Relations to source documents
   certifications ProjectCertification[]
   estimate       Estimate?
@@ -107,112 +107,123 @@ model Invoice {
 
 // Individual items (concepts) within an invoice
 model InvoiceItem {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   description String
-  quantity    Int      @default(1)
-  price       Float    @default(0)
-  
-  invoiceId   String
-  invoice     Invoice  @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  quantity    Int    @default(1)
+  price       Float  @default(0)
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 }
 
 // Estimate record (Presupuesto)
 model Estimate {
-  id          String   @id @default(cuid())
-  number      String   @unique // PRE-2026-001
-  issueDate   DateTime @default(now())
-  validUntil  DateTime?
-  status      String   @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, CONVERTED
-  
-  subtotal    Float    @default(0)
-  taxRate     Float    @default(21.0)
-  taxAmount   Float    @default(0)
-  total       Float    @default(0)
-  
-  currency    String   @default("EUR")
-  language    String   @default("ES") // ES, CA, EN
-  notes       String?
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
-  
-  items       EstimateItem[]
-  
-  projectId   String?
-  project     Project? @relation(fields: [projectId], references: [id])
-  
-  invoiceId   String?  @unique // Link to the invoice if converted
-  invoice     Invoice? @relation(fields: [invoiceId], references: [id])
+  id         String    @id @default(cuid())
+  number     String    @unique // PRE-2026-001
+  issueDate  DateTime  @default(now())
+  validUntil DateTime?
+  status     String    @default("DRAFT") // DRAFT, SENT, ACCEPTED, REJECTED, CONVERTED
+
+  subtotal  Float @default(0)
+  taxRate   Float @default(21.0)
+  taxAmount Float @default(0)
+  total     Float @default(0)
+
+  currency String  @default("EUR")
+  language String  @default("ES") // ES, CA, EN
+  notes    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  items EstimateItem[]
+
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  invoiceId String?  @unique // Link to the invoice if converted
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
 }
 
 // Individual items (concepts) within an estimate
 model EstimateItem {
-  id          String   @id @default(cuid())
+  id          String @id @default(cuid())
   description String
-  quantity    Float    @default(1)
-  price       Float    @default(0)
-  unit        String   @default("ud") // m2, m3, ud, etc
-  chapter     String   @default("01 GENERAL")
-  
-  estimateId  String
-  estimate    Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+  quantity    Float  @default(1)
+  price       Float  @default(0)
+  unit        String @default("ud") // m2, m3, ud, etc
+  chapter     String @default("01 GENERAL")
+
+  estimateId String
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
 }
 
 // Project/Work record (Obra)
 model Project {
-  id          String   @id @default(cuid())
-  name        String
-  description String?
-  address     String?
-  status      String   @default("ACTIVE") // ACTIVE, COMPLETED
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  
-  clientId    String
-  client      Client   @relation(fields: [clientId], references: [id])
-  
-  invoices    Invoice[]
-  estimates   Estimate[]
-  budgetLines ProjectBudgetLine[]
-  expenses    ProjectExpense[]
-  certifications ProjectCertification[]
-  logs        ProjectLog[]
-  documents   ProjectDocument[]
-  imputedExpenses ImputedExpense[]
-  movements    Movement[]
+  id                 String    @id @default(cuid())
+  code               String?
+  name               String
+  projectType        String? // Residencial, Reforma, Obra Civil, etc.
+  description        String?
+  address            String?
+  manager            String? // Responsable principal
+  targetEndDate      DateTime?
+  contractualEndDate DateTime?
+  observations       String?
+  setupStatus        String    @default("INCOMPLETE") // INCOMPLETE, IN_PREPARATION, READY_FOR_PLANNING, VALIDATED
+  status             String    @default("ACTIVE") // ACTIVE, COMPLETED
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id])
+
+  invoices            Invoice[]
+  estimates           Estimate[]
+  budgetLines         ProjectBudgetLine[]
+  expenses            ProjectExpense[]
+  certifications      ProjectCertification[]
+  logs                ProjectLog[]
+  documents           ProjectDocument[]
+  imputedExpenses     ImputedExpense[]
+  movements           Movement[]
   movementImputations MovementImputation[]
+
+  calendar    ProjectCalendar?
+  milestones  ProjectMilestone[]
+  constraints ProjectConstraint[]
 }
 
 model ProjectBudgetLine {
-  id              String   @id @default(cuid())
+  id              String                  @id @default(cuid())
   name            String
   description     String?
-  estimatedAmount Float    @default(0)
-  certifiedAmount Float    @default(0)
+  estimatedAmount Float                   @default(0)
+  certifiedAmount Float                   @default(0)
   status          ProjectBudgetLineStatus @default(PENDING)
-  
-  startDate       DateTime?
-  endDate         DateTime?
-  order           Int      @default(0)
-  
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
+
+  startDate DateTime?
+  endDate   DateTime?
+  order     Int       @default(0)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
   certificationLines ProjectCertificationLine[]
-  expenses        ProjectExpense[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  expenses           ProjectExpense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum ProjectBudgetLineStatus {
@@ -222,207 +233,207 @@ enum ProjectBudgetLineStatus {
 }
 
 model ProjectExpense {
-  id              String   @id @default(cuid())
-  description     String
-  amount          Float
-  paidAmount      Float    @default(0)
-  date            DateTime @default(now())
-  dueDate         DateTime?
-  category        String?  // Materiales, Mano de Obra, Subcontrata, etc.
-  type            ProjectExpenseType @default(DIRECT_BUDGET)
-  status          String   @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADO
-  
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  clientId        String?
-  client          Client?  @relation(fields: [clientId], references: [id])
-  
-  budgetLineId    String?
-  budgetLine      ProjectBudgetLine? @relation(fields: [budgetLineId], references: [id])
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  movements       Movement[]
+  id          String             @id @default(cuid())
+  description String
+  amount      Float
+  paidAmount  Float              @default(0)
+  date        DateTime           @default(now())
+  dueDate     DateTime?
+  category    String? // Materiales, Mano de Obra, Subcontrata, etc.
+  type        ProjectExpenseType @default(DIRECT_BUDGET)
+  status      String             @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADO
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  budgetLineId String?
+  budgetLine   ProjectBudgetLine? @relation(fields: [budgetLineId], references: [id])
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  movements Movement[]
 }
 
 enum ProjectExpenseType {
-  DIRECT_BUDGET   // Vinculado a una partida específica
-  DIRECT_PROJECT  // Directo de obra pero sin partida (herramientas, transporte, etc.)
-  LABOR           // Mano de obra propia imputada directamente
+  DIRECT_BUDGET // Vinculado a una partida específica
+  DIRECT_PROJECT // Directo de obra pero sin partida (herramientas, transporte, etc.)
+  LABOR // Mano de obra propia imputada directamente
 }
 
 // Gastos generales de la empresa (Estructura) - Phase 40
 model CompanyExpense {
-  id              String   @id @default(cuid())
-  description     String
-  amount          Float
-  paidAmount      Float    @default(0)
-  date            DateTime @default(now())
-  dueDate         DateTime?
-  category        String   // Alquiler, Gestoría, Seguros, Oficina, etc.
-  status          String   @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADO
-  
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
-  
-  clientId        String?
-  client          Client?  @relation(fields: [clientId], references: [id])
-  
-  imputations     ImputedExpense[]
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  movements       Movement[]
+  id          String    @id @default(cuid())
+  description String
+  amount      Float
+  paidAmount  Float     @default(0)
+  date        DateTime  @default(now())
+  dueDate     DateTime?
+  category    String // Alquiler, Gestoría, Seguros, Oficina, etc.
+  status      String    @default("PENDIENTE") // PENDIENTE, PARCIAL, PAGADO
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  imputations ImputedExpense[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  movements Movement[]
 }
 
 // Imputación de gastos de estructura a obras específicas - Phase 40
 model ImputedExpense {
-  id                String   @id @default(cuid())
-  amount            Float
-  date              DateTime @default(now())
-  notes             String?
-  
-  companyExpenseId  String
-  companyExpense    CompanyExpense @relation(fields: [companyExpenseId], references: [id], onDelete: Cascade)
-  
-  projectId         String
-  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  id     String   @id @default(cuid())
+  amount Float
+  date   DateTime @default(now())
+  notes  String?
+
+  companyExpenseId String
+  companyExpense   CompanyExpense @relation(fields: [companyExpenseId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Project Certification (Certificaciones de Obra)
 model ProjectCertification {
-  id              String   @id @default(cuid())
-  number          String   // e.g., CERT-001
-  date            DateTime @default(now())
-  period          String?  // e.g., "Marzo 2026"
-  status          String   @default("DRAFT") // DRAFT, ISSUED
-  
-  totalAmount     Float    @default(0) // Bruto certificado en este periodo
-  retentionAmount Float    @default(0) // Retención (ej. 5%)
-  netAmount       Float    @default(0) // Líquido a percibir
-  
-  projectId       String
-  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  lines           ProjectCertificationLine[]
-  invoiceId       String?
-  invoice         Invoice? @relation(fields: [invoiceId], references: [id])
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id     String   @id @default(cuid())
+  number String // e.g., CERT-001
+  date   DateTime @default(now())
+  period String? // e.g., "Marzo 2026"
+  status String   @default("DRAFT") // DRAFT, ISSUED
+
+  totalAmount     Float @default(0) // Bruto certificado en este periodo
+  retentionAmount Float @default(0) // Retención (ej. 5%)
+  netAmount       Float @default(0) // Líquido a percibir
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  lines     ProjectCertificationLine[]
+  invoiceId String?
+  invoice   Invoice?                   @relation(fields: [invoiceId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ProjectCertificationLine {
-  id              String   @id @default(cuid())
+  id              String               @id @default(cuid())
   certificationId String
   certification   ProjectCertification @relation(fields: [certificationId], references: [id], onDelete: Cascade)
-  
-  budgetLineId    String
-  budgetLine      ProjectBudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
-  
-  previousAmount  Float    @default(0) // Acumulado anterior
-  currentAmount   Float    @default(0) // Certificado ahora
-  totalToDate     Float    @default(0) // Acumulado total (Origen)
-  percentage      Float    @default(0) // % de avance total
-  
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+
+  budgetLineId String
+  budgetLine   ProjectBudgetLine @relation(fields: [budgetLineId], references: [id], onDelete: Cascade)
+
+  previousAmount Float @default(0) // Acumulado anterior
+  currentAmount  Float @default(0) // Certificado ahora
+  totalToDate    Float @default(0) // Acumulado total (Origen)
+  percentage     Float @default(0) // % de avance total
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Phase 34: Site Journal & Documentation
 model ProjectLog {
-  id          String   @id @default(cuid())
-  date        DateTime @default(now())
-  content     String   @db.Text
-  weather     String?  // Sunny, Rainy, Cloudy, etc.
-  incidents   String?  @db.Text
-  
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  photos      ProjectPhoto[]
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id        String   @id @default(cuid())
+  date      DateTime @default(now())
+  content   String   @db.Text
+  weather   String? // Sunny, Rainy, Cloudy, etc.
+  incidents String?  @db.Text
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  photos ProjectPhoto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ProjectPhoto {
-  id          String   @id @default(cuid())
-  url         String
-  caption     String?
-  
-  logId       String
-  log         ProjectLog @relation(fields: [logId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
+  id      String  @id @default(cuid())
+  url     String
+  caption String?
+
+  logId String
+  log   ProjectLog @relation(fields: [logId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
 }
 
 model ProjectDocument {
-  id          String   @id @default(cuid())
-  name        String
-  url         String
-  fileType    String?  // PDF, Image, etc.
-  category    String   @default("OTROS") // PLANO, CONTRATO, SEGURO, OTROS
-  
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id       String  @id @default(cuid())
+  name     String
+  url      String
+  fileType String? // PDF, Image, etc.
+  category String  @default("OTROS") // PLANO, CONTRATO, SEGURO, OTROS
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Phase 44: Real Treasury & Cash Flow
 model Movement {
-  id              String           @id @default(cuid())
-  amount          Float
-  date            DateTime         @default(now())
-  method          String           @default("TRANSFERENCIA") // EFECTIVO, TRANSFERENCIA, TARJETA, BIZUM, OTROS
-  description     String
-  type            MovementType     // ENTRY (Inflow), EXIT (Outflow)
-  category        MovementCategory
-  
+  id          String           @id @default(cuid())
+  amount      Float
+  date        DateTime         @default(now())
+  method      String           @default("TRANSFERENCIA") // EFECTIVO, TRANSFERENCIA, TARJETA, BIZUM, OTROS
+  description String
+  type        MovementType // ENTRY (Inflow), EXIT (Outflow)
+  category    MovementCategory
+
   // Relations
-  projectId       String?
-  project         Project?         @relation(fields: [projectId], references: [id])
-  
-  clientId        String?
-  client          Client?          @relation(fields: [clientId], references: [id])
-  
-  invoiceId       String?
-  invoice         Invoice?         @relation(fields: [invoiceId], references: [id])
-  
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id])
+
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+
+  invoiceId String?
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+
   projectExpenseId String?
   projectExpense   ProjectExpense? @relation(fields: [projectExpenseId], references: [id])
-  
+
   companyExpenseId String?
   companyExpense   CompanyExpense? @relation(fields: [companyExpenseId], references: [id])
-  
-  // States specific to ENTRY (Anticipos, etc.)
-  isFacturado     Boolean          @default(false)
-  
-  imputations     MovementImputation[]
 
-  createdAt       DateTime         @default(now())
-  updatedAt       DateTime         @updatedAt
+  // States specific to ENTRY (Anticipos, etc.)
+  isFacturado Boolean @default(false)
+
+  imputations MovementImputation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model MovementImputation {
-  id          String   @id @default(cuid())
-  amount      Float
-  date        DateTime @default(now())
-  
-  movementId  String
-  movement    Movement @relation(fields: [movementId], references: [id], onDelete: Cascade)
-  
-  projectId   String
-  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id     String   @id @default(cuid())
+  amount Float
+  date   DateTime @default(now())
+
+  movementId String
+  movement   Movement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 enum MovementType {
@@ -431,11 +442,64 @@ enum MovementType {
 }
 
 enum MovementCategory {
-  ANTICIPO          // Entry: Money received before invoice
-  COBRO_FACTURA     // Entry: Money received for an invoice
-  INGRESO_DIRECTO   // Entry: Money received without invoice (Direct income)
-  PAGO_PROVEEDOR    // Exit: Payment to supplier/subcontractor
-  NOMINA            // Exit: Salary payment
-  ESTRUCTURA        // Exit: Company general expense
-  OTROS             // Both: Internal transfers, loans, etc.
+  ANTICIPO // Entry: Money received before invoice
+  COBRO_FACTURA // Entry: Money received for an invoice
+  INGRESO_DIRECTO // Entry: Money received without invoice (Direct income)
+  PAGO_PROVEEDOR // Exit: Payment to supplier/subcontractor
+  NOMINA // Exit: Salary payment
+  ESTRUCTURA // Exit: Company general expense
+  OTROS // Both: Internal transfers, loans, etc.
+}
+
+// Phase 47: Project Base Configuration
+model ProjectCalendar {
+  id        String  @id @default(cuid())
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  workingDays    String  @default("[\"Lunes\",\"Martes\",\"Miércoles\",\"Jueves\",\"Viernes\"]")
+  workHours      String  @default("08:00-18:00")
+  worksSaturdays Boolean @default(false)
+  worksHolidays  Boolean @default(false)
+  bufferDays     Int     @default(0)
+  timeCriteria   String  @default("LABORABLES") // NATURALES, LABORABLES
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectMilestone {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  name         String
+  description  String?
+  targetDate   DateTime
+  priority     String   @default("MEDIA") // ALTA, MEDIA, BAJA, CRITICA
+  manager      String?
+  status       String   @default("PENDIENTE") // PENDIENTE, ALCANZADO, RETRASADO
+  observations String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProjectConstraint {
+  id        String  @id @default(cuid())
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  title                String
+  type                 String // LICENCIA, SUMINISTRO, CLIENTE, ENTORNO, NORMATIVA, OTROS
+  description          String    @db.Text
+  impact               String    @default("MEDIO") // ALTO, MEDIO, BAJO, BLOQUEANTE  
+  priority             String    @default("MEDIA") // ALTA, MEDIA, BAJA, CRITICA
+  manager              String?
+  status               String    @default("ABIERTA") // ABIERTA, EN_PROCESO, RESUELTA
+  targetResolutionDate DateTime?
+  comments             String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

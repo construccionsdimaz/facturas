@@ -12,6 +12,7 @@ import styles from '../page.module.css';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { formatCurrency } from '@/lib/format';
 import GanttChart from '@/components/GanttChart';
+import ProjectSetupTab from './tabs/ProjectSetupTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -21,6 +22,16 @@ interface ProjectDetailClientProps {
     description: string | null;
     address: string | null;
     status: string;
+    code: string | null;
+    projectType: string | null;
+    manager: string | null;
+    targetEndDate: string | null;
+    contractualEndDate: string | null;
+    observations: string | null;
+    setupStatus: string;
+    calendar: any;
+    milestones: any[];
+    constraints: any[];
     client: { name: string };
     invoices: any[];
     estimates: any[];
@@ -35,7 +46,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>('budget');
+  const [activeTab, setActiveTab] = useState<'setup' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'planificacion'>(
+    initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
+  );
   
   // Site Journal & Documents
   const [logs, setLogs] = useState<any[]>([]);
@@ -221,6 +234,16 @@ export default function ProjectDetailClient({ project: initialProject, clients }
     }
     fetchMovements();
   }, [activeTab]);
+
+  const fetchProject = async () => {
+    try {
+      const res = await fetch(`/api/projects/${project.id}`);
+      if (res.ok) {
+        const data = await res.json();
+        setProject(data);
+      }
+    } catch (e) { console.error(e); }
+  };
 
   const fetchMovements = async () => {
     try {
@@ -866,6 +889,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
       <div className="glass-panel" style={{ padding: '0' }}>
         <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.1)', overflowX: 'auto' }}>
           <button
+            onClick={() => setActiveTab('setup')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'setup' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'setup' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            ⚙️ Configuración Base
+          </button>
+          <button
             onClick={() => setActiveTab('budget')}
             style={{
               padding: '16px 24px',
@@ -985,6 +1021,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         </div>
 
         <div style={{ padding: '24px' }}>
+          {activeTab === 'setup' && (
+            <ProjectSetupTab project={project} onUpdate={fetchProject} />
+          )}
           {activeTab === 'planificacion' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -17,7 +17,10 @@ export async function GET(
         },
         estimates: {
           orderBy: { createdAt: 'desc' }
-        }
+        },
+        calendar: true,
+        milestones: { orderBy: { targetDate: 'asc' } },
+        constraints: { orderBy: { createdAt: 'desc' } }
       }
     });
 
@@ -39,7 +42,10 @@ export async function PUT(
   const { id } = await params;
   try {
     const data = await req.json();
-    const { name, description, address, status, clientId } = data;
+    const { 
+      name, description, address, status, clientId,
+      code, projectType, manager, targetEndDate, contractualEndDate, observations, setupStatus
+    } = data;
 
     const project = await (db as any).project.update({
       where: { id },
@@ -48,7 +54,14 @@ export async function PUT(
         description,
         address,
         status,
-        clientId
+        clientId,
+        code, 
+        projectType, 
+        manager, 
+        targetEndDate: targetEndDate ? new Date(targetEndDate) : null,
+        contractualEndDate: contractualEndDate ? new Date(contractualEndDate) : null,
+        observations,
+        setupStatus
       }
     });
 
