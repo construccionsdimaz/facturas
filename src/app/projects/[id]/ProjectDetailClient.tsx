@@ -141,16 +141,24 @@ export default function ProjectDetailClient({ project: initialProject, clients }
 
   const imputedCompanyExpenses = Math.round(((project as any).imputedExpenses?.reduce((sum: number, exp: any) => sum + exp.amount, 0) || 0) * 100) / 100;
 
-  // Treasury Calculations (Phase 44)
+  // treasuryCalculations: Sumar o bien el movimiento directo (100%) o solo la parte imputada a este proyecto
   const entryMovements = movements.filter(m => m.type === 'ENTRY');
   const exitMovements = movements.filter(m => m.type === 'EXIT');
+
+  const getProjectPortion = (m: any) => {
+    if (m.imputations && m.imputations.length > 0) {
+      const imp = m.imputations.find((i: any) => i.projectId === project.id);
+      return imp ? imp.amount : 0;
+    }
+    return m.projectId === project.id ? m.amount : 0;
+  };
+
+  const totalCollected = Math.round(entryMovements.reduce((sum, m) => sum + getProjectPortion(m), 0) * 100) / 100;
+  const collectedFromInvoices = Math.round(entryMovements.filter(m => (m as any).category === 'COBRO_FACTURA').reduce((sum, m) => sum + getProjectPortion(m), 0) * 100) / 100;
+  const advances = Math.round(entryMovements.filter(m => (m as any).category === 'ANTICIPO').reduce((sum, m) => sum + getProjectPortion(m), 0) * 100) / 100;
+  const directIncome = Math.round(entryMovements.filter(m => (m as any).category === 'INGRESO_DIRECTO').reduce((sum, m) => sum + getProjectPortion(m), 0) * 100) / 100;
   
-  const totalCollected = Math.round(entryMovements.reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
-  const collectedFromInvoices = Math.round(entryMovements.filter(m => m.category === 'COBRO_FACTURA').reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
-  const advances = Math.round(entryMovements.filter(m => m.category === 'ANTICIPO').reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
-  const directIncome = Math.round(entryMovements.filter(m => m.category === 'INGRESO_DIRECTO').reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
-  
-  const realCashOut = Math.round(exitMovements.reduce((sum, m) => sum + m.amount, 0) * 100) / 100;
+  const realCashOut = Math.round(exitMovements.reduce((sum, m) => sum + getProjectPortion(m), 0) * 100) / 100;
   const pendingCollection = Math.max(0, totalInvoiced - collectedFromInvoices);
 
   const totalExpenses = Math.round((directBudgetExpenses + directProjectExpenses + laborExpenses + imputedCompanyExpenses) * 100) / 100;

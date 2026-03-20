@@ -11,12 +11,12 @@ interface Movement {
   method: string;
   description: string;
   type: 'ENTRY' | 'EXIT';
-  category: string;
   projectName?: string;
-  project?: { name: string };
+  project?: { id: string; name: string };
   client?: { name: string };
   invoice?: { number: string };
   isFacturado: boolean;
+  imputations?: { id: string; amount: number; project: { name: string } }[];
 }
 
 interface PendingItem {
@@ -37,6 +37,7 @@ export default function TreasuryClient() {
   const [movements, setMovements] = useState<Movement[]>([]);
   const [pendingExpenses, setPendingExpenses] = useState<PendingItem[]>([]);
   const [pendingInvoices, setPendingInvoices] = useState<PendingItem[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
   // Form state for new movement
@@ -47,7 +48,8 @@ export default function TreasuryClient() {
     type: 'ENTRY' as 'ENTRY' | 'EXIT',
     category: 'OTROS',
     method: 'TRANSFERENCIA',
-    date: new Date().toISOString().split('T')[0]
+    date: new Date().toISOString().split('T')[0],
+    imputations: [] as { projectId: string; amount: string }[]
   });
 
   useEffect(() => {
@@ -57,14 +59,16 @@ export default function TreasuryClient() {
   const fetchAll = async () => {
     setIsLoading(true);
     try {
-      const [movRes, treasuryRes, invRes] = await Promise.all([
+      const [movRes, treasuryRes, invRes, projRes] = await Promise.all([
         fetch('/api/movements'),
-        fetch('/api/treasury'), // This still returns pending expenses
-        fetch('/api/invoices?status=ISSUED,PARTIAL') // Need to check if this exists/is right
+        fetch('/api/treasury'),
+        fetch('/api/invoices?status=ISSUED,PARTIAL'),
+        fetch('/api/projects')
       ]);
       
       if (movRes.ok) setMovements(await movRes.json());
       if (treasuryRes.ok) setPendingExpenses(await treasuryRes.json());
+      if (projRes.ok) setProjects(await projRes.json());
       
       // For invoices, we might need a specific endpoint or filter
       const invData = await invRes.json();
@@ -98,7 +102,15 @@ export default function TreasuryClient() {
       });
       if (res.ok) {
         setShowAddModal(false);
-        setNewMov({ ...newMov, amount: '', description: '' });
+        setNewMov({ 
+          amount: '', 
+          description: '', 
+          type: 'ENTRY', 
+          category: 'OTROS', 
+          method: 'TRANSFERENCIA', 
+          date: new Date().toISOString().split('T')[0],
+          imputations: [] 
+        });
         fetchAll();
       }
     } catch (error) {
@@ -225,7 +237,18 @@ export default function TreasuryClient() {
         <button 
           className="btn-primary" 
           style={{ marginLeft: 'auto', padding: '6px 12px', fontSize: '13px' }}
-          onClick={() => setShowAddModal(true)}
+          onClick={() => {
+            setNewMov({
+              amount: '',
+              description: '',
+              type: 'ENTRY',
+              category: 'OTROS',
+              method: 'TRANSFERENCIA',
+              date: new Date().toISOString().split('T')[0],
+              imputations: []
+            });
+            setShowAddModal(true);
+          }}
         >
           + Nuevo Movimiento
         </button>
@@ -252,12 +275,24 @@ export default function TreasuryClient() {
                   <td>{new Date(m.date).toLocaleDateString()}</td>
                   <td>
                     <div style={{ fontWeight: 600 }}>{m.description}</div>
-                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{m.category}</div>
+                    <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{(m as any).category}</div>
                   </td>
                   <td>
-                    {m.project && <div style={{ fontSize: '12px' }}>🏗️ {m.project.name || (m as any).project.name}</div>}
-                    {m.invoice && <div style={{ fontSize: '12px' }}>📄 Factura {m.invoice.number}</div>}
-                    {!m.project && !m.invoice && <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>-</span>}
+                    {m.imputations && m.imputations.length > 0 ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                        {m.imputations.map(imp => (
+                          <div key={imp.id} style={{ fontSize: '11px' }}>
+                            🏗️ {imp.project.name || 'Obra'}: <strong>{formatCurrency(imp.amount)}</strong>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <>
+                        {m.project && <div style={{ fontSize: '12px' }}>🏗️ {m.project.name}</div>}
+                        {m.invoice && <div style={{ fontSize: '12px' }}>📄 Factura {m.invoice.number}</div>}
+                        {!m.project && !m.invoice && <span style={{ color: 'var(--text-muted)', fontSize: '11px' }}>(General)</span>}
+                      </>
+                    )}
                   </td>
                   <td><span className="badge" style={{ fontSize: '10px' }}>{m.method}</span></td>
                   <td style={{ textAlign: 'right', color: '#10b981', fontWeight: 600 }}>{m.type === 'ENTRY' ? formatCurrency(m.amount) : ''}</td>
@@ -394,9 +429,77 @@ export default function TreasuryClient() {
                 <label>Descripción / Concepto</label>
                 <input type="text" className="input-modern" required value={newMov.description} onChange={e => setNewMov({ ...newMov, description: e.target.value })} />
               </div>
+
+              {/* Imputations Section */}
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '15px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 600 }}>Reparto por Obra (Opcional)</span>
+                  <button 
+                    type="button" className="btn-secondary" style={{ fontSize: '11px', padding: '4px 8px' }}
+                    onClick={() => {
+                      setNewMov({
+                        ...newMov,
+                        imputations: [...newMov.imputations, { projectId: '', amount: '' }]
+                      });
+                    }}
+                  >
+                    + Añadir Obra
+                  </button>
+                </div>
+                
+                {newMov.imputations.map((imp, idx) => (
+                  <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr auto', gap: '10px', marginBottom: '8px', alignItems: 'flex-end' }}>
+                    <div className="formGroup">
+                      <select 
+                        className="input-modern" value={imp.projectId} 
+                        onChange={e => {
+                          const updated = [...newMov.imputations];
+                          updated[idx].projectId = e.target.value;
+                          setNewMov({ ...newMov, imputations: updated });
+                        }}
+                      >
+                        <option value="">Seleccionar obra...</option>
+                        {projects.map(p => (
+                          <option key={p.id} value={p.id}>{p.name}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="formGroup">
+                      <input 
+                        type="number" step="0.01" className="input-modern" placeholder="Importe"
+                        value={imp.amount}
+                        onChange={e => {
+                          const updated = [...newMov.imputations];
+                          updated[idx].amount = e.target.value;
+                          setNewMov({ ...newMov, imputations: updated });
+                        }}
+                      />
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        const updated = newMov.imputations.filter((_, i) => i !== idx);
+                        setNewMov({ ...newMov, imputations: updated });
+                      }}
+                      style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', paddingBottom: '10px' }}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                
+                {newMov.amount && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginTop: '10px', background: 'rgba(255,255,255,0.05)', padding: '8px', borderRadius: '4px' }}>
+                    <span>General (Sin Obra):</span>
+                    <span style={{ fontWeight: 700 }}>
+                      {formatCurrency(parseFloat(newMov.amount) - newMov.imputations.reduce((sum, i) => sum + (parseFloat(i.amount) || 0), 0))}
+                    </span>
+                  </div>
+                )}
+              </div>
               
               <div style={{ display: 'flex', gap: '10px', marginTop: '10px' }}>
-                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Guardar</button>
+                <button type="submit" className="btn-primary" style={{ flex: 1 }}>Guardar Movimiento</button>
                 <button type="button" className="btn-secondary" style={{ flex: 1 }} onClick={() => setShowAddModal(false)}>Cancelar</button>
               </div>
             </form>

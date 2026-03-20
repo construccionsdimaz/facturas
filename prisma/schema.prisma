@@ -190,6 +190,7 @@ model Project {
   documents   ProjectDocument[]
   imputedExpenses ImputedExpense[]
   movements    Movement[]
+  movementImputations MovementImputation[]
 }
 
 model ProjectBudgetLine {
@@ -403,8 +404,25 @@ model Movement {
   // States specific to ENTRY (Anticipos, etc.)
   isFacturado     Boolean          @default(false)
   
+  imputations     MovementImputation[]
+
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
+}
+
+model MovementImputation {
+  id          String   @id @default(cuid())
+  amount      Float
+  date        DateTime @default(now())
+  
+  movementId  String
+  movement    Movement @relation(fields: [movementId], references: [id], onDelete: Cascade)
+  
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 enum MovementType {

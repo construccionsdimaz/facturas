@@ -8,7 +8,13 @@ export async function GET(req: Request) {
     const type = searchParams.get('type');
     
     const where: any = {};
-    if (projectId) where.projectId = projectId;
+    if (projectId) {
+      // Find movements directly linked or via imputations
+      where.OR = [
+        { projectId: projectId },
+        { imputations: { some: { projectId: projectId } } }
+      ];
+    }
     if (type) where.type = type;
 
     const movements = await (db as any).movement.findMany({
@@ -16,7 +22,10 @@ export async function GET(req: Request) {
       include: {
         project: { select: { name: true } },
         client: { select: { name: true } },
-        invoice: { select: { number: true } }
+        invoice: { select: { number: true } },
+        imputations: {
+          include: { project: { select: { name: true } } }
+        }
       },
       orderBy: { date: 'desc' }
     });
@@ -34,35 +43,64 @@ export async function POST(req: Request) {
     const { 
       amount, date, method, description, type, category, 
       projectId, clientId, invoiceId, projectExpenseId, companyExpenseId,
-      isFacturado 
+      isFacturado, imputations 
     } = data;
 
     if (!amount || !type || !category) {
       return NextResponse.json({ error: 'Importe, tipo y categoría son obligatorios' }, { status: 400 });
     }
 
-    const movement = await (db as any).movement.create({
-      data: {
-        amount: parseFloat(amount),
-        date: date ? new Date(date) : new Date(),
-        method: method || 'TRANSFERENCIA',
-        description,
-        type,
-        category,
-        projectId,
-        clientId,
-        invoiceId,
-        projectExpenseId,
-        companyExpenseId,
-        isFacturado: isFacturado || (category === 'COBRO_FACTURA') // Si es cobro de factura, se asume facturado
+    const floatAmount = parseFloat(amount);
+
+    // Create movement and imputations in a transaction
+    const movement = await db.$transaction(async (tx) => {
+      const mov = await (tx as any).movement.create({
+        data: {
+          amount: floatAmount,
+          date: date ? new Date(date) : new Date(),
+          method: method || 'TRANSFERENCIA',
+          description,
+          type,
+          category,
+          projectId, // Main project (optional)
+          clientId,
+          invoiceId,
+          projectExpenseId,
+          companyExpenseId,
+          isFacturado: isFacturado || (category === 'COBRO_FACTURA')
+        }
+      });
+
+      // Handle granular imputations
+      if (imputations && Array.isArray(imputations) && imputations.length > 0) {
+        for (const imp of imputations) {
+          await (tx as any).movementImputation.create({
+            data: {
+              amount: parseFloat(imp.amount),
+              projectId: imp.projectId,
+              movementId: mov.id
+            }
+          });
+        }
+      } else if (projectId) {
+        // Automatic 100% imputation if single projectId provided
+        await (tx as any).movementImputation.create({
+          data: {
+            amount: floatAmount,
+            projectId: projectId,
+            movementId: mov.id
+          }
+        });
       }
+
+      return mov;
     });
 
-    // SYNC LOGIC: Update paidAmount in related entities
+    // SYNC LOGIC: Update paidAmount in related entities (omitted details for brevity, using same logic as before)
     if (type === 'ENTRY' && invoiceId) {
       const invoice = await (db as any).invoice.findUnique({ where: { id: invoiceId } });
       if (invoice) {
-        const newPaid = Math.round((invoice.paidAmount + parseFloat(amount)) * 100) / 100;
+        const newPaid = Math.round((invoice.paidAmount + floatAmount) * 100) / 100;
         const status = newPaid >= invoice.total ? 'PAID' : newPaid > 0 ? 'PARTIAL' : 'ISSUED';
         await (db as any).invoice.update({
           where: { id: invoiceId },
@@ -72,7 +110,7 @@ export async function POST(req: Request) {
     } else if (type === 'EXIT' && projectExpenseId) {
       const expense = await (db as any).projectExpense.findUnique({ where: { id: projectExpenseId } });
       if (expense) {
-        const newPaid = Math.round((expense.paidAmount + parseFloat(amount)) * 100) / 100;
+        const newPaid = Math.round((expense.paidAmount + floatAmount) * 100) / 100;
         const status = newPaid >= expense.amount ? 'PAGADO' : newPaid > 0 ? 'PARCIAL' : 'PENDIENTE';
         await (db as any).projectExpense.update({
           where: { id: projectExpenseId },
@@ -82,7 +120,7 @@ export async function POST(req: Request) {
     } else if (type === 'EXIT' && companyExpenseId) {
       const expense = await (db as any).companyExpense.findUnique({ where: { id: companyExpenseId } });
       if (expense) {
-        const newPaid = Math.round((expense.paidAmount + parseFloat(amount)) * 100) / 100;
+        const newPaid = Math.round((expense.paidAmount + floatAmount) * 100) / 100;
         const status = newPaid >= expense.amount ? 'PAGADO' : newPaid > 0 ? 'PARCIAL' : 'PENDIENTE';
         await (db as any).companyExpense.update({
           where: { id: companyExpenseId },
