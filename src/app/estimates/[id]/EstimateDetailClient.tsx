@@ -30,6 +30,41 @@ interface EstimateData {
   paymentMethod: string;
   bankAccount: string;
   dataProtection: string;
+  internalAnalysis: {
+    generationSource: string;
+    typologyCode?: string | null;
+    seedVersion?: number | null;
+    notes: string[];
+    summary: {
+      materialCostTotal: number;
+      laborCostTotal: number;
+      associatedCostTotal: number;
+      internalCostTotal: number;
+      contingencyAmount: number;
+      marginAmount: number;
+      commercialSubtotal: number;
+      vatAmount: number;
+      commercialTotal: number;
+    };
+    lines: Array<{
+      chapter: string;
+      code?: string | null;
+      description: string;
+      quantity: number;
+      unit: string;
+      lineKind: string;
+      materialCost: number;
+      laborHours: number;
+      laborCost: number;
+      associatedCost: number;
+      internalCost: number;
+      commercialPrice: number;
+      generationSource: string;
+      typologyCode?: string | null;
+      standardActivityCode?: string | null;
+      productivityRateName?: string | null;
+    }>;
+  } | null;
 }
 
 export default function EstimateDetailClient({ estimate }: { estimate: EstimateData }) {
@@ -159,6 +194,87 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
           </div>
         </div>
       </div>
+
+      {estimate.internalAnalysis && (
+        <div className={`glass-panel`} style={{ padding: '24px', marginBottom: '40px' }}>
+          <h3 style={{ marginBottom: '20px', color: 'var(--accent-primary)' }}>Analisis interno persistido</h3>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+            <div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Fuente</div>
+              <div style={{ fontWeight: 700 }}>{estimate.internalAnalysis.generationSource}</div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Tipologia</div>
+              <div style={{ fontWeight: 700 }}>{estimate.internalAnalysis.typologyCode || 'Sin tipologia'}</div>
+            </div>
+            <div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Seed</div>
+              <div style={{ fontWeight: 700 }}>{estimate.internalAnalysis.seedVersion ?? '-'}</div>
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+            <div className="glass-panel" style={{ padding: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Materiales</div>
+              <strong>{formatCurrency(estimate.internalAnalysis.summary.materialCostTotal)}</strong>
+            </div>
+            <div className="glass-panel" style={{ padding: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Mano de obra</div>
+              <strong>{formatCurrency(estimate.internalAnalysis.summary.laborCostTotal)}</strong>
+            </div>
+            <div className="glass-panel" style={{ padding: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Asociados</div>
+              <strong>{formatCurrency(estimate.internalAnalysis.summary.associatedCostTotal)}</strong>
+            </div>
+            <div className="glass-panel" style={{ padding: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Coste interno</div>
+              <strong>{formatCurrency(estimate.internalAnalysis.summary.internalCostTotal)}</strong>
+            </div>
+            <div className="glass-panel" style={{ padding: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Contingencia</div>
+              <strong>{formatCurrency(estimate.internalAnalysis.summary.contingencyAmount)}</strong>
+            </div>
+            <div className="glass-panel" style={{ padding: '12px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Margen</div>
+              <strong>{formatCurrency(estimate.internalAnalysis.summary.marginAmount)}</strong>
+            </div>
+          </div>
+
+          {estimate.internalAnalysis.notes.length > 0 && (
+            <div style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+              {estimate.internalAnalysis.notes.join(' | ')}
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {estimate.internalAnalysis.lines.map((line, index) => (
+              <div key={`${line.chapter}-${line.code || index}`} className="glass-panel" style={{ padding: '12px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                  <div>
+                    <div style={{ fontWeight: 700 }}>{line.chapter}</div>
+                    <div>{line.description}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      {line.generationSource}
+                      {line.typologyCode ? ` | ${line.typologyCode}` : ''}
+                      {line.standardActivityCode ? ` | ${line.standardActivityCode}` : ''}
+                      {line.productivityRateName ? ` | ${line.productivityRateName}` : ''}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', minWidth: '220px' }}>
+                    <div>{line.quantity} {line.unit}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      Mat {formatCurrency(line.materialCost)} | MO {formatCurrency(line.laborCost)} | Asoc {formatCurrency(line.associatedCost)}
+                    </div>
+                    <div style={{ fontWeight: 700, marginTop: '4px' }}>
+                      Interno {formatCurrency(line.internalCost)} | Comercial {formatCurrency(line.commercialPrice)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>

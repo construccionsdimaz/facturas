@@ -7,6 +7,7 @@ import {
   WorkType,
 } from './types';
 import {
+  AUTOMATION_SEED_VERSION,
   deriveComplexityFactor,
   detectWorkTags,
   estimateLaborHours,
@@ -20,6 +21,7 @@ export type EstimateGenerationInput = AutomationContext;
 
 export interface GeneratedEstimateLine {
   chapter: string;
+  code?: string | null;
   description: string;
   unit: string;
   quantity: number;
@@ -31,8 +33,12 @@ export interface GeneratedEstimateLine {
   associatedCost: number;
   kind: 'DIRECT' | 'LABOR' | 'ASSOCIATED' | 'PROVISIONAL';
   source: 'MASTER' | 'FALLBACK';
+  typologyCode?: string | null;
   standardActivityCode?: string | null;
   productivityRateName?: string | null;
+  measurementRule?: Record<string, unknown> | null;
+  pricingRule?: Record<string, unknown> | null;
+  appliedAssumptions?: Record<string, unknown> | null;
 }
 
 export interface GeneratedEstimateSummary {
@@ -40,6 +46,7 @@ export interface GeneratedEstimateSummary {
   laborCost: number;
   associatedCost: number;
   internalCost: number;
+  contingencyAmount: number;
   marginAmount: number;
   commercialSubtotal: number;
   vatAmount: number;
@@ -53,6 +60,7 @@ export interface GeneratedEstimateProposal {
   notes: string[];
   typologyCode?: string | null;
   source: 'MASTER' | 'FALLBACK';
+  seedVersion?: number | null;
 }
 
 function asLineKind(kind?: string | null): GeneratedEstimateLine['kind'] {
@@ -87,6 +95,7 @@ function buildLineFromMaster(item: any, input: EstimateGenerationInput, typology
 
   return {
     chapter: toChapterLabel(item.chapterCode, item.chapterName),
+    code: item.code || null,
     description: item.name,
     unit: item.unit,
     quantity,
@@ -98,21 +107,33 @@ function buildLineFromMaster(item: any, input: EstimateGenerationInput, typology
     associatedCost,
     kind: asLineKind(item.lineKind),
     source: 'MASTER' as const,
+    typologyCode: typology.code || null,
     standardActivityCode: item.standardActivity?.code || null,
     productivityRateName: item.productivityRate?.name || null,
+    measurementRule: item.measurementRule && typeof item.measurementRule === 'object' ? item.measurementRule : null,
+    pricingRule: item.pricingRule && typeof item.pricingRule === 'object' ? item.pricingRule : null,
+    appliedAssumptions: {
+      finishLevel: input.finishLevel,
+      accessLevel: input.accessLevel,
+      siteType: input.siteType,
+      scopeType: input.scopeType,
+      structuralWorks: input.structuralWorks,
+    },
   };
 }
 
 function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimateProposal {
   const internalCost = Number((Math.max(0, input.area) * 420).toFixed(2));
+  const contingencyAmount = Number((internalCost * 0.06).toFixed(2));
   const marginAmount = Number((internalCost * 0.18).toFixed(2));
-  const commercialSubtotal = Number((internalCost + marginAmount).toFixed(2));
+  const commercialSubtotal = Number((internalCost + contingencyAmount + marginAmount).toFixed(2));
   const vatAmount = Number((commercialSubtotal * 0.21).toFixed(2));
   return {
     chapters: ['01 GENERAL'],
     lines: [
       {
         chapter: '01 GENERAL',
+        code: 'FALLBACK-GENERAL',
         description: 'Partida base generada por fallback',
         unit: 'ud',
         quantity: 1,
@@ -124,8 +145,18 @@ function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimat
         associatedCost: Number((internalCost * 0.2).toFixed(2)),
         kind: 'DIRECT',
         source: 'FALLBACK',
+        typologyCode: null,
         standardActivityCode: null,
         productivityRateName: null,
+        measurementRule: null,
+        pricingRule: null,
+        appliedAssumptions: {
+          fallbackReason: 'No se encontro tipologia maestra o no genero lineas utilizables.',
+          area: input.area,
+          workType: input.workType,
+          siteType: input.siteType,
+          scopeType: input.scopeType,
+        },
       },
     ],
     summary: {
@@ -133,6 +164,7 @@ function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimat
       laborCost: Number((internalCost * 0.35).toFixed(2)),
       associatedCost: Number((internalCost * 0.2).toFixed(2)),
       internalCost,
+      contingencyAmount,
       marginAmount,
       commercialSubtotal,
       vatAmount,
@@ -141,6 +173,7 @@ function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimat
     notes: ['No se encontro maestro tipologico aplicable. Se ha usado un fallback minimo.'],
     typologyCode: null,
     source: 'FALLBACK',
+    seedVersion: AUTOMATION_SEED_VERSION,
   };
 }
 
@@ -171,6 +204,7 @@ export async function generateEstimateProposal(input: EstimateGenerationInput): 
       laborCost,
       associatedCost,
       internalCost,
+      contingencyAmount: contingency,
       marginAmount,
       commercialSubtotal,
       vatAmount,
@@ -182,5 +216,6 @@ export async function generateEstimateProposal(input: EstimateGenerationInput): 
     ],
     typologyCode: typology.code,
     source: 'MASTER',
+    seedVersion: AUTOMATION_SEED_VERSION,
   };
 }

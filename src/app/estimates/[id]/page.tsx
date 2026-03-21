@@ -15,6 +15,11 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
       client: true,
       items: true,
       user: true,
+      internalAnalysis: {
+        include: {
+          lines: true,
+        },
+      },
     }
   });
 
@@ -131,6 +136,43 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
         paymentMethod: estimate.user?.paymentMethod || '',
         bankAccount: estimate.user?.bankAccount || '',
         dataProtection: estimate.user?.dataProtection || '',
+        internalAnalysis: estimate.internalAnalysis ? {
+          generationSource: estimate.internalAnalysis.generationSource,
+          typologyCode: estimate.internalAnalysis.typologyCode,
+          seedVersion: estimate.internalAnalysis.seedVersion,
+          notes: Array.isArray(estimate.internalAnalysis.generationNotes)
+            ? estimate.internalAnalysis.generationNotes.filter((note): note is string => typeof note === 'string')
+            : [],
+          summary: {
+            materialCostTotal: estimate.internalAnalysis.materialCostTotal,
+            laborCostTotal: estimate.internalAnalysis.laborCostTotal,
+            associatedCostTotal: estimate.internalAnalysis.associatedCostTotal,
+            internalCostTotal: estimate.internalAnalysis.internalCostTotal,
+            contingencyAmount: estimate.internalAnalysis.contingencyAmount,
+            marginAmount: estimate.internalAnalysis.marginAmount,
+            commercialSubtotal: estimate.internalAnalysis.commercialSubtotal,
+            vatAmount: estimate.internalAnalysis.vatAmount,
+            commercialTotal: estimate.internalAnalysis.commercialTotal,
+          },
+          lines: estimate.internalAnalysis.lines.map((line: any) => ({
+            chapter: line.chapter,
+            code: line.code,
+            description: line.description,
+            quantity: line.quantity,
+            unit: line.unit,
+            lineKind: line.lineKind,
+            materialCost: line.materialCost,
+            laborHours: line.laborHours,
+            laborCost: line.laborCost,
+            associatedCost: line.associatedCost,
+            internalCost: line.internalCost,
+            commercialPrice: line.commercialPrice,
+            generationSource: line.generationSource,
+            typologyCode: line.typologyCode,
+            standardActivityCode: line.standardActivityCode,
+            productivityRateName: line.productivityRateName,
+          })),
+        } : null,
       }} />
     </div>
   );

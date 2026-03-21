@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } from '@/lib/estimates/internal-analysis';
 
 export async function GET() {
   try {
@@ -7,6 +8,11 @@ export async function GET() {
       include: {
         client: true,
         items: true,
+        internalAnalysis: {
+          include: {
+            lines: true,
+          },
+        },
       },
       orderBy: {
         createdAt: 'desc',
@@ -24,6 +30,7 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId } = body;
+    const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
 
     // Resolve Demo User
     let user = await db.user.findFirst();
@@ -60,9 +67,17 @@ export async function POST(request: Request) {
             chapter: item.chapter || '01 GENERAL',
           })),
         },
+        internalAnalysis: internalAnalysis ? {
+          create: toEstimateInternalAnalysisCreate(internalAnalysis),
+        } : undefined,
       } as any,
       include: {
         items: true,
+        internalAnalysis: {
+          include: {
+            lines: true,
+          },
+        },
       }
     });
 

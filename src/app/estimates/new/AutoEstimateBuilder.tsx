@@ -5,6 +5,7 @@ import { formatCurrency } from '@/lib/format';
 
 type ProposalLine = {
   chapter: string;
+  code?: string | null;
   description: string;
   unit: string;
   quantity: number;
@@ -15,6 +16,13 @@ type ProposalLine = {
   materialCost: number;
   associatedCost: number;
   kind: string;
+  source: 'MASTER' | 'FALLBACK';
+  typologyCode?: string | null;
+  standardActivityCode?: string | null;
+  productivityRateName?: string | null;
+  measurementRule?: Record<string, unknown> | null;
+  pricingRule?: Record<string, unknown> | null;
+  appliedAssumptions?: Record<string, unknown> | null;
 };
 
 type Proposal = {
@@ -25,6 +33,7 @@ type Proposal = {
     laborCost: number;
     associatedCost: number;
     internalCost: number;
+    contingencyAmount: number;
     marginAmount: number;
     commercialSubtotal: number;
     vatAmount: number;
@@ -32,7 +41,8 @@ type Proposal = {
   };
   notes: string[];
   typologyCode?: string | null;
-  source?: 'MASTER' | 'FALLBACK';
+  source: 'MASTER' | 'FALLBACK';
+  seedVersion?: number | null;
 };
 
 type EstimateItem = {

@@ -493,7 +493,7 @@ const TYPOLOGY_SEEDS: TypologySeed[] = [
 ];
 
 const AUTOMATION_SEED_KEY = 'automation-masters';
-const AUTOMATION_SEED_VERSION = 2;
+export const AUTOMATION_SEED_VERSION = 2;
 
 async function upsertStandardActivities(client: any = db) {
   for (const seed of STANDARD_ACTIVITY_SEEDS) {

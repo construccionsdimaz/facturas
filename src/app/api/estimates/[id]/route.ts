@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } from '@/lib/estimates/internal-analysis';
 
 export async function GET(
   request: Request,
@@ -12,6 +13,11 @@ export async function GET(
       include: {
         client: true,
         items: true,
+        internalAnalysis: {
+          include: {
+            lines: true,
+          },
+        },
       },
     });
 
@@ -34,11 +40,31 @@ export async function PUT(
     const { id } = await params;
     const body = await request.json();
     const { number, clientId, subtotal, taxAmount, total, items, status, validUntil, language, issueDate } = body;
+    const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
 
     // Delete existing items and create new ones for simplicity
     await db.estimateItem.deleteMany({
       where: { estimateId: id },
     });
+
+    if (internalAnalysis) {
+      const existingInternalAnalysis = await db.estimateInternalAnalysis.findUnique({
+        where: { estimateId: id },
+        select: { id: true },
+      });
+
+      if (existingInternalAnalysis) {
+        await db.estimateInternalLine.deleteMany({
+          where: {
+            analysisId: existingInternalAnalysis.id,
+          },
+        });
+      }
+
+      await db.estimateInternalAnalysis.deleteMany({
+        where: { estimateId: id },
+      });
+    }
 
     const updatedEstimate = await db.estimate.update({
       where: { id },
@@ -61,9 +87,17 @@ export async function PUT(
             chapter: item.chapter || '01 GENERAL',
           })),
         },
+        internalAnalysis: internalAnalysis ? {
+          create: toEstimateInternalAnalysisCreate(internalAnalysis),
+        } : undefined,
       },
       include: {
         items: true,
+        internalAnalysis: {
+          include: {
+            lines: true,
+          },
+        },
       },
     } as any);
 

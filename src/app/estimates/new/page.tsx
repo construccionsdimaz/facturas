@@ -50,6 +50,48 @@ interface ProjectSummary {
   };
 }
 
+interface InternalProposalLine {
+  chapter: string;
+  code?: string | null;
+  description: string;
+  unit: string;
+  quantity: number;
+  commercialPrice: number;
+  internalCost: number;
+  laborHours: number;
+  laborCost: number;
+  materialCost: number;
+  associatedCost: number;
+  kind: string;
+  source: 'MASTER' | 'FALLBACK';
+  typologyCode?: string | null;
+  standardActivityCode?: string | null;
+  productivityRateName?: string | null;
+  measurementRule?: Record<string, unknown> | null;
+  pricingRule?: Record<string, unknown> | null;
+  appliedAssumptions?: Record<string, unknown> | null;
+}
+
+interface InternalProposal {
+  chapters: string[];
+  lines: InternalProposalLine[];
+  summary: {
+    materialCost: number;
+    laborCost: number;
+    associatedCost: number;
+    internalCost: number;
+    contingencyAmount: number;
+    marginAmount: number;
+    commercialSubtotal: number;
+    vatAmount: number;
+    commercialTotal: number;
+  };
+  notes: string[];
+  typologyCode?: string | null;
+  source: 'MASTER' | 'FALLBACK';
+  seedVersion?: number | null;
+}
+
 export default function NewEstimate() {
   return (
     <Suspense fallback={<div>Cargando editor...</div>}>
@@ -82,6 +124,7 @@ function NewEstimateContent() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
+  const [internalProposal, setInternalProposal] = useState<InternalProposal | null>(null);
   
   // Calculation States
   const [taxRate, setTaxRate] = useState(21);
@@ -225,9 +268,10 @@ function NewEstimateContent() {
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
 
-  const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[] }) => {
+  const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[]; proposal: InternalProposal }) => {
     setItems(payload.items);
     setChapters(payload.chapters);
+    setInternalProposal(payload.proposal);
   };
 
   const saveEstimate = async () => {
@@ -254,7 +298,15 @@ function NewEstimateContent() {
           price: item.price,
           unit: item.unit,
           chapter: item.chapter
-        }))
+        })),
+        internalAnalysis: internalProposal ? {
+          source: internalProposal.source,
+          typologyCode: internalProposal.typologyCode || null,
+          seedVersion: internalProposal.seedVersion ?? null,
+          notes: internalProposal.notes,
+          summary: internalProposal.summary,
+          lines: internalProposal.lines,
+        } : undefined,
       };
       const res = await fetch('/api/estimates', {
         method: 'POST',
@@ -329,8 +381,8 @@ function NewEstimateContent() {
       <div className={styles.contentGrid + " no-print"}>
         <div className={styles.formPanel}>
           <AutoEstimateBuilder
-            onApply={({ items, chapters }) => {
-              applyAutoProposal({ items, chapters });
+            onApply={({ items, chapters, proposal }) => {
+              applyAutoProposal({ items, chapters, proposal });
             }}
           />
 

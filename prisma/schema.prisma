@@ -143,6 +143,7 @@ model Estimate {
   client   Client @relation(fields: [clientId], references: [id])
 
   items EstimateItem[]
+  internalAnalysis EstimateInternalAnalysis?
 
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id])
@@ -162,6 +163,64 @@ model EstimateItem {
 
   estimateId String
   estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+}
+
+model EstimateInternalAnalysis {
+  id        String   @id @default(cuid())
+  estimateId String  @unique
+  estimate   Estimate @relation(fields: [estimateId], references: [id], onDelete: Cascade)
+
+  generationSource String
+  typologyCode     String?
+  seedVersion      Int?
+
+  materialCostTotal   Float @default(0)
+  laborCostTotal      Float @default(0)
+  associatedCostTotal Float @default(0)
+  internalCostTotal   Float @default(0)
+  contingencyAmount   Float @default(0)
+  marginAmount        Float @default(0)
+  commercialSubtotal  Float @default(0)
+  vatAmount           Float @default(0)
+  commercialTotal     Float @default(0)
+
+  generationNotes Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  lines EstimateInternalLine[]
+}
+
+model EstimateInternalLine {
+  id         String   @id @default(cuid())
+  analysisId String
+  analysis   EstimateInternalAnalysis @relation(fields: [analysisId], references: [id], onDelete: Cascade)
+
+  chapter       String
+  code          String?
+  description   String
+  unit          String   @default("ud")
+  quantity      Float    @default(0)
+  lineKind      String   @default("DIRECT")
+
+  materialCost   Float @default(0)
+  laborHours     Float @default(0)
+  laborCost      Float @default(0)
+  associatedCost Float @default(0)
+  internalCost   Float @default(0)
+  commercialPrice Float @default(0)
+
+  generationSource      String
+  typologyCode          String?
+  standardActivityCode  String?
+  productivityRateName  String?
+  measurementRule       Json?
+  pricingRule           Json?
+  appliedAssumptions    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // Project/Work record (Obra)
