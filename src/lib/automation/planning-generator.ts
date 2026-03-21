@@ -34,6 +34,38 @@ export interface PlanningGenerationInput {
   hasElevator?: boolean;
   finishLevel?: 'BASICO' | 'MEDIO' | 'MEDIO_ALTO' | 'ALTO';
   conditions?: string;
+  areas?: Array<{
+    areaId: string;
+    areaType: string;
+    label: string;
+    index?: number | null;
+    approxSizeM2?: number | null;
+    currentState?: string | null;
+    targetState?: string | null;
+    certainty?: string;
+  }>;
+  actionsByArea?: Array<{
+    areaId: string;
+    actions: Array<{
+      actionCode: string;
+      coverage?: string;
+      replaceMode?: string;
+      notes?: string | null;
+      certainty?: string;
+    }>;
+  }>;
+  discoverySubtypes?: string[];
+  complexityProfile?: {
+    riskLevel?: string;
+    drivers?: string[];
+    costSensitivity?: string;
+    scheduleSensitivity?: string;
+    procurementSensitivity?: string;
+  };
+  inclusions?: Record<string, string>;
+  currentVsTarget?: Record<string, unknown>;
+  executionConstraints?: Record<string, unknown>;
+  certainty?: unknown;
 }
 
 export interface PlanningLocationNode {
@@ -112,6 +144,122 @@ function buildFallbackBlueprint(context: PlanningGenerationInput): PlanningBluep
   };
 }
 
+function buildDiscoveryTagsText(context: PlanningGenerationInput) {
+  const selectedAreas = (context.areas || []).map((area) => {
+    const areaBits = [area.label, area.areaType, area.currentState, area.targetState].filter(Boolean);
+    return areaBits.join(' ');
+  });
+  const actionBits = (context.actionsByArea || []).flatMap((areaActions) =>
+    areaActions.actions.map((action) =>
+      [action.actionCode, action.coverage, action.replaceMode, action.notes].filter(Boolean).join(' ')
+    )
+  );
+  const subtypeBits = context.discoverySubtypes || [];
+  const complexityBits = [
+    context.complexityProfile?.riskLevel,
+    ...(context.complexityProfile?.drivers || []),
+  ].filter(Boolean);
+  const inclusionBits = Object.entries(context.inclusions || {}).map(([family, mode]) => `${family} ${mode}`);
+  const constraintBits = Object.entries(context.executionConstraints || {}).flatMap(([key, value]) =>
+    value ? [`${key} ${String(value)}`] : []
+  );
+
+  return [
+    context.works || '',
+    ...selectedAreas,
+    ...actionBits,
+    ...subtypeBits,
+    ...complexityBits,
+    ...inclusionBits,
+    ...constraintBits,
+  ]
+    .filter(Boolean)
+    .join(' ');
+}
+
+function buildLocationNodes(context: PlanningGenerationInput, typology: any) {
+  const masterLocationNodes = typology.locationTemplates.flatMap((template: any) =>
+    expandLocationTemplate(template, {
+      ...context,
+      finishLevel: context.finishLevel || 'MEDIO',
+    })
+  );
+
+  const selectedAreas = (context.areas || []).filter((area) => area.label);
+  if (selectedAreas.length === 0) {
+    return masterLocationNodes;
+  }
+
+  const existingKeys = new Set(masterLocationNodes.map((node: PlanningLocationNode) => node.key));
+  const discoveryLocationNodes: PlanningLocationNode[] = selectedAreas
+    .filter((area) => !existingKeys.has(`discovery-${area.areaId}`))
+    .map((area) => ({
+      key: `discovery-${area.areaId}`,
+      name: area.label,
+      type: area.areaType,
+      parentKey: 'site-root',
+      code: area.areaType,
+      description: [area.currentState, area.targetState].filter(Boolean).join(' -> ') || null,
+    }));
+
+  return [...masterLocationNodes, ...discoveryLocationNodes];
+}
+
+function inferLocationKeyFromDiscovery(
+  context: PlanningGenerationInput,
+  locationNodes: PlanningLocationNode[],
+  template: any,
+  costItem: any
+) {
+  const selectedAreas = (context.areas || []).filter((area) => area.label);
+  if (selectedAreas.length === 0) return 'site-root';
+
+  const haystack = [
+    template?.nameOverride,
+    template?.standardActivity?.name,
+    template?.standardActivity?.code,
+    costItem?.name,
+    costItem?.chapterName,
+    context.works,
+  ]
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase();
+
+  const hintMatchers: Array<{ areaType: string; patterns: string[] }> = [
+    { areaType: 'COCINA', patterns: ['cocina', 'kitchen'] },
+    { areaType: 'BANO', patterns: ['bano', 'baño', 'sanitario', 'aseo'] },
+    { areaType: 'ASEO', patterns: ['aseo', 'wc'] },
+    { areaType: 'HABITACION', patterns: ['habitacion', 'dormitorio', 'room'] },
+    { areaType: 'SALON', patterns: ['salon', 'estar', 'living'] },
+    { areaType: 'COMEDOR', patterns: ['comedor'] },
+    { areaType: 'PASILLO', patterns: ['pasillo', 'distribuidor'] },
+    { areaType: 'PORTAL', patterns: ['portal', 'acceso'] },
+    { areaType: 'ESCALERA', patterns: ['escalera'] },
+    { areaType: 'FACHADA', patterns: ['fachada'] },
+    { areaType: 'CUBIERTA', patterns: ['cubierta', 'tejado'] },
+    { areaType: 'PATIO', patterns: ['patio'] },
+    { areaType: 'TERRAZA', patterns: ['terraza'] },
+    { areaType: 'EXTERIOR', patterns: ['exterior', 'urbanizacion', 'urbanización'] },
+    { areaType: 'ZONA_COMUN', patterns: ['zona comun', 'zonas comunes', 'common'] },
+    { areaType: 'VIVIENDA', patterns: ['vivienda', 'unidad'] },
+    { areaType: 'SALA_PRINCIPAL', patterns: ['sala principal', 'sala'] },
+    { areaType: 'ALMACEN', patterns: ['almacen', 'trastienda', 'storage'] },
+    { areaType: 'OFFICE', patterns: ['office'] },
+    { areaType: 'ESCAPARATE', patterns: ['escaparate'] },
+  ];
+
+  const matchedArea = hintMatchers
+    .filter((matcher) => matcher.patterns.some((pattern) => haystack.includes(pattern)))
+    .flatMap((matcher) => selectedAreas.filter((area) => area.areaType === matcher.areaType))
+    .find(Boolean);
+
+  if (!matchedArea) return 'site-root';
+
+  const matchedNode = locationNodes.find((node) => node.key === `discovery-${matchedArea.areaId}`);
+  return matchedNode?.key || 'site-root';
+}
+
 export async function generatePlanningBlueprint(context: PlanningGenerationInput): Promise<PlanningBlueprint> {
   const normalizedContext = {
     ...context,
@@ -120,8 +268,8 @@ export async function generatePlanningBlueprint(context: PlanningGenerationInput
   const typology = await loadAutomationTypology(normalizedContext);
   if (!typology) return buildFallbackBlueprint(context);
 
-  const tags = detectWorkTags(context.works || '');
-  const locationNodes = typology.locationTemplates.flatMap((template: any) => expandLocationTemplate(template, normalizedContext));
+  const tags = detectWorkTags(buildDiscoveryTagsText(context));
+  const locationNodes = buildLocationNodes(normalizedContext, typology);
 
   const wbsNodes = Array.from(
     new Map(
@@ -164,10 +312,13 @@ export async function generatePlanningBlueprint(context: PlanningGenerationInput
         name: template.nameOverride || template.standardActivity.name,
         code: template.standardActivity.code || `A${index + 1}`,
         wbsKey: `wbs-${template.wbsCode || costItem?.chapterCode || '01'}`,
-        locationKey: resolveLocationKey(template.locationCode, locationNodes),
+        locationKey:
+          resolveLocationKey(template.locationCode, locationNodes) !== 'site-root'
+            ? resolveLocationKey(template.locationCode, locationNodes)
+            : inferLocationKeyFromDiscovery(normalizedContext, locationNodes, template, costItem),
         durationDays: Math.max(1, durationDays),
         responsible: template.standardActivity.category === 'INSTALACIONES' ? 'Instalaciones' : template.standardActivity.category === 'CARPINTERIA' ? 'Carpinteria' : 'Produccion',
-        notes: `Generada desde plantilla ${template.code}${costItem ? ` | Partida: ${costItem.name}` : ''}`,
+        notes: `Generada desde plantilla ${template.code}${costItem ? ` | Partida: ${costItem.name}` : ''}${context.discoverySubtypes?.length ? ` | Discovery: ${context.discoverySubtypes.join(', ')}` : ''}`,
         standardActivityId: template.standardActivity.id || null,
         standardActivityCode: template.standardActivity.code || null,
         generationSource: 'MASTER' as const,
@@ -199,6 +350,7 @@ export async function generatePlanningBlueprint(context: PlanningGenerationInput
     notes: [
       `Tipologia aplicada: ${typology.name}`,
       'El planning base se ha generado desde maestros tipologicos, actividades estandar y rendimientos.',
+      ...(context.discoverySubtypes?.length ? [`Discovery subtypes: ${context.discoverySubtypes.join(', ')}`] : []),
     ],
     typologyCode: typology.code,
     source: 'MASTER',

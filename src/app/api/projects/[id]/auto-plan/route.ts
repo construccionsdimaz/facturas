@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePlanningBlueprint } from '@/lib/automation/planning-generator';
+import type { DerivedInput } from '@/lib/discovery/types';
 import {
   getDefaultProjectCalendarData,
   scheduleProjectActivities,
@@ -67,6 +68,11 @@ function inferCount(text: string, patterns: RegExp[], fallback = 0) {
   return fallback;
 }
 
+function parseDiscoveryDerivedInput(value: unknown): DerivedInput | null {
+  if (!value || typeof value !== 'object') return null;
+  return value as DerivedInput;
+}
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -87,6 +93,13 @@ export async function POST(
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
+            discoverySession: {
+              select: {
+                id: true,
+                derivedInput: true,
+                status: true,
+              },
+            },
             items: true,
             internalAnalysis: {
               include: {
@@ -117,23 +130,37 @@ export async function POST(
     const warnings: string[] = [];
     const estimateText = latestEstimate?.items?.map((item) => `${item.description} ${item.chapter} ${item.unit}`).join(' ') || '';
     const combinedText = `${sourceText} ${estimateText}`;
+    const discoveryDerivedInput = parseDiscoveryDerivedInput(latestEstimate?.discoverySession?.derivedInput);
 
-    const siteType = inferSiteType(project.projectType, project.description, project.name);
-    const scopeType = inferScopeType(combinedText, siteType);
-    const workType = inferWorkType(scopeType);
-    const accessLevel = inferAccessLevel(combinedText);
+    const siteType = discoveryDerivedInput?.siteType || inferSiteType(project.projectType, project.description, project.name);
+    const scopeType = discoveryDerivedInput?.scopeType || inferScopeType(combinedText, siteType);
+    const workType = discoveryDerivedInput?.workType || inferWorkType(scopeType);
+    const accessLevel = discoveryDerivedInput?.accessLevel || inferAccessLevel(combinedText);
     const detectedArea = parseArea(combinedText);
-    const area = detectedArea || (siteType === 'EDIFICIO' ? 420 : siteType === 'LOCAL' ? 140 : siteType === 'OBRA_NUEVA' ? 180 : 95);
-    const bathrooms = inferCount(combinedText, [/(\d+)\s*ba(?:n|ñ)os?/i, /ba(?:n|ñ)os?\s*(\d+)/i], siteType === 'LOCAL' ? 1 : 2);
-    const kitchens = inferCount(combinedText, [/(\d+)\s*cocinas?/i, /cocinas?\s*(\d+)/i], siteType === 'PISO' ? 1 : 0);
-    const rooms = inferCount(combinedText, [/(\d+)\s*habitaciones?/i, /habitaciones?\s*(\d+)/i], siteType === 'EDIFICIO' ? 0 : 3);
-    const units = inferCount(combinedText, [/(\d+)\s*viviendas?/i, /(\d+)\s*unidades?/i], siteType === 'EDIFICIO' ? 4 : 1);
-    const floors = inferCount(combinedText, [/(\d+)\s*plantas?/i, /(\d+)\s*niveles?/i], siteType === 'EDIFICIO' ? 4 : 1);
-    const structuralWorks = /estructura|portante|forjado|pilar|redistrib|reconfigur|varias viviendas/i.test(combinedText);
-    const hasElevator = !/sin ascensor|no ascensor/i.test(combinedText);
+    const area = Number(discoveryDerivedInput?.area) || detectedArea || (siteType === 'EDIFICIO' ? 420 : siteType === 'LOCAL' ? 140 : siteType === 'OBRA_NUEVA' ? 180 : 95);
+    const bathrooms = discoveryDerivedInput?.bathrooms ?? inferCount(combinedText, [/(\d+)\s*ba(?:n|ñ)os?/i, /ba(?:n|ñ)os?\s*(\d+)/i], siteType === 'LOCAL' ? 1 : 2);
+    const kitchens = discoveryDerivedInput?.kitchens ?? inferCount(combinedText, [/(\d+)\s*cocinas?/i, /cocinas?\s*(\d+)/i], siteType === 'PISO' ? 1 : 0);
+    const rooms = discoveryDerivedInput?.rooms ?? inferCount(combinedText, [/(\d+)\s*habitaciones?/i, /habitaciones?\s*(\d+)/i], siteType === 'EDIFICIO' ? 0 : 3);
+    const units = discoveryDerivedInput?.units ?? inferCount(combinedText, [/(\d+)\s*viviendas?/i, /(\d+)\s*unidades?/i], siteType === 'EDIFICIO' ? 4 : 1);
+    const floors = discoveryDerivedInput?.floors ?? inferCount(combinedText, [/(\d+)\s*plantas?/i, /(\d+)\s*niveles?/i], siteType === 'EDIFICIO' ? 4 : 1);
+    const structuralWorks = discoveryDerivedInput?.structuralWorks ?? /estructura|portante|forjado|pilar|redistrib|reconfigur|varias viviendas/i.test(combinedText);
+    const hasElevator = discoveryDerivedInput?.hasElevator ?? !/sin ascensor|no ascensor/i.test(combinedText);
+    const worksText =
+      discoveryDerivedInput?.worksText ||
+      latestEstimate?.items?.map((item) => item.description).join(', ') ||
+      project.description ||
+      '';
+    const finishLevel = discoveryDerivedInput?.finishLevel || (latestEstimate?.items?.length ? 'MEDIO_ALTO' : 'MEDIO');
+    const conditions = discoveryDerivedInput?.conditions || project.observations || project.description || '';
 
     if (!latestEstimate) {
       warnings.push('No hay estimate vinculado; el planning se genera solo con datos de obra e inferencias.');
+    }
+    if (latestEstimate?.discoverySession && discoveryDerivedInput) {
+      warnings.push('Se ha priorizado DiscoverySession.derivedInput como fuente principal del planning automatico.');
+    }
+    if (latestEstimate?.discoverySession && !discoveryDerivedInput) {
+      warnings.push('La obra tiene discovery vinculado, pero el derivedInput no estaba utilizable; se usa estimate + inferencias.');
     }
     if (latestEstimate && !latestEstimate.internalAnalysis) {
       warnings.push('El ultimo estimate no conserva analisis interno; el planning automatico tiene menos base economica.');
@@ -141,10 +168,10 @@ export async function POST(
     if (!project.calendar) {
       warnings.push('La obra no tenia calendario propio y se ha usado un calendario de referencia.');
     }
-    if (!detectedArea) {
+    if (!discoveryDerivedInput && !detectedArea) {
       warnings.push(`No se ha detectado superficie explicita; se usa un area orientativa para ${siteType}.`);
     }
-    if (!project.projectType) {
+    if (!project.projectType && !discoveryDerivedInput) {
       warnings.push('Falta tipo de obra en setup y la tipologia se ha inferido desde texto libre.');
     }
     if (project.setupStatus === 'INCOMPLETE') {
@@ -159,7 +186,7 @@ export async function POST(
       scopeType,
       workType,
       area,
-      works: latestEstimate?.items?.map((item) => item.description).join(', ') || project.description || '',
+      works: worksText,
       accessLevel,
       bathrooms,
       kitchens,
@@ -168,8 +195,16 @@ export async function POST(
       floors,
       structuralWorks,
       hasElevator,
-      finishLevel: latestEstimate?.items?.length ? 'MEDIO_ALTO' : 'MEDIO',
-      conditions: project.observations || project.description || '',
+      finishLevel,
+      conditions,
+      areas: discoveryDerivedInput?.areas,
+      actionsByArea: discoveryDerivedInput?.actionsByArea,
+      discoverySubtypes: discoveryDerivedInput?.discoveryProfile?.subtypes,
+      complexityProfile: discoveryDerivedInput?.discoveryProfile?.complexityProfile,
+      inclusions: discoveryDerivedInput?.inclusions,
+      currentVsTarget: discoveryDerivedInput?.currentVsTarget as Record<string, unknown> | undefined,
+      executionConstraints: discoveryDerivedInput?.executionConstraints as Record<string, unknown> | undefined,
+      certainty: discoveryDerivedInput?.certainty,
     });
 
     const calendarRecord =
@@ -364,6 +399,7 @@ export async function POST(
       typologyCode: blueprint.typologyCode || null,
       notes: blueprint.notes,
       warnings,
+      contextSource: discoveryDerivedInput ? 'DISCOVERY' : latestEstimate ? 'ESTIMATE_AND_PROJECT' : 'PROJECT_FALLBACK',
       scheduling: {
         scheduledWith: scheduling.scheduledWith,
         startDate: scheduling.startDate,
