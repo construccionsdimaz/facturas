@@ -30,18 +30,30 @@ interface Supply {
   requiredOnSiteDate: string;
   leadTimeDays: number;
   orderDate: string;
+  receivedDate?: string;
   priority: 'CRITICA' | 'ALTA' | 'NORMAL' | 'APOYO';
   status: string;
   responsible: string;
   quantity?: number;
   unit?: string;
+  suggestedUnitCost?: number;
   expectedUnitCost?: number;
   expectedTotalCost?: number;
+  actualUnitCost?: number;
+  actualTotalCost?: number;
   scheduleRisk?: string;
   suggestedSupplierReason?: string;
   material?: { id: string; code?: string; name: string; category: string; baseUnit: string };
   supplier?: { id: string; name: string; email?: string; phone?: string };
+  suggestedSupplier?: { id: string; name: string; email?: string; phone?: string };
   supplierOffer?: {
+    id: string;
+    unitCost: number;
+    leadTimeDays: number;
+    unit: string;
+    supplier?: { id: string; name: string };
+  };
+  suggestedSupplierOffer?: {
     id: string;
     unitCost: number;
     leadTimeDays: number;
@@ -60,6 +72,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
   const [materials, setMaterials] = useState<MaterialOption[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [editingSupplyId, setEditingSupplyId] = useState<string | null>(null);
   const [autoSource, setAutoSource] = useState<'estimate' | 'activities' | 'hybrid'>('hybrid');
 
   const [activities, setActivities] = useState<any[]>([]);
@@ -76,14 +89,42 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
     supplierId: '',
     responsible: '',
     requiredOnSiteDate: '',
+    receivedDate: '',
     leadTimeDays: 0,
     projectActivityId: '',
     locationId: '',
     wbsId: '',
     quantity: '',
     unit: '',
+    suggestedUnitCost: '',
+    actualUnitCost: '',
     observations: ''
   });
+
+  const resetForm = () => {
+    setEditingSupplyId(null);
+    setFormData({
+      description: '',
+      category: 'ACABADOS',
+      priority: 'NORMAL',
+      status: 'IDENTIFICADA',
+      materialId: '',
+      supplierOfferId: '',
+      supplierId: '',
+      responsible: '',
+      requiredOnSiteDate: '',
+      receivedDate: '',
+      leadTimeDays: 0,
+      projectActivityId: '',
+      locationId: '',
+      wbsId: '',
+      quantity: '',
+      unit: '',
+      suggestedUnitCost: '',
+      actualUnitCost: '',
+      observations: ''
+    });
+  };
 
   useEffect(() => {
     fetchData();
@@ -145,7 +186,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
   const handleMaterialSelected = (materialId: string) => {
     const material = materials.find((item) => item.id === materialId);
     if (!material) {
-      setFormData({ ...formData, materialId: '', supplierOfferId: '', supplierId: '', description: '', unit: '', category: 'OTROS' });
+      setFormData({ ...formData, materialId: '', supplierOfferId: '', supplierId: '', description: '', unit: '', category: 'OTROS', suggestedUnitCost: '', actualUnitCost: '' });
       return;
     }
 
@@ -159,21 +200,49 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
       category: material.category,
       unit: preferredOffer?.unit || material.baseUnit,
       leadTimeDays: preferredOffer?.leadTimeDays || 0,
+      suggestedUnitCost: preferredOffer?.unitCost?.toString() || '',
+      actualUnitCost: preferredOffer?.unitCost?.toString() || '',
       priority: material.isCriticalForSchedule ? 'CRITICA' : formData.priority,
     });
+  };
+
+  const openEditModal = (supply: Supply) => {
+    setEditingSupplyId(supply.id);
+    setFormData({
+      description: supply.description || '',
+      category: supply.category || 'ACABADOS',
+      priority: supply.priority || 'NORMAL',
+      status: supply.status || 'IDENTIFICADA',
+      materialId: supply.material?.id || '',
+      supplierOfferId: supply.supplierOffer?.id || '',
+      supplierId: supply.supplier?.id || '',
+      responsible: supply.responsible || '',
+      requiredOnSiteDate: supply.requiredOnSiteDate ? new Date(supply.requiredOnSiteDate).toISOString().split('T')[0] : '',
+      receivedDate: supply.receivedDate ? new Date(supply.receivedDate).toISOString().split('T')[0] : '',
+      leadTimeDays: supply.leadTimeDays || 0,
+      projectActivityId: supply.projectActivity?.id || '',
+      locationId: supply.location?.id || '',
+      wbsId: supply.wbs?.id || '',
+      quantity: supply.quantity?.toString() || '',
+      unit: supply.unit || '',
+      suggestedUnitCost: supply.suggestedUnitCost?.toString() || '',
+      actualUnitCost: supply.actualUnitCost?.toString() || '',
+      observations: supply.observations || '',
+    });
+    setShowModal(true);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`/api/projects/${projectId}/supplies`, {
-        method: 'POST',
+      const res = await fetch(editingSupplyId ? `/api/projects/${projectId}/supplies/${editingSupplyId}` : `/api/projects/${projectId}/supplies`, {
+        method: editingSupplyId ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(formData)
       });
       if (res.ok) {
         setShowModal(false);
-        setFormData({ description: '', category: 'ACABADOS', priority: 'NORMAL', status: 'IDENTIFICADA', materialId: '', supplierOfferId: '', supplierId: '', responsible: '', requiredOnSiteDate: '', leadTimeDays: 0, projectActivityId: '', locationId: '', wbsId: '', quantity: '', unit: '', observations: '' });
+        resetForm();
         fetchData();
       }
     } catch (err) { alert("Error al guardar suministro"); }
@@ -233,7 +302,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
           <option value="hybrid">Presupuesto + cronograma</option>
         </select>
         <button className="btn-secondary" onClick={handleAutoGenerateSupplies}>Generar compras automáticas</button>
-        <button className="btn-primary" onClick={() => setShowModal(true)}>+ Nueva necesidad</button>
+        <button className="btn-primary" onClick={() => { resetForm(); setShowModal(true); }}>+ Nueva necesidad</button>
       </div>
 
       <div className="glass-panel" style={{ padding: '24px' }}>
@@ -244,7 +313,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
               <tr>
                 <th>Material / necesidad</th>
                 <th>Origen obra</th>
-                <th>Proveedor sugerido</th>
+                <th>Proveedor / decision</th>
                 <th>Meta en obra</th>
                 <th>Estado logístico</th>
                 <th>Coste / riesgo</th>
@@ -276,10 +345,15 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
                       </div>
                     </td>
                     <td>
-                      <div style={{ fontSize: '12px', fontWeight: 600 }}>{s.supplier?.name || s.supplierOffer?.supplier?.name || 'Sin sugerencia'}</div>
+                      <div style={{ fontSize: '12px', fontWeight: 600 }}>{s.supplier?.name || s.supplierOffer?.supplier?.name || 'Sin proveedor asignado'}</div>
                       <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>
                         {s.leadTimeDays || 0} días{typeof s.expectedUnitCost === 'number' ? ` | ${s.expectedUnitCost.toFixed(2)} €/` : ''}{s.unit || ''}
                       </div>
+                      {(s.suggestedSupplier?.name || s.suggestedSupplierOffer?.supplier?.name) && (
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          Sugerido: {s.suggestedSupplier?.name || s.suggestedSupplierOffer?.supplier?.name}
+                        </div>
+                      )}
                       {s.suggestedSupplierReason && (
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>{s.suggestedSupplierReason}</div>
                       )}
@@ -290,6 +364,9 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
                       </div>
                       {s.projectActivity?.plannedStartDate && (
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)' }}>Inicio act: {new Date(s.projectActivity.plannedStartDate).toLocaleDateString()}</div>
+                      )}
+                      {s.receivedDate && (
+                        <div style={{ fontSize: '10px', color: '#10b981' }}>Recibido: {new Date(s.receivedDate).toLocaleDateString()}</div>
                       )}
                     </td>
                     <td>
@@ -316,6 +393,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
                       </div>
                     </td>
                     <td style={{ textAlign: 'right' }}>
+                      <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', marginRight: '8px' }} onClick={() => openEditModal(s)}>Editar</button>
                       <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: '#ef4444' }} onClick={() => deleteSupply(s.id)}>🗑️</button>
                     </td>
                   </tr>
@@ -329,7 +407,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
       {showModal && (
         <div className="modal-backdrop" style={{ zIndex: 120 }}>
           <div className="modal-content glass-panel" style={{ maxWidth: '720px' }}>
-            <h2 style={{ marginBottom: '20px' }}>Vincular necesidad de compra</h2>
+            <h2 style={{ marginBottom: '20px' }}>{editingSupplyId ? 'Actualizar compra / suministro real' : 'Vincular necesidad de compra'}</h2>
             <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div className="formGroup" style={{ gridColumn: 'span 2' }}>
                 <label>Material maestro</label>
@@ -355,7 +433,21 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
 
               <div className="formGroup">
                 <label>Oferta / proveedor sugerido</label>
-                <select className="input-modern" value={formData.supplierOfferId} onChange={e => setFormData({ ...formData, supplierOfferId: e.target.value })} disabled={!selectedMaterial}>
+                <select
+                  className="input-modern"
+                  value={formData.supplierOfferId}
+                  onChange={e => {
+                    const offer = selectedMaterial?.offers.find((item) => item.id === e.target.value);
+                    setFormData({
+                      ...formData,
+                      supplierOfferId: e.target.value,
+                      supplierId: offer?.supplier.id || '',
+                      leadTimeDays: offer?.leadTimeDays || formData.leadTimeDays,
+                      actualUnitCost: offer?.unitCost?.toString() || formData.actualUnitCost,
+                    });
+                  }}
+                  disabled={!selectedMaterial}
+                >
                   <option value="">-- Sin oferta --</option>
                   {selectedMaterial?.offers.map((offer) => (
                     <option key={offer.id} value={offer.id}>
@@ -400,6 +492,11 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
               </div>
 
               <div className="formGroup">
+                <label>Fecha real de recepcion</label>
+                <input type="date" className="input-modern" value={formData.receivedDate} onChange={e => setFormData({ ...formData, receivedDate: e.target.value })} />
+              </div>
+
+              <div className="formGroup">
                 <label>Cantidad estimada</label>
                 <input type="number" className="input-modern" value={formData.quantity} onChange={e => setFormData({ ...formData, quantity: e.target.value })} />
               </div>
@@ -424,6 +521,16 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
                 <input className="input-modern" value={formData.responsible} onChange={e => setFormData({ ...formData, responsible: e.target.value })} />
               </div>
 
+              <div className="formGroup">
+                <label>Coste sugerido (€/ud)</label>
+                <input type="number" className="input-modern" value={formData.suggestedUnitCost} onChange={e => setFormData({ ...formData, suggestedUnitCost: e.target.value })} />
+              </div>
+
+              <div className="formGroup">
+                <label>Coste real usado (€/ud)</label>
+                <input type="number" className="input-modern" value={formData.actualUnitCost} onChange={e => setFormData({ ...formData, actualUnitCost: e.target.value })} />
+              </div>
+
               <div className="formGroup" style={{ gridColumn: 'span 2' }}>
                 <label>Observaciones logísticas</label>
                 <textarea className="input-modern" rows={2} value={formData.observations} onChange={e => setFormData({ ...formData, observations: e.target.value })} />
@@ -438,8 +545,8 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
               )}
 
               <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px' }}>
-                <button type="button" className="btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
-                <button type="submit" className="btn-primary">Registrar necesidad</button>
+                <button type="button" className="btn-secondary" onClick={() => { setShowModal(false); resetForm(); }}>Cancelar</button>
+                <button type="submit" className="btn-primary">{editingSupplyId ? 'Guardar cambios' : 'Registrar necesidad'}</button>
               </div>
             </form>
           </div>

@@ -65,6 +65,7 @@ model Client {
   movements       Movement[]
   materialOffers  SupplierMaterialOffer[]
   suppliedItems   ProjectSupply[]        @relation("SupplySupplier")
+  suggestedSupplyItems ProjectSupply[]   @relation("SuggestedSupplySupplier")
 }
 
 // Invoice record
@@ -266,7 +267,8 @@ model SupplierMaterialOffer {
   status          String   @default("ACTIVA")
   observations    String?
 
-  supplies ProjectSupply[]
+  supplies ProjectSupply[] @relation("SelectedSupplyOffer")
+  suggestedSupplies ProjectSupply[] @relation("SuggestedSupplyOffer")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -318,6 +320,8 @@ model Project {
   supplies     ProjectSupply[]
   baselines    ProjectBaseline[]
   changeRequests ProjectChangeRequest[]
+  learningDeviations LearningDeviation[]
+  recalibrationSuggestions RecalibrationSuggestion[]
 }
 
 model ProjectTypology {
@@ -1092,8 +1096,12 @@ model ProjectSupply {
   material          Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
   supplierId        String?
   supplier          Client?   @relation("SupplySupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  suggestedSupplierId String?
+  suggestedSupplier   Client?   @relation("SuggestedSupplySupplier", fields: [suggestedSupplierId], references: [id], onDelete: SetNull)
   supplierOfferId   String?
-  supplierOffer     SupplierMaterialOffer? @relation(fields: [supplierOfferId], references: [id], onDelete: SetNull)
+  supplierOffer     SupplierMaterialOffer? @relation("SelectedSupplyOffer", fields: [supplierOfferId], references: [id], onDelete: SetNull)
+  suggestedSupplierOfferId String?
+  suggestedSupplierOffer   SupplierMaterialOffer? @relation("SuggestedSupplyOffer", fields: [suggestedSupplierOfferId], references: [id], onDelete: SetNull)
   estimateInternalLineId String?
   estimateInternalLine   EstimateInternalLine? @relation(fields: [estimateInternalLineId], references: [id], onDelete: SetNull)
   
@@ -1111,6 +1119,7 @@ model ProjectSupply {
   requiredOnSiteDate DateTime? // Cuándo debe estar en obra para ejecutar
   leadTimeDays      Int?      // Días de fabricación/entrega esperados (Plazo)
   orderDate         DateTime? // Fecha real en la que se pide/encarga
+  receivedDate      DateTime? // Fecha real de recepcion / disponibilidad
   
   // Gestión Operativa
   priority          String   @default("NORMAL")     // CRITICA, ALTA, NORMAL, APOYO
@@ -1119,8 +1128,11 @@ model ProjectSupply {
   
   quantity          Float?
   unit              String?
+  suggestedUnitCost Float?
   expectedUnitCost  Float?
   expectedTotalCost Float?
+  actualUnitCost    Float?
+  actualTotalCost   Float?
   suggestedSupplierReason String?
   scheduleRisk      String?  @default("PENDIENTE_ANALISIS")
   isCriticalForSchedule Boolean @default(false)
@@ -1132,6 +1144,65 @@ model ProjectSupply {
 }
 
 // Phase 58: Baseline (Instantáneas del Plan)
+model LearningDeviation {
+  id          String   @id @default(cuid())
+  projectId   String
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  category    String
+  dimension   String
+  severity    String   @default("INFO")
+  status      String   @default("DETECTED")
+
+  title       String
+  description String?  @db.Text
+  targetCode  String?
+  targetName  String?
+
+  estimatedValue Float?
+  actualValue    Float?
+  deltaValue     Float?
+  deltaPercent   Float?
+  unit           String?
+  evidenceCount  Int      @default(1)
+
+  sourceRef    Json?
+  evidence     Json?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model RecalibrationSuggestion {
+  id        String   @id @default(cuid())
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  suggestionType String
+  targetType     String
+  targetId       String?
+  targetCode     String?
+  targetName     String
+
+  status      String   @default("PENDING_REVIEW")
+  priority    String   @default("MEDIA")
+  rationale   String   @db.Text
+  reviewNotes String?  @db.Text
+
+  currentValue   Float?
+  suggestedValue Float?
+  unit           String?
+  sampleSize     Int     @default(1)
+  confidence     Float   @default(0)
+
+  basis            Json?
+  suggestedChanges Json?
+  reviewedAt       DateTime?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model ProjectBaseline {
   id              String   @id @default(cuid())
   projectId       String

@@ -22,6 +22,7 @@ import ProjectRestrictionsTab from './tabs/ProjectRestrictionsTab';
 import ProjectProcurementTab from './tabs/ProjectProcurementTab';
 import ProjectBaselineTab from './tabs/ProjectBaselineTab';
 import ProjectDashboardsTab from './tabs/ProjectDashboardsTab';
+import ProjectLearningTab from './tabs/ProjectLearningTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -1679,6 +1680,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
               </div>
             </div>
           ) : activeTab === 'analysis' ? (
+            <ProjectLearningTab projectId={project.id} />
+          ) : (activeTab as string) === '__legacy_analysis__' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '32px' }}>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))', gap: '24px', marginBottom: '8px' }}>
                 {/* BLOQUE INGRESOS (FACTURACIÓN) */}

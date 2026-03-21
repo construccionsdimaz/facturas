@@ -18,7 +18,14 @@ export async function GET(
         wbs: true,
         material: true,
         supplier: true,
+        suggestedSupplier: true,
         supplierOffer: {
+          include: {
+            supplier: true,
+            material: true,
+          }
+        },
+        suggestedSupplierOffer: {
           include: {
             supplier: true,
             material: true,
@@ -42,8 +49,20 @@ export async function PUT(
   try {
     await ensureProcurementCatalog();
     const data = await req.json();
+    const currentSupply = await (db as any).projectSupply.findUnique({
+      where: { id: supplyId },
+      include: {
+        supplierOffer: true,
+        suggestedSupplierOffer: true,
+      }
+    });
+
+    if (!currentSupply) {
+      return NextResponse.json({ error: 'Suministro no encontrado' }, { status: 404 });
+    }
 
     let chosenOffer = null;
+    let suggestedOffer = null;
     if (data.supplierOfferId) {
       chosenOffer = await db.supplierMaterialOffer.findUnique({
         where: { id: data.supplierOfferId },
@@ -56,65 +75,106 @@ export async function PUT(
         materialId: data.materialId,
         requiredOnSiteDate: data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null,
       });
-      chosenOffer = suggestion.offer;
+      suggestedOffer = suggestion.offer;
       if (data.suggestedSupplierReason === undefined) {
         data.suggestedSupplierReason = suggestion.reason;
       }
     }
 
-    const leadTimeDays = chosenOffer?.leadTimeDays ?? (data.leadTimeDays !== undefined ? parseInt(data.leadTimeDays) : null);
+    const activeOffer = chosenOffer || suggestedOffer || currentSupply.supplierOffer || currentSupply.suggestedSupplierOffer;
+    const leadTimeDays = activeOffer?.leadTimeDays ?? (data.leadTimeDays !== undefined ? parseInt(data.leadTimeDays) : currentSupply.leadTimeDays);
     const quantity = data.quantity !== undefined ? (data.quantity ? parseFloat(data.quantity) : null) : undefined;
-    const expectedUnitCost = chosenOffer?.unitCost ?? (data.expectedUnitCost !== undefined ? Number(data.expectedUnitCost) : null);
+    const suggestedUnitCost =
+      suggestedOffer?.unitCost ??
+      (data.suggestedUnitCost !== undefined && data.suggestedUnitCost !== '' ? Number(data.suggestedUnitCost) : undefined);
+    const expectedUnitCost = activeOffer?.unitCost ?? (data.expectedUnitCost !== undefined && data.expectedUnitCost !== '' ? Number(data.expectedUnitCost) : null);
     const expectedTotalCost =
       quantity !== undefined && quantity !== null && expectedUnitCost !== null
         ? Number((expectedUnitCost * quantity).toFixed(2))
         : data.expectedTotalCost !== undefined
           ? Number(data.expectedTotalCost)
           : undefined;
+    const actualUnitCost =
+      data.actualUnitCost !== undefined && data.actualUnitCost !== ''
+        ? Number(data.actualUnitCost)
+        : chosenOffer?.unitCost ?? undefined;
+    const actualTotalCost =
+      quantity !== undefined && quantity !== null && actualUnitCost !== undefined && actualUnitCost !== null
+        ? Number((actualUnitCost * quantity).toFixed(2))
+        : data.actualTotalCost !== undefined && data.actualTotalCost !== ''
+          ? Number(data.actualTotalCost)
+          : undefined;
     const risk = evaluateScheduleRisk(
-      data.requiredOnSiteDate !== undefined ? (data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null) : null,
+      data.requiredOnSiteDate !== undefined
+        ? (data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null)
+        : currentSupply.requiredOnSiteDate,
       leadTimeDays,
-      data.orderDate ? new Date(data.orderDate) : new Date()
+      data.orderDate !== undefined
+        ? (data.orderDate ? new Date(data.orderDate) : new Date())
+        : currentSupply.orderDate || new Date()
     );
 
     const supplierId =
       ('supplierId' in (chosenOffer || {}) ? (chosenOffer as any).supplierId : null) ||
       (chosenOffer as any)?.supplier?.id ||
-      data.supplierId ||
-      null;
+      (data.supplierId !== undefined ? (data.supplierId || null) : undefined);
+    const suggestedSupplierId =
+      ('supplierId' in (suggestedOffer || {}) ? (suggestedOffer as any).supplierId : null) ||
+      (suggestedOffer as any)?.supplier?.id ||
+      (data.suggestedSupplierId !== undefined ? (data.suggestedSupplierId || null) : undefined);
+    const normalizedStatus = data.status;
+    const receivedDate =
+      data.receivedDate !== undefined
+        ? (data.receivedDate ? new Date(data.receivedDate) : null)
+        : normalizedStatus === 'RECIBIDA'
+          ? new Date()
+          : undefined;
 
     const updated = await (db as any).projectSupply.update({
       where: { id: supplyId },
       data: {
-        description: data.description,
-        category: data.category,
-        originSource: data.originSource,
-        materialId: data.materialId,
+        description: data.description !== undefined ? data.description : undefined,
+        category: data.category !== undefined ? data.category : undefined,
+        originSource: data.originSource !== undefined ? data.originSource : undefined,
+        materialId: data.materialId !== undefined ? data.materialId : undefined,
         supplierId,
-        supplierOfferId: chosenOffer?.id || data.supplierOfferId,
-        estimateInternalLineId: data.estimateInternalLineId,
-        projectActivityId: data.projectActivityId,
-        locationId: data.locationId,
-        wbsId: data.wbsId,
-        requiredOnSiteDate: data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null,
-        leadTimeDays,
-        orderDate: data.orderDate ? new Date(data.orderDate) : null,
-        priority: data.priority,
-        status: data.status,
-        responsible: data.responsible,
+        suggestedSupplierId,
+        supplierOfferId: chosenOffer?.id || (data.supplierOfferId !== undefined ? (data.supplierOfferId || null) : undefined),
+        suggestedSupplierOfferId: suggestedOffer?.id || (data.suggestedSupplierOfferId !== undefined ? (data.suggestedSupplierOfferId || null) : undefined),
+        estimateInternalLineId: data.estimateInternalLineId !== undefined ? data.estimateInternalLineId : undefined,
+        projectActivityId: data.projectActivityId !== undefined ? data.projectActivityId : undefined,
+        locationId: data.locationId !== undefined ? data.locationId : undefined,
+        wbsId: data.wbsId !== undefined ? data.wbsId : undefined,
+        requiredOnSiteDate: data.requiredOnSiteDate !== undefined ? (data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null) : undefined,
+        leadTimeDays: leadTimeDays !== null ? leadTimeDays : (data.leadTimeDays !== undefined ? null : undefined),
+        orderDate: data.orderDate !== undefined ? (data.orderDate ? new Date(data.orderDate) : null) : undefined,
+        receivedDate,
+        priority: data.priority !== undefined ? data.priority : undefined,
+        status: normalizedStatus !== undefined ? normalizedStatus : undefined,
+        responsible: data.responsible !== undefined ? data.responsible : undefined,
         quantity,
-        unit: data.unit,
+        unit: data.unit !== undefined ? data.unit : undefined,
+        suggestedUnitCost,
         expectedUnitCost,
         expectedTotalCost,
-        suggestedSupplierReason: data.suggestedSupplierReason,
+        actualUnitCost,
+        actualTotalCost,
+        suggestedSupplierReason: data.suggestedSupplierReason !== undefined ? data.suggestedSupplierReason : undefined,
         scheduleRisk: risk.risk,
-        isCriticalForSchedule: data.isCriticalForSchedule,
-        observations: data.observations
+        isCriticalForSchedule: data.isCriticalForSchedule !== undefined ? data.isCriticalForSchedule : undefined,
+        observations: data.observations !== undefined ? data.observations : undefined
       },
       include: {
         material: true,
         supplier: true,
+        suggestedSupplier: true,
         supplierOffer: {
+          include: {
+            supplier: true,
+            material: true,
+          }
+        },
+        suggestedSupplierOffer: {
           include: {
             supplier: true,
             material: true,

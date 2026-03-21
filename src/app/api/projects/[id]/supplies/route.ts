@@ -27,7 +27,20 @@ export async function GET(
         supplier: {
           select: { id: true, name: true, email: true, phone: true }
         },
+        suggestedSupplier: {
+          select: { id: true, name: true, email: true, phone: true }
+        },
         supplierOffer: {
+          include: {
+            supplier: {
+              select: { id: true, name: true }
+            },
+            material: {
+              select: { id: true, name: true, code: true }
+            }
+          }
+        },
+        suggestedSupplierOffer: {
           include: {
             supplier: {
               select: { id: true, name: true }
@@ -72,6 +85,7 @@ export async function POST(
 
     let chosenOffer = null;
     let suggestedReason = data.suggestedSupplierReason || null;
+    let suggestedOffer = null;
     if (data.supplierOfferId) {
       chosenOffer = await db.supplierMaterialOffer.findUnique({
         where: { id: data.supplierOfferId },
@@ -85,14 +99,28 @@ export async function POST(
         materialId: data.materialId,
         requiredOnSiteDate: data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null,
       });
-      chosenOffer = suggestion.offer;
+      suggestedOffer = suggestion.offer;
       suggestedReason = suggestion.reason;
     }
 
-    const leadTimeDays = chosenOffer?.leadTimeDays ?? (data.leadTimeDays ? parseInt(data.leadTimeDays) : null);
+    const activeOffer = chosenOffer || suggestedOffer;
+    const leadTimeDays = activeOffer?.leadTimeDays ?? (data.leadTimeDays ? parseInt(data.leadTimeDays) : null);
     const quantity = data.quantity ? parseFloat(data.quantity) : null;
-    const expectedUnitCost = chosenOffer?.unitCost ?? (data.expectedUnitCost ? Number(data.expectedUnitCost) : null);
+    const suggestedUnitCost =
+      suggestedOffer?.unitCost ??
+      (data.suggestedUnitCost !== undefined && data.suggestedUnitCost !== '' ? Number(data.suggestedUnitCost) : null);
+    const expectedUnitCost = activeOffer?.unitCost ?? (data.expectedUnitCost !== undefined && data.expectedUnitCost !== '' ? Number(data.expectedUnitCost) : null);
     const expectedTotalCost = expectedUnitCost !== null && quantity !== null ? Number((expectedUnitCost * quantity).toFixed(2)) : null;
+    const actualUnitCost =
+      data.actualUnitCost !== undefined && data.actualUnitCost !== ''
+        ? Number(data.actualUnitCost)
+        : chosenOffer?.unitCost ?? null;
+    const actualTotalCost =
+      data.actualTotalCost !== undefined && data.actualTotalCost !== ''
+        ? Number(data.actualTotalCost)
+        : actualUnitCost !== null && quantity !== null
+          ? Number((actualUnitCost * quantity).toFixed(2))
+          : null;
     const risk = evaluateScheduleRisk(
       data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null,
       leadTimeDays,
@@ -104,6 +132,14 @@ export async function POST(
       (chosenOffer as any)?.supplier?.id ||
       data.supplierId ||
       null;
+    const suggestedSupplierId =
+      ('supplierId' in (suggestedOffer || {}) ? (suggestedOffer as any).supplierId : null) ||
+      (suggestedOffer as any)?.supplier?.id ||
+      data.suggestedSupplierId ||
+      null;
+    const normalizedStatus = data.status || 'IDENTIFICADA';
+    const receivedDate =
+      data.receivedDate ? new Date(data.receivedDate) : normalizedStatus === 'RECIBIDA' ? new Date() : null;
 
     const supply = await (db as any).projectSupply.create({
       data: {
@@ -113,7 +149,9 @@ export async function POST(
         originSource: data.originSource || 'MANUAL',
         materialId: data.materialId || null,
         supplierId,
+        suggestedSupplierId,
         supplierOfferId: chosenOffer?.id || data.supplierOfferId || null,
+        suggestedSupplierOfferId: suggestedOffer?.id || data.suggestedSupplierOfferId || null,
         estimateInternalLineId: data.estimateInternalLineId || null,
         projectActivityId: data.projectActivityId || null,
         locationId: data.locationId || null,
@@ -121,13 +159,17 @@ export async function POST(
         requiredOnSiteDate: data.requiredOnSiteDate ? new Date(data.requiredOnSiteDate) : null,
         leadTimeDays,
         orderDate: data.orderDate ? new Date(data.orderDate) : null,
+        receivedDate,
         priority: data.priority || 'NORMAL',
-        status: data.status || 'IDENTIFICADA',
+        status: normalizedStatus,
         responsible: data.responsible,
         quantity,
-        unit: data.unit || chosenOffer?.unit || material?.baseUnit || null,
+        unit: data.unit || activeOffer?.unit || material?.baseUnit || null,
+        suggestedUnitCost,
         expectedUnitCost,
         expectedTotalCost,
+        actualUnitCost,
+        actualTotalCost,
         suggestedSupplierReason: suggestedReason,
         scheduleRisk: risk.risk,
         isCriticalForSchedule: Boolean(data.isCriticalForSchedule ?? material?.isCriticalForSchedule),
