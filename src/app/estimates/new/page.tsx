@@ -176,36 +176,29 @@ function NewEstimateContent() {
           setSelectedProjectId(sessionData.projectId);
         }
 
-        let proposal: GeneratedProposal | null = null;
-
         if (typeof window !== 'undefined') {
-          const cachedProposal = window.sessionStorage.getItem(`discovery-proposal:${discoverySessionId}`);
-          if (cachedProposal) {
-            proposal = JSON.parse(cachedProposal) as GeneratedProposal;
-          }
+          window.sessionStorage.removeItem(`discovery-proposal:${discoverySessionId}`);
         }
 
-        if (!proposal) {
-          const generateRes = await fetch(`/api/discovery/sessions/${discoverySessionId}/generate`, {
-            method: 'POST',
-          });
-          const generateData = await generateRes.json();
+        const generateRes = await fetch(`/api/discovery/sessions/${discoverySessionId}/generate`, {
+          method: 'POST',
+        });
+        const generateData = await generateRes.json();
 
-          if (!generateRes.ok) {
-            throw new Error(generateData.error || 'No se pudo generar la propuesta desde discovery');
-          }
+        if (!generateRes.ok) {
+          throw new Error(generateData.error || 'No se pudo generar la propuesta desde discovery');
+        }
 
-          proposal = generateData.proposal as GeneratedProposal;
-          setDiscoverySummary((current) => ({
-            ...(current || sessionData),
-            summary: generateData.summary ?? current?.summary ?? sessionData.summary,
-            warnings: generateData.warnings ?? current?.warnings ?? sessionData.warnings,
-            assumptions: generateData.assumptions ?? current?.assumptions ?? sessionData.assumptions,
-          }));
+        const proposal = generateData.proposal as GeneratedProposal;
+        setDiscoverySummary((current) => ({
+          ...(current || sessionData),
+          summary: generateData.summary ?? current?.summary ?? sessionData.summary,
+          warnings: generateData.warnings ?? current?.warnings ?? sessionData.warnings,
+          assumptions: generateData.assumptions ?? current?.assumptions ?? sessionData.assumptions,
+        }));
 
-          if (typeof window !== 'undefined') {
-            window.sessionStorage.setItem(`discovery-proposal:${discoverySessionId}`, JSON.stringify(proposal));
-          }
+        if (typeof window !== 'undefined') {
+          window.sessionStorage.setItem(`discovery-proposal:${discoverySessionId}`, JSON.stringify(proposal));
         }
 
         if (!mounted || !proposal) return;
