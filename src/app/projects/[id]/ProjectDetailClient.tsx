@@ -18,6 +18,7 @@ import ProjectWBSTab from './tabs/ProjectWBSTab';
 import ProjectScheduleTab from './tabs/ProjectScheduleTab';
 import ProjectWeeklyPlanTab from './tabs/ProjectWeeklyPlanTab';
 import ProjectTrackingTab from './tabs/ProjectTrackingTab';
+import ProjectRestrictionsTab from './tabs/ProjectRestrictionsTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -51,7 +52,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -1050,6 +1051,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             🎯 Seguimiento Real
           </button>
           <button
+            onClick={() => setActiveTab('restrictions')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'restrictions' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'restrictions' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🚧 Restricciones
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -1095,6 +1109,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'tracking' && (
             <ProjectTrackingTab projectId={project.id} />
+          )}
+          {activeTab === 'restrictions' && (
+            <ProjectRestrictionsTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (

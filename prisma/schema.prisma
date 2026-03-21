@@ -204,8 +204,9 @@ model Project {
   constraints ProjectConstraint[]
   locations   ProjectLocation[]
   wbs         ProjectWBS[]
-  activities  ProjectActivity[]
-  weeklyPlans WeeklyPlan[]
+  activities   ProjectActivity[]
+  weeklyPlans  WeeklyPlan[]
+  restrictions Restriction[]
 }
 
 model ProjectBudgetLine {
@@ -520,6 +521,7 @@ model ProjectLocation {
   children        ProjectLocation[] @relation("LocationHierarchy")
   
   activities      ProjectActivity[]
+  restrictions    Restriction[]
   
   name            String
   code            String?
@@ -545,6 +547,7 @@ model ProjectWBS {
   children        ProjectWBS[] @relation("WBSHierarchy")
   
   activities      ProjectActivity[]
+  restrictions    Restriction[]
   
   code            String?      // Código jerárquico (Ej: 01.02.04)
   name            String       // Albañilería, Demoliciones, Encofrados...
@@ -670,6 +673,7 @@ model ProjectActivity {
   realEndDate     DateTime?
 
   progressLogs    ActivityProgressLog[]
+  restrictions    Restriction[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -756,4 +760,41 @@ model ActivityProgressLog {
   reporterName      String?
   
   createdAt         DateTime @default(now())
+}
+
+// Phase 56: Restricciones (Bloqueos operativos)
+model Restriction {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  title           String
+  type            String   // COMPRAS, DECISIONES, DOCUMENTACION, PERMISOS, FRENTE, PERSONAL, OTROS
+  description     String?  @db.Text
+  
+  // Vinculaciones opcionales (Dimensiones del bloqueo)
+  projectActivityId String?
+  projectActivity   ProjectActivity? @relation(fields: [projectActivityId], references: [id], onDelete: SetNull)
+  
+  locationId      String?
+  location        ProjectLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  
+  wbsId           String?
+  wbs             ProjectWBS? @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  
+  // Gestión
+  priority        String   @default("MEDIA")    // CRITICA, ALTA, MEDIA, MENOR
+  status          String   @default("DETECTADA") // DETECTADA, EN_GESTION, RESUELTA, CERRADA
+  responsible     String?  // Quién debe resolverlo
+  targetDate      DateTime?
+  
+  impact          String?  // Bloquea arranque, bloquea avance, bloquea cierre
+  observations    String?  @db.Text
+  
+  // Trazabilidad básica de resolución
+  resolutionDate  DateTime?
+  resolutionNotes String?  @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }

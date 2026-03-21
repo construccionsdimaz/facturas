@@ -13,12 +13,14 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
   // Modals
   const [showNewPlanModal, setShowNewPlanModal] = useState(false);
   const [showLookupModal, setShowLookupModal] = useState(false);
+  const [activeRestrictions, setActiveRestrictions] = useState<any[]>([]);
 
   // New plan state
   const [newPlan, setNewPlan] = useState({ weekName: '', startDate: '', endDate: '', generalManager: '' });
 
   useEffect(() => {
     fetchPlans();
+    fetchRestrictions();
   }, [projectId]);
 
   const fetchPlans = async () => {
@@ -34,6 +36,13 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
       }
     } catch(e) { console.error('Error', e); }
     setIsLoading(false);
+  };
+
+  const fetchRestrictions = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/restrictions?status=DETECTADA`); 
+      if(res.ok) setActiveRestrictions(await res.json());
+    } catch(e) { console.error(e); }
   };
 
   const handleCreatePlan = async (e: React.FormEvent) => {
@@ -259,7 +268,12 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
                             </select>
                           </td>
                           <td>
-                            <div style={{ fontWeight: '500', fontSize: '14px' }}>{act.projectActivity?.name}</div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ fontWeight: '500', fontSize: '14px' }}>{act.projectActivity?.name}</div>
+                              {activeRestrictions.some(r => r.projectActivityId === act.projectActivityId) && (
+                                <span title="Esta actividad tiene una restricción abierta" style={{ cursor: 'help' }}>⚠️</span>
+                              )}
+                            </div>
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>[{act.projectActivity?.code || 'S/N'}]</div>
                           </td>
                           <td style={{ color: 'var(--text-secondary)' }}>

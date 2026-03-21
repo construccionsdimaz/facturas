@@ -11,9 +11,11 @@ export default function ProjectTrackingTab({ projectId }: { projectId: string })
   const [selectedActivity, setSelectedActivity] = useState<any | null>(null);
   const [logs, setLogs] = useState<any[]>([]);
   const [newLog, setNewLog] = useState({ progressReported: 0, statusReported: 'EN_CURSO', executionNotes: '', incidences: '' });
+  const [activeRestrictions, setActiveRestrictions] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSnapshot();
+    fetchRestrictions();
   }, [projectId]);
 
   const fetchSnapshot = async () => {
@@ -25,6 +27,13 @@ export default function ProjectTrackingTab({ projectId }: { projectId: string })
       }
     } catch(e) { console.error(e); }
     setIsLoading(false);
+  };
+
+  const fetchRestrictions = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/restrictions?status=DETECTADA`); 
+      if(res.ok) setActiveRestrictions(await res.json());
+    } catch(e) { console.error(e); }
   };
 
   const handleOpenTrackingModal = async (act: any) => {
@@ -119,7 +128,12 @@ export default function ProjectTrackingTab({ projectId }: { projectId: string })
               {activities.map(act => (
                 <tr key={act.id}>
                   <td>
-                    <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-primary)' }}>{act.name}</div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-primary)' }}>{act.name}</div>
+                      {activeRestrictions.some(r => r.projectActivityId === act.id) && (
+                        <span title="Esta actividad tiene restricciones activas" style={{ cursor: 'help' }}>⚠️</span>
+                      )}
+                    </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '8px' }}>
                       <span>[{act.code || 'S/N'}]</span>
                       {act.wbs && <span>📂 {act.wbs.name}</span>}
