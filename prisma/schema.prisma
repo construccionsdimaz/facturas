@@ -205,6 +205,7 @@ model Project {
   locations   ProjectLocation[]
   wbs         ProjectWBS[]
   activities  ProjectActivity[]
+  weeklyPlans WeeklyPlan[]
 }
 
 model ProjectBudgetLine {
@@ -662,6 +663,14 @@ model ProjectActivity {
   
   weeklyPlanInclusions WeeklyPlanActivity[]
   
+  // PHASE 55: Seguimiento Real (Caché actual)
+  realStatus      String?  @default("NO_INICIADA") // NO_INICIADA, EN_CURSO, PAUSADA, TERMINADA, CANCELADA
+  realProgress    Float?   @default(0)
+  realStartDate   DateTime?
+  realEndDate     DateTime?
+
+  progressLogs    ActivityProgressLog[]
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -726,4 +735,25 @@ model WeeklyPlanActivity {
   updatedAt       DateTime @updatedAt
 
   @@unique([weeklyPlanId, projectActivityId])
+}
+
+// Phase 55: Seguimiento Real Histórico
+model ActivityProgressLog {
+  id                String   @id @default(cuid())
+  
+  projectActivityId String
+  projectActivity   ProjectActivity @relation(fields: [projectActivityId], references: [id], onDelete: Cascade)
+  
+  reportDate        DateTime @default(now())
+  
+  // Foto del momento
+  statusReported    String
+  progressReported  Float
+  
+  executionNotes    String?  @db.Text
+  incidences        String?  @db.Text
+  
+  reporterName      String?
+  
+  createdAt         DateTime @default(now())
 }

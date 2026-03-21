@@ -17,6 +17,7 @@ import ProjectLocationsTab from './tabs/ProjectLocationsTab';
 import ProjectWBSTab from './tabs/ProjectWBSTab';
 import ProjectScheduleTab from './tabs/ProjectScheduleTab';
 import ProjectWeeklyPlanTab from './tabs/ProjectWeeklyPlanTab';
+import ProjectTrackingTab from './tabs/ProjectTrackingTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -50,7 +51,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -1036,6 +1037,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             🎯 Plan Semanal
           </button>
           <button
+            onClick={() => setActiveTab('tracking')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'tracking' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'tracking' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🎯 Seguimiento Real
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -1078,6 +1092,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'weekly' && (
             <ProjectWeeklyPlanTab projectId={project.id} />
+          )}
+          {activeTab === 'tracking' && (
+            <ProjectTrackingTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (
