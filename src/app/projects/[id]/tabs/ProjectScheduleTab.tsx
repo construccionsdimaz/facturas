@@ -1,6 +1,7 @@
 "use client";
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import styles from '@/app/invoices/page.module.css';
 
 export default function ProjectScheduleTab({ projectId }: { projectId: string }) {
@@ -19,6 +20,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [editingActivity, setEditingActivity] = useState<any>(null);
+  const [isAutoGenerating, setIsAutoGenerating] = useState(false);
 
   const initialForm = {
     name: '', code: '', wbsId: '', locationId: '', standardActivityId: '',
@@ -28,11 +30,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
   const [formData, setFormData] = useState<any>(initialForm);
 
   // Load Data
-  useEffect(() => {
-    fetchData();
-  }, [projectId]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
       const [resAct, resWbs, resLoc, resStd, resDeps] = await Promise.all([
@@ -49,7 +47,11 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
       if(resDeps.ok) setDependencies(await resDeps.json());
     } catch(e) { console.error('Error fetching data', e); }
     setIsLoading(false);
-  };
+  }, [projectId]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const openForm = (act?: any) => {
     if (act) {
@@ -133,6 +135,34 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
       fetchData();
     } catch(err: any) { alert(err.message); }
   };
+
+  const handleAutoGeneratePlan = async () => {
+    const hasData = activities.length > 0 || wbsOptions.length > 0 || locationOptions.length > 0;
+    const shouldReplace = hasData ? confirm('La obra ya tiene estructura. ¿Quieres regenerarla y sustituir la estructura actual?') : true;
+    if (!shouldReplace) return;
+
+    setIsAutoGenerating(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/auto-plan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ replaceExisting: hasData }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el planning');
+      }
+
+      const data = await res.json();
+      alert(`Planning generado: ${data.createdActivities} actividades, ${data.createdWbs} partidas y ${data.createdLocations} ubicaciones.`);
+      fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Error generando planning');
+    } finally {
+      setIsAutoGenerating(false);
+    }
+  };
   
   const handleRemoveDependency = async (depId: string) => {
     if(!confirm('¿Eliminar esta dependencia constructiva?')) return;
@@ -191,6 +221,18 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
           </div>
           <div style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>Huérfanas Lógicas</div>
         </div>
+      </div>
+
+      <div className="glass-panel" style={{ padding: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+        <div>
+          <h3 style={{ margin: '0 0 4px 0' }}>Generacion automatica de planning</h3>
+          <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
+            El sistema propone ubicaciones, WBS, actividades, duraciones y una baseline inicial segun el contexto de la obra.
+          </p>
+        </div>
+        <button className="btn-primary" onClick={handleAutoGeneratePlan} disabled={isAutoGenerating}>
+          {isAutoGenerating ? 'Generando...' : 'Generar planning automatico'}
+        </button>
       </div>
 
       {/* PANEL PRINCIPAL */}

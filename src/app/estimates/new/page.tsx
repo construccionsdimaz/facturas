@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import styles from '@/app/invoices/new/page.module.css';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import { formatCurrency } from '@/lib/format';
+import AutoEstimateBuilder from './AutoEstimateBuilder';
 
 interface EstimateItem {
   id: string;
@@ -40,6 +41,15 @@ interface CompanySettings {
   dataProtection: string;
 }
 
+interface ProjectSummary {
+  id: string;
+  clientId: string;
+  name: string;
+  client?: {
+    name?: string;
+  };
+}
+
 export default function NewEstimate() {
   return (
     <Suspense fallback={<div>Cargando editor...</div>}>
@@ -66,10 +76,10 @@ function NewEstimateContent() {
   const [validUntil, setValidUntil] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [language, setLanguage] = useState('ES');
-  const [brandColor, setBrandColor] = useState('#8b5cf6'); 
+  const [brandColor] = useState('#8b5cf6');
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
-  const [projects, setProjects] = useState<any[]>([]);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
   
@@ -96,7 +106,7 @@ function NewEstimateContent() {
       
       const year = new Date().getFullYear();
       const existingNumbers = (estimatesData || [])
-        .map((est: any) => {
+        .map((est: { number?: string }) => {
           const matches = est.number?.match(/\d+/g);
           return matches ? parseInt(matches[matches.length - 1]) : 0;
         })
@@ -118,11 +128,11 @@ function NewEstimateContent() {
 
   // Fetch projects when client changes
   useEffect(() => {
-    if (selectedClientId) {
-      fetch(`/api/projects`).then(res => res.json()).then(data => {
-        const clientProjects = (data || []).filter((p: any) => p.clientId === selectedClientId);
+      if (selectedClientId) {
+        fetch(`/api/projects`).then(res => res.json()).then(data => {
+        const clientProjects = (data || []).filter((p: ProjectSummary) => p.clientId === selectedClientId);
         setProjects(clientProjects);
-        if (selectedProjectId && !clientProjects.some((p: any) => p.id === selectedProjectId)) {
+        if (selectedProjectId && !clientProjects.some((p: ProjectSummary) => p.id === selectedProjectId)) {
           setSelectedProjectId('');
         }
       });
@@ -130,7 +140,7 @@ function NewEstimateContent() {
       setProjects([]);
       setSelectedProjectId('');
     }
-  }, [selectedClientId]);
+  }, [selectedClientId, selectedProjectId]);
 
   // Item & Chapter management
   const addItemToChapter = (chapterName: string) => {
@@ -214,6 +224,11 @@ function NewEstimateContent() {
   };
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
+
+  const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[] }) => {
+    setItems(payload.items);
+    setChapters(payload.chapters);
+  };
 
   const saveEstimate = async () => {
     if (!selectedClientId) {
@@ -313,6 +328,12 @@ function NewEstimateContent() {
 
       <div className={styles.contentGrid + " no-print"}>
         <div className={styles.formPanel}>
+          <AutoEstimateBuilder
+            onApply={({ items, chapters }) => {
+              applyAutoProposal({ items, chapters });
+            }}
+          />
+
           <div className={`glass-panel ${styles.card}`}>
             <h3>Datos del Presupuesto</h3>
             <div className={styles.formRow}>

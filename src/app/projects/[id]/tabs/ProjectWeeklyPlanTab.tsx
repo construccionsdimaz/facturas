@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps, @typescript-eslint/no-unused-expressions */
+
 import { useState, useEffect } from 'react';
 import styles from '@/app/invoices/page.module.css';
 
@@ -70,6 +72,26 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
         fetchPlans();
       }
     } catch(e) { alert('Error creando el plan'); }
+  };
+
+  const handleAutoGeneratePlan = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/weekly-plans/auto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo generar el plan');
+      }
+
+      const data = await res.json();
+      await fetchPlans();
+      setSelectedPlanId(data.planId);
+    } catch (error: any) {
+      alert(error.message || 'Error generando plan semanal');
+    }
   };
 
   const loadScheduleForLookup = async () => {
@@ -148,6 +170,9 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
       <div className="glass-panel" style={{ width: '280px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         <button className="btn-primary" onClick={() => setShowNewPlanModal(true)} style={{ width: '100%' }}>
           + Crear Plan Semanal
+        </button>
+        <button className="btn-secondary" onClick={handleAutoGeneratePlan} style={{ width: '100%' }}>
+          Generar semana automatica
         </button>
         
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '500px' }}>

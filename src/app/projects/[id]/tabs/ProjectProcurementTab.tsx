@@ -1,5 +1,7 @@
 "use client";
 
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars, react-hooks/exhaustive-deps */
+
 import { useState, useEffect } from 'react';
 import styles from '@/app/invoices/page.module.css';
 
@@ -25,6 +27,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [autoSource, setAutoSource] = useState<'estimate' | 'activities' | 'hybrid'>('estimate');
 
   // Form helpers
   const [activities, setActivities] = useState<any[]>([]);
@@ -72,6 +75,31 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
       if (locRes.ok) setLocations(await locRes.json());
       if (wbsRes.ok) setWbsItems(await wbsRes.json());
     } catch (e) { console.error(e); }
+  };
+
+  const handleAutoGenerateSupplies = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/supplies/auto`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          replaceExisting: false,
+          onlyCritical: false,
+          mode: autoSource,
+          useEstimate: autoSource !== 'activities',
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudieron generar los suministros');
+      }
+
+      await fetchData();
+      alert('Suministros automaticos generados');
+    } catch (error: any) {
+      alert(error.message || 'Error generando suministros');
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -144,7 +172,13 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
       </div>
 
       {/* Acciones Rápidas */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', flexWrap: 'wrap' }}>
+        <select className="input-modern" value={autoSource} onChange={(e) => setAutoSource(e.target.value as any)} style={{ minWidth: '220px' }}>
+          <option value="estimate">Desde presupuesto</option>
+          <option value="activities">Desde cronograma</option>
+          <option value="hybrid">Presupuesto + cronograma</option>
+        </select>
+        <button className="btn-secondary" onClick={handleAutoGenerateSupplies}>Generar compras automaticas</button>
         <button className="btn-primary" onClick={() => setShowModal(true)}>+ Nueva Necesidad de Suministro</button>
       </div>
 
