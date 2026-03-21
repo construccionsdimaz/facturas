@@ -19,6 +19,7 @@ import ProjectScheduleTab from './tabs/ProjectScheduleTab';
 import ProjectWeeklyPlanTab from './tabs/ProjectWeeklyPlanTab';
 import ProjectTrackingTab from './tabs/ProjectTrackingTab';
 import ProjectRestrictionsTab from './tabs/ProjectRestrictionsTab';
+import ProjectProcurementTab from './tabs/ProjectProcurementTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -52,7 +53,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -1064,6 +1065,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             🚧 Restricciones
           </button>
           <button
+            onClick={() => setActiveTab('procurement')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'procurement' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'procurement' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🚛 Compras/Plazo
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -1112,6 +1126,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'restrictions' && (
             <ProjectRestrictionsTab projectId={project.id} />
+          )}
+          {activeTab === 'procurement' && (
+            <ProjectProcurementTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (

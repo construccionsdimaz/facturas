@@ -14,6 +14,7 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
   const [showNewPlanModal, setShowNewPlanModal] = useState(false);
   const [showLookupModal, setShowLookupModal] = useState(false);
   const [activeRestrictions, setActiveRestrictions] = useState<any[]>([]);
+  const [activeSupplies, setActiveSupplies] = useState<any[]>([]);
 
   // New plan state
   const [newPlan, setNewPlan] = useState({ weekName: '', startDate: '', endDate: '', generalManager: '' });
@@ -21,6 +22,7 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
   useEffect(() => {
     fetchPlans();
     fetchRestrictions();
+    fetchSupplies();
   }, [projectId]);
 
   const fetchPlans = async () => {
@@ -42,6 +44,13 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
     try {
       const res = await fetch(`/api/projects/${projectId}/restrictions?status=DETECTADA`); 
       if(res.ok) setActiveRestrictions(await res.json());
+    } catch(e) { console.error(e); }
+  };
+
+  const fetchSupplies = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/supplies`);
+      if(res.ok) setActiveSupplies(await res.json());
     } catch(e) { console.error(e); }
   };
 
@@ -272,6 +281,9 @@ export default function ProjectWeeklyPlanTab({ projectId }: { projectId: string 
                               <div style={{ fontWeight: '500', fontSize: '14px' }}>{act.projectActivity?.name}</div>
                               {activeRestrictions.some(r => r.projectActivityId === act.projectActivityId) && (
                                 <span title="Esta actividad tiene una restricción abierta" style={{ cursor: 'help' }}>⚠️</span>
+                              )}
+                              {activeSupplies.some(s => s.projectActivityId === act.projectActivityId && s.status !== 'RECIBIDA') && (
+                                <span title="Suministro pendiente para esta actividad" style={{ cursor: 'help' }}>📦</span>
                               )}
                             </div>
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>[{act.projectActivity?.code || 'S/N'}]</div>

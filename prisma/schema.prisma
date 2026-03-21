@@ -207,6 +207,7 @@ model Project {
   activities   ProjectActivity[]
   weeklyPlans  WeeklyPlan[]
   restrictions Restriction[]
+  supplies     ProjectSupply[]
 }
 
 model ProjectBudgetLine {
@@ -517,11 +518,12 @@ model ProjectLocation {
   
   // Recursividad
   parentId        String?
-  parent          ProjectLocation?  @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  parent          ProjectLocation?  @relation("LocationHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children        ProjectLocation[] @relation("LocationHierarchy")
   
   activities      ProjectActivity[]
   restrictions    Restriction[]
+  supplies        ProjectSupply[]
   
   name            String
   code            String?
@@ -543,11 +545,12 @@ model ProjectWBS {
   
   // Jerarquía
   parentId        String?
-  parent          ProjectWBS?  @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: Restrict)
+  parent          ProjectWBS?  @relation("WBSHierarchy", fields: [parentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   children        ProjectWBS[] @relation("WBSHierarchy")
   
   activities      ProjectActivity[]
   restrictions    Restriction[]
+  supplies        ProjectSupply[]
   
   code            String?      // Código jerárquico (Ej: 01.02.04)
   name            String       // Albañilería, Demoliciones, Encofrados...
@@ -557,8 +560,8 @@ model ProjectWBS {
   description     String?      @db.Text
   observations    String?      @db.Text
   
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 }
 
 // Phase 50: Biblioteca de Actividades Estándar
@@ -674,6 +677,7 @@ model ProjectActivity {
 
   progressLogs    ActivityProgressLog[]
   restrictions    Restriction[]
+  supplies        ProjectSupply[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -798,3 +802,42 @@ model Restriction {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
+
+// Phase 57: Compras Ligadas al Plazo (Suministros Operativos)
+model ProjectSupply {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  description       String   // Nombre del material/equipo
+  category          String   // ACABADOS, ESTRUCTURA, INSTALACIONES, MOBILIARIO, etc.
+  
+  // Vinculación con Planificación
+  projectActivityId  String?
+  projectActivity    ProjectActivity? @relation(fields: [projectActivityId], references: [id], onDelete: SetNull)
+  
+  locationId        String?
+  location          ProjectLocation? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  
+  wbsId             String?
+  wbs               ProjectWBS? @relation(fields: [wbsId], references: [id], onDelete: SetNull)
+  
+  // Fechas Clave
+  requiredOnSiteDate DateTime? // Cuándo debe estar en obra para ejecutar
+  leadTimeDays      Int?      // Días de fabricación/entrega esperados (Plazo)
+  orderDate         DateTime? // Fecha real en la que se pide/encarga
+  
+  // Gestión Operativa
+  priority          String   @default("NORMAL")     // CRITICA, ALTA, NORMAL, APOYO
+  status            String   @default("IDENTIFICADA") // IDENTIFICADA, PENDIENTE, PEDIDA, CONFIRMADA, EN_TRANSITO, RECIBIDA, RETRASADA
+  responsible       String?  // Quién gestiona la compra
+  
+  quantity          Float?
+  unit              String?
+  
+  observations      String?  @db.Text
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+

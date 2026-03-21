@@ -12,10 +12,12 @@ export default function ProjectTrackingTab({ projectId }: { projectId: string })
   const [logs, setLogs] = useState<any[]>([]);
   const [newLog, setNewLog] = useState({ progressReported: 0, statusReported: 'EN_CURSO', executionNotes: '', incidences: '' });
   const [activeRestrictions, setActiveRestrictions] = useState<any[]>([]);
+  const [activeSupplies, setActiveSupplies] = useState<any[]>([]);
 
   useEffect(() => {
     fetchSnapshot();
     fetchRestrictions();
+    fetchSupplies();
   }, [projectId]);
 
   const fetchSnapshot = async () => {
@@ -33,6 +35,13 @@ export default function ProjectTrackingTab({ projectId }: { projectId: string })
     try {
       const res = await fetch(`/api/projects/${projectId}/restrictions?status=DETECTADA`); 
       if(res.ok) setActiveRestrictions(await res.json());
+    } catch(e) { console.error(e); }
+  };
+
+  const fetchSupplies = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/supplies`);
+      if(res.ok) setActiveSupplies(await res.json());
     } catch(e) { console.error(e); }
   };
 
@@ -132,6 +141,9 @@ export default function ProjectTrackingTab({ projectId }: { projectId: string })
                       <div style={{ fontWeight: '600', fontSize: '14px', color: 'var(--text-primary)' }}>{act.name}</div>
                       {activeRestrictions.some(r => r.projectActivityId === act.id) && (
                         <span title="Esta actividad tiene restricciones activas" style={{ cursor: 'help' }}>⚠️</span>
+                      )}
+                      {activeSupplies.some(s => s.projectActivityId === act.id && s.status !== 'RECIBIDA') && (
+                        <span title="Suministro pendiente para esta actividad" style={{ cursor: 'help' }}>📦</span>
                       )}
                     </div>
                     <div style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '8px' }}>
