@@ -4,7 +4,7 @@ import { generateEstimateProposal } from '@/lib/automation/estimate-generator';
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const proposal = generateEstimateProposal({
+    const proposal = await generateEstimateProposal({
       workType: body.workType,
       siteType: body.siteType,
       scopeType: body.scopeType,

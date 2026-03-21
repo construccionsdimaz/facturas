@@ -212,6 +212,110 @@ model Project {
   changeRequests ProjectChangeRequest[]
 }
 
+model ProjectTypology {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  name        String
+  description String?
+
+  workType    String
+  siteType    String
+  scopeType   String
+
+  finishLevelDefault     String?
+  complexityFactor       Float    @default(1)
+  costSensitivity        Float    @default(1)
+  timeSensitivity        Float    @default(1)
+  operationalSensitivity Float    @default(1)
+  status                 String   @default("ACTIVA")
+
+  costItems         TypologyCostItem[]
+  locationTemplates TypologyLocationTemplate[]
+  activityTemplates TypologyActivityTemplate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model TypologyCostItem {
+  id         String          @id @default(cuid())
+  typologyId String
+  typology   ProjectTypology @relation(fields: [typologyId], references: [id], onDelete: Cascade)
+
+  code        String
+  chapterCode String
+  chapterName String
+  name        String
+  unit        String
+  lineKind    String         @default("DIRECT")
+  order       Int            @default(0)
+  status      String         @default("ACTIVA")
+
+  inclusionRule   Json?
+  measurementRule Json?
+  pricingRule     Json?
+
+  standardActivityId String?
+  standardActivity   StandardActivity? @relation(fields: [standardActivityId], references: [id], onDelete: SetNull)
+
+  productivityRateId String?
+  productivityRate   ProductivityRate? @relation(fields: [productivityRateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([typologyId, code])
+}
+
+model TypologyLocationTemplate {
+  id         String          @id @default(cuid())
+  typologyId String
+  typology   ProjectTypology @relation(fields: [typologyId], references: [id], onDelete: Cascade)
+
+  code           String
+  name           String
+  type           String
+  parentCode     String?
+  generationMode String        @default("FIXED")
+  quantityRule   Json?
+  order          Int           @default(0)
+  status         String        @default("ACTIVA")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([typologyId, code])
+}
+
+model TypologyActivityTemplate {
+  id         String          @id @default(cuid())
+  typologyId String
+  typology   ProjectTypology @relation(fields: [typologyId], references: [id], onDelete: Cascade)
+
+  code           String
+  nameOverride   String?
+  wbsCode        String?
+  locationCode   String?
+  costItemCode   String?
+  order          Int            @default(0)
+  dependencyType String         @default("FS")
+  lagDays        Float          @default(0)
+  inclusionRule  Json?
+  durationRule   Json?
+  status         String         @default("ACTIVA")
+
+  standardActivityId String
+  standardActivity   StandardActivity @relation(fields: [standardActivityId], references: [id], onDelete: Cascade)
+
+  productivityRateId String?
+  productivityRate   ProductivityRate? @relation(fields: [productivityRateId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([typologyId, code])
+}
+
 model ProjectBudgetLine {
   id              String                  @id @default(cuid())
   name            String
@@ -597,7 +701,9 @@ model StandardActivity {
   
   productivityRates   ProductivityRate[]
   projectActivities   ProjectActivity[]
-  
+  costItemTemplates   TypologyCostItem[]
+  typologyTemplates   TypologyActivityTemplate[]
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -628,6 +734,9 @@ model ProductivityRate {
   
   description     String?  @db.Text
   observations    String?  @db.Text
+
+  costItemTemplates TypologyCostItem[]
+  typologyTemplates TypologyActivityTemplate[]
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

@@ -118,7 +118,7 @@ export async function POST(
     const structuralWorks = /estructura|portante|forjado|pilar|redistrib|reconfigur|varias viviendas/i.test(combinedText);
     const hasElevator = !/sin ascensor|no ascensor/i.test(combinedText);
 
-    const blueprint = generatePlanningBlueprint({
+    const blueprint = await generatePlanningBlueprint({
       name: project.name,
       description: project.description,
       projectType: project.projectType,
@@ -135,6 +135,8 @@ export async function POST(
       floors,
       structuralWorks,
       hasElevator,
+      finishLevel: latestEstimate?.items?.length ? 'MEDIO_ALTO' : 'MEDIO',
+      conditions: project.observations || project.description || '',
     });
 
     const result = await db.$transaction(async (tx) => {
@@ -260,4 +262,3 @@ export async function POST(
     return NextResponse.json({ error: 'No se pudo generar el planning automatico' }, { status: 500 });
   }
 }
-

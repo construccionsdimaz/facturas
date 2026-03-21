@@ -1,4 +1,19 @@
-import { AccessLevel, ScopeType, SiteType, WorkType } from './estimate-generator';
+import {
+  AccessLevel,
+  ScopeType,
+  SiteType,
+  WorkType,
+} from './types';
+import {
+  deriveComplexityFactor,
+  detectWorkTags,
+  estimateDurationFromRate,
+  evaluateMeasurementRule,
+  expandLocationTemplate,
+  loadAutomationTypology,
+  matchesInclusionRule,
+  resolveLocationKey,
+} from './masters';
 
 export interface PlanningGenerationInput {
   name: string;
@@ -17,6 +32,8 @@ export interface PlanningGenerationInput {
   floors?: number;
   structuralWorks?: boolean;
   hasElevator?: boolean;
+  finishLevel?: 'BASICO' | 'MEDIO' | 'MEDIO_ALTO' | 'ALTO';
+  conditions?: string;
 }
 
 export interface PlanningLocationNode {
@@ -46,6 +63,8 @@ export interface PlanningActivityNode {
   durationDays: number;
   responsible?: string | null;
   notes?: string | null;
+  standardActivityCode?: string | null;
+  productivityRateName?: string | null;
 }
 
 export interface PlanningDependencyNode {
@@ -61,175 +80,105 @@ export interface PlanningBlueprint {
   activityNodes: PlanningActivityNode[];
   dependencyNodes: PlanningDependencyNode[];
   notes: string[];
+  typologyCode?: string | null;
+  source: 'MASTER' | 'FALLBACK';
 }
 
-const parseText = (value?: string | null) => (value || '').toLowerCase();
-
-const siteLabel: Record<SiteType, string> = {
-  PISO: 'Piso / vivienda',
-  LOCAL: 'Local comercial',
-  EDIFICIO: 'Edificio',
-  VIVIENDA_UNIFAMILIAR: 'Vivienda unifamiliar',
-  OBRA_NUEVA: 'Obra nueva',
-  CAMBIO_USO: 'Cambio de uso',
-  OFICINA: 'Oficina',
-  NAVE: 'Nave / industrial',
-};
-
-const scopeLabel: Record<ScopeType, string> = {
-  REFORMA_INTEGRAL: 'Reforma integral',
-  REFORMA_PARCIAL: 'Reforma parcial',
-  REHABILITACION: 'Rehabilitacion',
-  ADECUACION: 'Adecuacion',
-  OBRA_NUEVA: 'Obra nueva',
-  REESTRUCTURACION: 'Reestructuracion',
-  CAMBIO_USO: 'Cambio de uso',
-};
-
-function inferName(context: PlanningGenerationInput) {
-  return `${siteLabel[context.siteType]} - ${scopeLabel[context.scopeType]}`;
+function buildFallbackBlueprint(context: PlanningGenerationInput): PlanningBlueprint {
+  return {
+    locationNodes: [{ key: 'site-root', name: context.name, type: context.siteType, code: 'SITE' }],
+    wbsNodes: [{ key: 'wbs-01', name: 'General', level: 'CAPITULO', code: '01' }],
+    activityNodes: [
+      {
+        key: 'act-01',
+        name: 'Actividad base generada por fallback',
+        code: 'A01',
+        wbsKey: 'wbs-01',
+        locationKey: 'site-root',
+        durationDays: Math.max(1, Number(((context.area || 0) / 25).toFixed(1))),
+        responsible: 'Produccion',
+      },
+    ],
+    dependencyNodes: [],
+    notes: ['No se encontro tipologia aplicable. Se ha generado una estructura minima de fallback.'],
+    typologyCode: null,
+    source: 'FALLBACK',
+  };
 }
 
-function estimateDuration(base: number, factor: number, floorFactor = 1) {
-  return Math.max(1, Math.round(base * factor * floorFactor * 10) / 10);
-}
+export async function generatePlanningBlueprint(context: PlanningGenerationInput): Promise<PlanningBlueprint> {
+  const normalizedContext = {
+    ...context,
+    finishLevel: context.finishLevel || 'MEDIO',
+  };
+  const typology = await loadAutomationTypology(normalizedContext);
+  if (!typology) return buildFallbackBlueprint(context);
 
-function buildLocations(context: PlanningGenerationInput): PlanningLocationNode[] {
-  const locations: PlanningLocationNode[] = [
-    {
-      key: 'site-root',
-      name: inferName(context),
-      type: context.siteType,
-      code: 'SITE',
-    },
-  ];
+  const tags = detectWorkTags(context.works || '');
+  const locationNodes = typology.locationTemplates.flatMap((template: any) => expandLocationTemplate(template, normalizedContext));
 
-  const unitCount = Math.max(1, context.units || 1);
-  const floorCount = Math.max(1, context.floors || 1);
+  const wbsNodes = Array.from(
+    new Map(
+      typology.costItems.map((item: any) => [
+        item.chapterCode,
+        {
+          key: `wbs-${item.chapterCode}`,
+          name: item.chapterName,
+          level: 'CAPITULO',
+          code: item.chapterCode,
+        },
+      ])
+    ).values()
+  ) as PlanningWBSNode[];
 
-  if (context.siteType === 'PISO' || context.siteType === 'VIVIENDA_UNIFAMILIAR') {
-    locations.push({ key: 'living', name: 'Salon / zona dia', type: 'SALON', parentKey: 'site-root', code: 'LIV' });
-    locations.push({ key: 'kitchen', name: 'Cocina', type: 'COCINA', parentKey: 'site-root', code: 'KIT' });
-    for (let i = 1; i <= Math.max(1, context.bathrooms || 1); i += 1) {
-      locations.push({ key: `bath-${i}`, name: `Bano ${i}`, type: 'BANO', parentKey: 'site-root', code: `B${i}` });
-    }
-    for (let i = 1; i <= Math.max(1, context.rooms || 3); i += 1) {
-      locations.push({ key: `room-${i}`, name: `Habitacion ${i}`, type: 'HABITACION', parentKey: 'site-root', code: `R${i}` });
-    }
-  } else if (context.siteType === 'LOCAL' || context.siteType === 'OFICINA') {
-    locations.push({ key: 'main-zone', name: 'Zona principal', type: 'ZONA_COMUN', parentKey: 'site-root', code: 'ZP' });
-    locations.push({ key: 'service-zone', name: 'Aseo / servicios', type: 'BANO', parentKey: 'site-root', code: 'SRV' });
-    locations.push({ key: 'access-zone', name: 'Accesos y escaparate', type: 'EXTERIOR', parentKey: 'site-root', code: 'ACC' });
-  } else if (context.siteType === 'EDIFICIO') {
-    for (let i = 1; i <= floorCount; i += 1) {
-      locations.push({ key: `floor-${i}`, name: `Planta ${i}`, type: 'PLANTA', parentKey: 'site-root', code: `P${i}` });
-    }
-    locations.push({ key: 'common-areas', name: 'Zonas comunes', type: 'ZONA_COMUN', parentKey: 'site-root', code: 'COM' });
-    for (let i = 1; i <= unitCount; i += 1) {
-      locations.push({ key: `unit-${i}`, name: `Vivienda ${i}`, type: 'VIVIENDA', parentKey: 'site-root', code: `V${i}` });
-    }
-  } else {
-    locations.push({ key: 'main-zone', name: 'Zona principal', type: 'ZONA_COMUN', parentKey: 'site-root', code: 'MAIN' });
-    locations.push({ key: 'service-zone', name: 'Servicios y auxiliares', type: 'LOCAL_TECNICO', parentKey: 'site-root', code: 'AUX' });
+  const costItemMap = new Map<string, any>(typology.costItems.map((item: any) => [item.code, item]));
+  const factors = deriveComplexityFactor(normalizedContext, typology);
+
+  const activityNodes = typology.activityTemplates
+    .filter((template: any) => matchesInclusionRule(template.inclusionRule, normalizedContext, tags))
+    .map((template: any, index: number) => {
+      const costItem = template.costItemCode ? costItemMap.get(template.costItemCode) : null;
+      const quantity = costItem ? evaluateMeasurementRule(costItem.measurementRule, normalizedContext, tags) : 1;
+      const pricing = costItem?.pricingRule && typeof costItem.pricingRule === 'object' ? costItem.pricingRule : {};
+      const fallbackHoursPerUnit = typeof pricing.fallbackLaborHoursPerUnit === 'number' ? pricing.fallbackLaborHoursPerUnit : 1;
+      const durationDays = Number(
+        (
+          estimateDurationFromRate(
+            quantity,
+            template.productivityRate || costItem?.productivityRate,
+            fallbackHoursPerUnit
+          ) *
+          factors.typologyTimeFactor *
+          factors.conditionFactor
+        ).toFixed(1)
+      );
+
+      return {
+        key: `act-${index + 1}`,
+        name: template.nameOverride || template.standardActivity.name,
+        code: template.standardActivity.code || `A${index + 1}`,
+        wbsKey: `wbs-${template.wbsCode || costItem?.chapterCode || '01'}`,
+        locationKey: resolveLocationKey(template.locationCode, locationNodes),
+        durationDays: Math.max(1, durationDays),
+        responsible: template.standardActivity.category === 'INSTALACIONES' ? 'Instalaciones' : template.standardActivity.category === 'CARPINTERIA' ? 'Carpinteria' : 'Produccion',
+        notes: `Generada desde plantilla ${template.code}${costItem ? ` | Partida: ${costItem.name}` : ''}`,
+        standardActivityCode: template.standardActivity.code || null,
+        productivityRateName: template.productivityRate?.name || costItem?.productivityRate?.name || null,
+      };
+    });
+
+  if (activityNodes.length === 0) return buildFallbackBlueprint(context);
+
+  const dependencyNodes: PlanningDependencyNode[] = [];
+  for (let index = 0; index < activityNodes.length - 1; index += 1) {
+    const template = typology.activityTemplates[index + 1];
+    dependencyNodes.push({
+      predecessorKey: activityNodes[index].key,
+      successorKey: activityNodes[index + 1].key,
+      type: (template?.dependencyType || 'FS') as PlanningDependencyNode['type'],
+      lagDays: template?.lagDays || 0,
+    });
   }
-
-  return locations;
-}
-
-function buildWbs(context: PlanningGenerationInput): PlanningWBSNode[] {
-  const nodes: PlanningWBSNode[] = [
-    { key: 'wbs-01', name: 'Preliminares', level: 'CAPITULO', code: '01' },
-    { key: 'wbs-02', name: 'Demoliciones', level: 'CAPITULO', code: '02' },
-    { key: 'wbs-03', name: 'Albanileria y estructura', level: 'CAPITULO', code: '03' },
-    { key: 'wbs-04', name: 'Instalaciones', level: 'CAPITULO', code: '04' },
-    { key: 'wbs-05', name: 'Acabados', level: 'CAPITULO', code: '05' },
-    { key: 'wbs-06', name: 'Carpinterias y especiales', level: 'CAPITULO', code: '06' },
-    { key: 'wbs-07', name: 'Cierre y entrega', level: 'CAPITULO', code: '07' },
-  ];
-
-  if (context.siteType === 'EDIFICIO' || context.scopeType === 'REESTRUCTURACION') {
-    nodes.push({ key: 'wbs-08', name: 'Zonas comunes y envolvente', level: 'CAPITULO', code: '08' });
-  }
-
-  if (context.scopeType === 'OBRA_NUEVA') {
-    nodes.push({ key: 'wbs-09', name: 'Estructura y obra nueva', level: 'CAPITULO', code: '09' });
-  }
-
-  return nodes;
-}
-
-function buildActivities(context: PlanningGenerationInput): PlanningActivityNode[] {
-  const area = Math.max(0, context.area || 0);
-  const units = Math.max(1, context.units || 1);
-  const floors = Math.max(1, context.floors || 1);
-  const access = context.accessLevel === 'MUY_COMPLICADO' ? 1.28 : context.accessLevel === 'COMPLICADO' ? 1.15 : context.accessLevel === 'NORMAL' ? 1.05 : 1;
-  const structural = context.structuralWorks ? 1.2 : 1;
-  const siteMultiplier = context.siteType === 'EDIFICIO' ? 1.25 : context.siteType === 'OBRA_NUEVA' ? 1.35 : context.siteType === 'LOCAL' ? 0.95 : 1;
-  const finishMultiplier = context.workType === 'REHABILITACION_LIGERA' ? 0.82 : context.workType === 'REFORMA_PARCIAL' ? 0.72 : context.workType === 'REFORMA_COCINA_BANO' ? 0.55 : 1;
-
-  const demolition = /demolic|derribo|retirada/.test(parseText(context.works));
-  const installs = /electric|fontaner|clima|telecom/.test(parseText(context.works));
-  const paint = /pintur|repint/.test(parseText(context.works));
-  const floor = /suelo|paviment|tarima|laminad/.test(parseText(context.works));
-  const tile = /alicat|azulej|revest/.test(parseText(context.works));
-  const pladur = /pladur|tabique|trasdos/.test(parseText(context.works));
-  const changeUse = context.siteType === 'CAMBIO_USO' || context.scopeType === 'CAMBIO_USO';
-
-  const activities: PlanningActivityNode[] = [
-    { key: 'act-01', name: 'Implantacion y protecciones', code: 'A01', wbsKey: 'wbs-01', locationKey: 'site-root', durationDays: estimateDuration(1.2, siteMultiplier * access), responsible: 'Jefe de obra' },
-  ];
-
-  if (demolition || context.scopeType !== 'ADECUACION' || context.siteType === 'OBRA_NUEVA') {
-    activities.push({ key: 'act-02', name: 'Demoliciones y retirada', code: 'A02', wbsKey: 'wbs-02', locationKey: 'site-root', durationDays: estimateDuration(area / 28, siteMultiplier * access), responsible: 'Produccion' });
-  }
-
-  if (context.structuralWorks || context.scopeType === 'REESTRUCTURACION' || context.siteType === 'EDIFICIO' || context.siteType === 'OBRA_NUEVA') {
-    activities.push({ key: 'act-03', name: 'Estructura y redistribucion principal', code: 'A03', wbsKey: context.siteType === 'OBRA_NUEVA' ? 'wbs-09' : 'wbs-03', locationKey: context.siteType === 'EDIFICIO' ? 'site-root' : 'site-root', durationDays: estimateDuration(area / 35, siteMultiplier * structural), responsible: 'Tecnico / Estructuras' });
-  } else if (pladur || context.scopeType === 'REFORMA_INTEGRAL') {
-    activities.push({ key: 'act-03', name: 'Albanileria, pladur y cerramientos', code: 'A03', wbsKey: 'wbs-03', locationKey: 'site-root', durationDays: estimateDuration(area / 30, siteMultiplier * finishMultiplier), responsible: 'Albanileria' });
-  }
-
-  if (installs || context.scopeType === 'OBRA_NUEVA' || changeUse) {
-    activities.push({ key: 'act-04', name: 'Instalaciones electricas y fontaneria', code: 'A04', wbsKey: 'wbs-04', locationKey: 'site-root', durationDays: estimateDuration(area / 22 + units * 0.8, siteMultiplier * access), responsible: 'Instalaciones' });
-  }
-
-  if (context.siteType === 'EDIFICIO') {
-    activities.push({ key: 'act-04b', name: 'Zonas comunes y envolvente', code: 'A04B', wbsKey: 'wbs-08', locationKey: 'common-areas', durationDays: estimateDuration((area * floors) / 45, siteMultiplier * 1.08), responsible: 'Produccion' });
-  }
-
-  if (tile || floor || paint || context.scopeType === 'REFORMA_INTEGRAL' || context.scopeType === 'REHABILITACION') {
-    activities.push({ key: 'act-05', name: 'Revestimientos y acabados', code: 'A05', wbsKey: 'wbs-05', locationKey: 'site-root', durationDays: estimateDuration(area / 20, siteMultiplier * finishMultiplier), responsible: 'Acabados' });
-  }
-
-  if (context.siteType === 'PISO' || context.siteType === 'VIVIENDA_UNIFAMILIAR') {
-    activities.push({ key: 'act-05b', name: 'Trabajos por estancias', code: 'A05B', wbsKey: 'wbs-05', locationKey: 'room-1', durationDays: estimateDuration((context.bathrooms || 1) * 1.2 + (context.kitchens || 1) * 1.5, finishMultiplier), responsible: 'Acabados' });
-  }
-
-  activities.push({ key: 'act-06', name: 'Carpinterias, equipamiento y remates', code: 'A06', wbsKey: 'wbs-06', locationKey: context.siteType === 'LOCAL' ? 'main-zone' : 'site-root', durationDays: estimateDuration((context.rooms || Math.max(2, Math.round(area / 22))) * 0.9 + (context.bathrooms || 0) * 0.5 + (context.kitchens || 0) * 0.7, finishMultiplier), responsible: 'Carpinteria' });
-
-  if (changeUse || context.siteType === 'LOCAL' || context.siteType === 'OFICINA' || context.siteType === 'NAVE') {
-    activities.push({ key: 'act-06b', name: 'Adecuacion funcional y legalizaciones previas', code: 'A06B', wbsKey: 'wbs-06', locationKey: 'site-root', durationDays: estimateDuration(2.5, siteMultiplier * access), responsible: 'Tecnico / Gestion' });
-  }
-
-  activities.push({ key: 'act-07', name: 'Limpieza final y entrega', code: 'A07', wbsKey: 'wbs-07', locationKey: 'site-root', durationDays: estimateDuration(1, 1), responsible: 'Jefe de obra' });
-
-  return activities;
-}
-
-function buildDependencies(activities: PlanningActivityNode[]): PlanningDependencyNode[] {
-  const ordered = activities.map((activity) => activity.key);
-  const deps: PlanningDependencyNode[] = [];
-  for (let i = 0; i < ordered.length - 1; i += 1) {
-    deps.push({ predecessorKey: ordered[i], successorKey: ordered[i + 1], type: 'FS', lagDays: 0 });
-  }
-  return deps;
-}
-
-export function generatePlanningBlueprint(context: PlanningGenerationInput): PlanningBlueprint {
-  const locationNodes = buildLocations(context);
-  const wbsNodes = buildWbs(context);
-  const activityNodes = buildActivities(context);
-  const dependencyNodes = buildDependencies(activityNodes);
 
   return {
     locationNodes,
@@ -237,9 +186,10 @@ export function generatePlanningBlueprint(context: PlanningGenerationInput): Pla
     activityNodes,
     dependencyNodes,
     notes: [
-      `Contexto de planning: ${siteLabel[context.siteType]} / ${scopeLabel[context.scopeType]}`,
-      'La secuencia se ha generado de forma automatica y queda lista para ajuste manual.',
+      `Tipologia aplicada: ${typology.name}`,
+      'El planning base se ha generado desde maestros tipologicos, actividades estandar y rendimientos.',
     ],
+    typologyCode: typology.code,
+    source: 'MASTER',
   };
 }
-
