@@ -1,69 +1,32 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { ensureProcurementCatalog } from '@/lib/procurement/catalog';
+import {
+  addDays,
+  chooseSupplierOffer,
+  evaluateConsumption,
+  evaluateScheduleRisk,
+} from '@/lib/procurement/sourcing';
 
-function addDays(date: Date, days: number) {
-  const d = new Date(date);
-  d.setDate(d.getDate() + days);
-  return d;
-}
-
-function parseDescription(activityName: string) {
+function fallbackActivityHeuristic(activityName: string) {
   const text = activityName.toLowerCase();
   if (/demolic|derribo|retirada/.test(text)) {
     return { category: 'RESIDUOS', description: 'Contenedor, retirada de escombros y gestion de residuos', priority: 'CRITICA', leadTimeDays: 3, quantity: 1, unit: 'ud' };
   }
-  if (/estructura|forjado|pilar|redistrib/.test(text)) {
-    return { category: 'ESTRUCTURA', description: 'Materiales y medios auxiliares de estructura', priority: 'CRITICA', leadTimeDays: 7, quantity: 1, unit: 'ud' };
-  }
   if (/instal/.test(text)) {
-    return { category: 'INSTALACIONES', description: 'Materiales electricos y de fontaneria vinculados a la actividad', priority: 'ALTA', leadTimeDays: 5, quantity: 1, unit: 'ud' };
+    return { category: 'INSTALACIONES', description: 'Materiales generales de instalaciones', priority: 'ALTA', leadTimeDays: 5, quantity: 1, unit: 'ud' };
   }
-  if (/carpinter|puerta|armario/.test(text)) {
-    return { category: 'CARPINTERIA', description: 'Carpinterias interiores y remates especiales', priority: 'ALTA', leadTimeDays: 12, quantity: 1, unit: 'ud' };
+  if (/carpinter|puerta/.test(text)) {
+    return { category: 'CARPINTERIA', description: 'Carpinterias interiores y remates', priority: 'ALTA', leadTimeDays: 12, quantity: 1, unit: 'ud' };
   }
-  if (/alicat|revest|suelo|pintur|acabado/.test(text)) {
-    return { category: 'ACABADOS', description: 'Acabados, revestimientos y consumibles de remate', priority: 'NORMAL', leadTimeDays: 4, quantity: 1, unit: 'ud' };
-  }
-  if (/fachada|envolvente|comun/.test(text)) {
-    return { category: 'ACABADOS', description: 'Elementos de envolvente, zonas comunes y protecciones', priority: 'ALTA', leadTimeDays: 10, quantity: 1, unit: 'ud' };
-  }
-  if (/limpieza|entrega/.test(text)) {
-    return { category: 'OTROS', description: 'Limpieza final, proteccion y entrega', priority: 'NORMAL', leadTimeDays: 2, quantity: 1, unit: 'ud' };
+  if (/suelo|pintur|acabado|revest/.test(text)) {
+    return { category: 'ACABADOS', description: 'Acabados, revestimientos y consumibles', priority: 'NORMAL', leadTimeDays: 4, quantity: 1, unit: 'ud' };
   }
   return { category: 'OTROS', description: `Suministro asociado a ${activityName}`, priority: 'NORMAL', leadTimeDays: 4, quantity: 1, unit: 'ud' };
 }
 
-function parseEstimateItem(description: string, unit?: string | null) {
-  const text = description.toLowerCase();
-  if (/demolic|derribo|retirada/.test(text)) {
-    return { category: 'RESIDUOS', description: 'Contenedor, retirada de escombros y gestion de residuos', priority: 'CRITICA', leadTimeDays: 3, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  if (/estructura|forjado|pilar|redistrib/.test(text)) {
-    return { category: 'ESTRUCTURA', description: 'Materiales y medios auxiliares de estructura', priority: 'CRITICA', leadTimeDays: 7, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  if (/electric|fontaner|instal/.test(text)) {
-    return { category: 'INSTALACIONES', description: 'Materiales electricos y de fontaneria vinculados al presupuesto', priority: 'ALTA', leadTimeDays: 5, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  if (/carpinter|puerta|armario/.test(text)) {
-    return { category: 'CARPINTERIA', description: 'Carpinterias interiores y remates especiales', priority: 'ALTA', leadTimeDays: 12, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  if (/alicat|revest|suelo|pintur|acabado/.test(text)) {
-    return { category: 'ACABADOS', description: 'Acabados, revestimientos y consumibles de remate', priority: 'NORMAL', leadTimeDays: 4, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  if (/fachada|envolvente|comun/.test(text)) {
-    return { category: 'ACABADOS', description: 'Elementos de envolvente, zonas comunes y protecciones', priority: 'ALTA', leadTimeDays: 10, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  if (/limpieza|entrega/.test(text)) {
-    return { category: 'OTROS', description: 'Limpieza final, proteccion y entrega', priority: 'NORMAL', leadTimeDays: 2, quantityFactor: 1, unit: unit || 'ud' };
-  }
-  return {
-    category: 'OTROS',
-    description: `Suministro asociado a ${description}`,
-    priority: 'NORMAL',
-    leadTimeDays: 4,
-    quantityFactor: 1,
-    unit: unit || 'ud',
-  };
+function makeExistingKey(params: { projectActivityId?: string | null; materialId?: string | null; description: string; category: string }) {
+  return `${params.projectActivityId || ''}|${params.materialId || ''}|${params.description.toLowerCase()}|${params.category}`;
 }
 
 export async function POST(
@@ -73,121 +36,323 @@ export async function POST(
   const { id } = await params;
 
   try {
+    await ensureProcurementCatalog();
+
     const body = await req.json().catch(() => ({}));
     const replaceExisting = Boolean(body.replaceExisting);
     const onlyCritical = Boolean(body.onlyCritical);
+    const mode = body.mode === 'activities' || body.mode === 'hybrid' ? body.mode : 'estimate';
+    const strategy = body.strategy === 'CHEAPEST' || body.strategy === 'FASTEST' || body.strategy === 'PREFERRED' ? body.strategy : 'BALANCED';
+    const referenceDate = new Date();
 
-    const estimateMode = body.mode === 'estimate' || body.mode === 'budget' || body.useEstimate === true;
+    const project = await db.project.findUnique({
+      where: { id },
+      include: {
+        estimates: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            internalAnalysis: {
+              include: {
+                lines: true,
+              },
+            },
+            items: true,
+          },
+        },
+      },
+    });
+
+    if (!project) {
+      return NextResponse.json({ error: 'Obra no encontrada' }, { status: 404 });
+    }
 
     const activities = await db.projectActivity.findMany({
       where: { projectId: id },
-      include: { wbs: true, location: true },
+      include: {
+        wbs: true,
+        location: true,
+        standardActivity: {
+          include: {
+            materialTemplates: {
+              include: {
+                material: {
+                  include: {
+                    offers: {
+                      where: { status: 'ACTIVA' },
+                      include: {
+                        supplier: {
+                          select: { id: true, name: true },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
       orderBy: [
         { plannedStartDate: 'asc' },
-        { plannedEndDate: 'asc' },
         { createdAt: 'asc' },
       ],
     });
 
-    if (activities.length === 0) {
-      return NextResponse.json({ error: 'No hay actividades para generar suministros' }, { status: 400 });
-    }
+    const latestEstimate = project.estimates[0];
+    const estimateInternalAnalysis = latestEstimate?.internalAnalysis;
 
-    const existingSupplies = await db.projectSupply.findMany({
-      where: { projectId: id },
-      select: { description: true, projectActivityId: true, category: true },
-    });
+    const typology = estimateInternalAnalysis?.typologyCode
+      ? await db.projectTypology.findUnique({
+          where: { code: estimateInternalAnalysis.typologyCode },
+          include: {
+            costItems: {
+              include: {
+                materialTemplates: {
+                  include: {
+                    material: {
+                      include: {
+                        offers: {
+                          where: { status: 'ACTIVA' },
+                          include: {
+                            supplier: {
+                              select: { id: true, name: true },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        })
+      : null;
+
+    const costItemMap = new Map<string, any>((typology?.costItems || []).map((item: any) => [item.code, item]));
+    const activityByCostItem = new Map<string, any>();
+    const activityByStandardCode = new Map<string, any>();
+
+    for (const activity of activities) {
+      if (activity.originCostItemCode && !activityByCostItem.has(activity.originCostItemCode)) {
+        activityByCostItem.set(activity.originCostItemCode, activity);
+      }
+      if (activity.standardActivity?.code && !activityByStandardCode.has(activity.standardActivity.code)) {
+        activityByStandardCode.set(activity.standardActivity.code, activity);
+      }
+    }
 
     if (replaceExisting) {
       await db.projectSupply.deleteMany({ where: { projectId: id } });
     }
 
-    const existingKeys = new Set(
-      existingSupplies.map((supply) => `${supply.projectActivityId || ''}|${supply.description.toLowerCase()}|${supply.category}`)
-    );
-
-    const created: { id: string; description: string }[] = [];
-    const plannedDateBase = new Date();
-    const latestEstimate = await db.estimate.findFirst({
+    const existingSupplies = await db.projectSupply.findMany({
       where: { projectId: id },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        items: true,
-      },
+      select: { projectActivityId: true, materialId: true, description: true, category: true },
     });
+    const existingKeys = new Set(existingSupplies.map((item) => makeExistingKey(item)));
 
-    if (estimateMode && latestEstimate?.items?.length) {
-      for (const item of latestEstimate.items) {
-        const heuristic = parseEstimateItem(item.description, item.unit);
-        const key = `|${heuristic.description.toLowerCase()}|${heuristic.category}`;
-        if (existingKeys.has(key)) continue;
+    const created: Array<{ id: string; description: string; material?: string | null }> = [];
+    const issues: string[] = [];
 
-        const supply = await db.projectSupply.create({
-          data: {
-            projectId: id,
-            description: heuristic.description,
-            category: heuristic.category,
-            projectActivityId: null,
-            locationId: null,
-            wbsId: null,
-            requiredOnSiteDate: addDays(plannedDateBase, -heuristic.leadTimeDays + 14),
-            leadTimeDays: heuristic.leadTimeDays,
-            orderDate: null,
-            priority: heuristic.priority,
-            status: 'IDENTIFICADA',
-            responsible: 'Compras / Produccion',
-            quantity: Number((item.quantity * heuristic.quantityFactor).toFixed(2)),
-            unit: item.unit || heuristic.unit,
-            observations: `Generado automaticamente desde presupuesto ${latestEstimate.number} | Partida: ${item.chapter || 'SIN CAPITULO'}`,
-          },
-        });
+    if ((mode === 'estimate' || mode === 'hybrid') && estimateInternalAnalysis?.lines?.length) {
+      for (const line of estimateInternalAnalysis.lines) {
+        const costItem = line.code ? costItemMap.get(line.code) : null;
+        if (!costItem?.materialTemplates?.length) {
+          issues.push(`La linea interna ${line.description} no tiene materiales maestros asociados.`);
+          continue;
+        }
 
-        created.push({ id: supply.id, description: supply.description });
+        const linkedActivity =
+          (line.code ? activityByCostItem.get(line.code) : null) ||
+          (line.standardActivityCode ? activityByStandardCode.get(line.standardActivityCode) : null) ||
+          null;
+
+        const requiredOnSiteDate =
+          linkedActivity?.plannedStartDate ||
+          linkedActivity?.plannedEndDate ||
+          addDays(referenceDate, 7);
+
+        for (const template of costItem.materialTemplates) {
+          const baseQuantity = evaluateConsumption(template.consumptionRule as Record<string, unknown> | null, {
+            lineQuantity: line.quantity,
+          });
+          const quantity = Number((baseQuantity * (1 + (template.wasteFactor || 0))).toFixed(2));
+          if (quantity <= 0) continue;
+
+          const suggestion = chooseSupplierOffer(
+            template.material.offers,
+            requiredOnSiteDate,
+            strategy,
+            referenceDate
+          );
+          const key = makeExistingKey({
+            projectActivityId: linkedActivity?.id || null,
+            materialId: template.materialId,
+            description: template.material.name,
+            category: template.material.category,
+          });
+          if (existingKeys.has(key)) continue;
+
+          const priority = template.criticality === 'CRITICA' ? 'CRITICA' : template.criticality === 'ALTA' ? 'ALTA' : 'NORMAL';
+          if (onlyCritical && priority !== 'CRITICA') continue;
+
+          const leadTimeDays = suggestion.offer?.leadTimeDays ?? null;
+          const risk = evaluateScheduleRisk(requiredOnSiteDate, leadTimeDays, referenceDate);
+          const expectedUnitCost = suggestion.offer?.unitCost ?? null;
+          const expectedTotalCost = expectedUnitCost !== null ? Number((expectedUnitCost * quantity).toFixed(2)) : null;
+
+          const supply = await db.projectSupply.create({
+            data: {
+              projectId: id,
+              description: template.material.name,
+              category: template.material.category,
+              originSource: 'ESTIMATE_INTERNAL',
+              materialId: template.materialId,
+              supplierId: suggestion.offer?.supplier?.id || null,
+              supplierOfferId: suggestion.offer?.id || null,
+              estimateInternalLineId: line.id,
+              projectActivityId: linkedActivity?.id || null,
+              locationId: linkedActivity?.locationId || null,
+              wbsId: linkedActivity?.wbsId || null,
+              requiredOnSiteDate: requiredOnSiteDate ? new Date(requiredOnSiteDate) : null,
+              leadTimeDays,
+              priority,
+              status: 'IDENTIFICADA',
+              responsible: linkedActivity?.responsible || 'Compras / Produccion',
+              quantity,
+              unit: template.unit || template.material.baseUnit,
+              expectedUnitCost,
+              expectedTotalCost,
+              suggestedSupplierReason: suggestion.reason,
+              scheduleRisk: suggestion.risk,
+              isCriticalForSchedule: template.material.isCriticalForSchedule || template.criticality === 'CRITICA',
+              observations: `Generado desde linea interna ${line.chapter} | ${line.description}${suggestion.offer?.supplier?.name ? ` | Proveedor sugerido: ${suggestion.offer.supplier.name}` : ''}`,
+            },
+          });
+
+          existingKeys.add(key);
+          created.push({ id: supply.id, description: supply.description, material: template.material.code });
+        }
       }
     }
 
-    for (const activity of activities) {
-      const heuristic = parseDescription(activity.name || '');
-      if (onlyCritical && heuristic.priority !== 'CRITICA') continue;
+    if (mode === 'activities' || mode === 'hybrid') {
+      for (const activity of activities) {
+        const materialTemplates = activity.standardActivity?.materialTemplates || [];
 
-      const targetDate = activity.plannedStartDate
-        ? new Date(activity.plannedStartDate)
-        : activity.plannedEndDate
-          ? new Date(activity.plannedEndDate)
-          : addDays(plannedDateBase, 14);
+        if (materialTemplates.length === 0) {
+          const fallback = fallbackActivityHeuristic(activity.name || '');
+          if (onlyCritical && fallback.priority !== 'CRITICA') continue;
+          const key = makeExistingKey({
+            projectActivityId: activity.id,
+            materialId: null,
+            description: fallback.description,
+            category: fallback.category,
+          });
+          if (existingKeys.has(key)) continue;
 
-      const requiredOnSiteDate = addDays(targetDate, -heuristic.leadTimeDays);
-      const key = `${activity.id}|${heuristic.description.toLowerCase()}|${heuristic.category}`;
-      if (existingKeys.has(key)) continue;
+          const requiredOnSiteDate = activity.plannedStartDate || activity.plannedEndDate || addDays(referenceDate, 7);
+          const risk = evaluateScheduleRisk(requiredOnSiteDate, fallback.leadTimeDays, referenceDate);
+          const supply = await db.projectSupply.create({
+            data: {
+              projectId: id,
+              description: fallback.description,
+              category: fallback.category,
+              originSource: 'FALLBACK_HEURISTIC',
+              projectActivityId: activity.id,
+              locationId: activity.locationId || null,
+              wbsId: activity.wbsId || null,
+              requiredOnSiteDate: requiredOnSiteDate ? new Date(requiredOnSiteDate) : null,
+              leadTimeDays: fallback.leadTimeDays,
+              priority: fallback.priority,
+              status: 'IDENTIFICADA',
+              responsible: activity.responsible || 'Compras / Produccion',
+              quantity: fallback.quantity,
+              unit: fallback.unit,
+              scheduleRisk: risk.risk,
+              observations: `Fallback heuristico desde actividad ${activity.name}`,
+            },
+          });
+          existingKeys.add(key);
+          created.push({ id: supply.id, description: supply.description, material: null });
+          continue;
+        }
 
-      const supply = await db.projectSupply.create({
-        data: {
-          projectId: id,
-          description: heuristic.description,
-          category: heuristic.category,
-          projectActivityId: activity.id,
-          locationId: activity.locationId || null,
-          wbsId: activity.wbsId || null,
-          requiredOnSiteDate,
-          leadTimeDays: heuristic.leadTimeDays,
-          orderDate: null,
-          priority: heuristic.priority,
-          status: 'IDENTIFICADA',
-          responsible: activity.responsible || 'Compras / Produccion',
-          quantity: heuristic.quantity,
-          unit: heuristic.unit,
-          observations: `Generado automaticamente desde la actividad ${activity.name}${activity.location ? ` | Zona: ${activity.location.name}` : ''}${activity.wbs ? ` | WBS: ${activity.wbs.name}` : ''}`,
-        },
-      });
+        for (const template of materialTemplates) {
+          const quantity = Number(
+            (
+              evaluateConsumption(template.consumptionRule as Record<string, unknown> | null, {
+                durationDays: activity.plannedDuration || 1,
+              }) *
+              (1 + (template.wasteFactor || 0))
+            ).toFixed(2)
+          );
+          if (quantity <= 0) continue;
 
-      created.push({ id: supply.id, description: supply.description });
+          const priority = template.criticality === 'CRITICA' ? 'CRITICA' : template.criticality === 'ALTA' ? 'ALTA' : 'NORMAL';
+          if (onlyCritical && priority !== 'CRITICA') continue;
+
+          const requiredOnSiteDate = activity.plannedStartDate || activity.plannedEndDate || addDays(referenceDate, 7);
+          const suggestion = chooseSupplierOffer(
+            template.material.offers,
+            requiredOnSiteDate,
+            strategy,
+            referenceDate
+          );
+          const key = makeExistingKey({
+            projectActivityId: activity.id,
+            materialId: template.materialId,
+            description: template.material.name,
+            category: template.material.category,
+          });
+          if (existingKeys.has(key)) continue;
+
+          const leadTimeDays = suggestion.offer?.leadTimeDays ?? null;
+          const risk = evaluateScheduleRisk(requiredOnSiteDate, leadTimeDays, referenceDate);
+          const expectedUnitCost = suggestion.offer?.unitCost ?? null;
+          const expectedTotalCost = expectedUnitCost !== null ? Number((expectedUnitCost * quantity).toFixed(2)) : null;
+
+          const supply = await db.projectSupply.create({
+            data: {
+              projectId: id,
+              description: template.material.name,
+              category: template.material.category,
+              originSource: 'ACTIVITY',
+              materialId: template.materialId,
+              supplierId: suggestion.offer?.supplier?.id || null,
+              supplierOfferId: suggestion.offer?.id || null,
+              projectActivityId: activity.id,
+              locationId: activity.locationId || null,
+              wbsId: activity.wbsId || null,
+              requiredOnSiteDate: requiredOnSiteDate ? new Date(requiredOnSiteDate) : null,
+              leadTimeDays,
+              priority,
+              status: 'IDENTIFICADA',
+              responsible: activity.responsible || 'Compras / Produccion',
+              quantity,
+              unit: template.unit || template.material.baseUnit,
+              expectedUnitCost,
+              expectedTotalCost,
+              suggestedSupplierReason: suggestion.reason,
+              scheduleRisk: risk.risk,
+              isCriticalForSchedule: template.material.isCriticalForSchedule || template.criticality === 'CRITICA',
+              observations: `Generado desde actividad ${activity.name}${suggestion.offer?.supplier?.name ? ` | Proveedor sugerido: ${suggestion.offer.supplier.name}` : ''}`,
+            },
+          });
+
+          existingKeys.add(key);
+          created.push({ id: supply.id, description: supply.description, material: template.material.code });
+        }
+      }
     }
 
     return NextResponse.json({
       created: created.length,
-      skipped: Math.max(0, activities.length - created.length),
-      source: estimateMode && latestEstimate?.items?.length ? 'ESTIMATE+ACTIVITIES' : 'ACTIVITIES',
+      source: mode === 'hybrid' ? 'HYBRID' : mode.toUpperCase(),
       supplies: created,
+      issues,
     });
   } catch (error) {
     console.error('Error generating supplies:', error);

@@ -63,6 +63,8 @@ model Client {
   expenses        ProjectExpense[]
   companyExpenses CompanyExpense[]
   movements       Movement[]
+  materialOffers  SupplierMaterialOffer[]
+  suppliedItems   ProjectSupply[]        @relation("SupplySupplier")
 }
 
 // Invoice record
@@ -219,6 +221,53 @@ model EstimateInternalLine {
   pricingRule           Json?
   appliedAssumptions    Json?
 
+  supplies ProjectSupply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Material {
+  id                       String   @id @default(cuid())
+  code                     String?  @unique
+  name                     String
+  category                 String
+  baseUnit                 String   @default("ud")
+  description              String?
+  status                   String   @default("ACTIVO")
+  observations             String?
+  isCriticalForSchedule    Boolean  @default(false)
+  requiresSpecificSupplier Boolean  @default(false)
+
+  offers        SupplierMaterialOffer[]
+  costItemLinks TypologyCostItemMaterial[]
+  activityLinks StandardActivityMaterial[]
+  supplies      ProjectSupply[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SupplierMaterialOffer {
+  id              String   @id @default(cuid())
+  supplierId      String
+  supplier        Client   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  materialId      String
+  material        Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  unitCost        Float
+  currency        String   @default("EUR")
+  unit            String
+  leadTimeDays    Int
+  minimumOrderQty Float?
+  isPreferred     Boolean  @default(false)
+  validFrom       DateTime?
+  validUntil      DateTime?
+  status          String   @default("ACTIVA")
+  observations    String?
+
+  supplies ProjectSupply[]
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -319,6 +368,8 @@ model TypologyCostItem {
 
   productivityRateId String?
   productivityRate   ProductivityRate? @relation(fields: [productivityRateId], references: [id], onDelete: SetNull)
+
+  materialTemplates TypologyCostItemMaterial[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -772,9 +823,48 @@ model StandardActivity {
   projectActivities   ProjectActivity[]
   costItemTemplates   TypologyCostItem[]
   typologyTemplates   TypologyActivityTemplate[]
+  materialTemplates   StandardActivityMaterial[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+model TypologyCostItemMaterial {
+  id         String           @id @default(cuid())
+  costItemId String
+  costItem   TypologyCostItem @relation(fields: [costItemId], references: [id], onDelete: Cascade)
+  materialId String
+  material   Material         @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  consumptionRule Json?
+  unit            String
+  wasteFactor     Float  @default(0)
+  criticality     String @default("NORMAL")
+  observations    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([costItemId, materialId])
+}
+
+model StandardActivityMaterial {
+  id                 String           @id @default(cuid())
+  standardActivityId String
+  standardActivity   StandardActivity @relation(fields: [standardActivityId], references: [id], onDelete: Cascade)
+  materialId         String
+  material           Material         @relation(fields: [materialId], references: [id], onDelete: Cascade)
+
+  consumptionRule Json?
+  unit            String
+  wasteFactor     Float  @default(0)
+  criticality     String @default("NORMAL")
+  observations    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([standardActivityId, materialId])
 }
 
 // Phase 51: Banco de Rendimientos
@@ -997,6 +1087,15 @@ model ProjectSupply {
   
   description       String   // Nombre del material/equipo
   category          String   // ACABADOS, ESTRUCTURA, INSTALACIONES, MOBILIARIO, etc.
+  originSource      String?  @default("MANUAL")
+  materialId        String?
+  material          Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  supplierId        String?
+  supplier          Client?   @relation("SupplySupplier", fields: [supplierId], references: [id], onDelete: SetNull)
+  supplierOfferId   String?
+  supplierOffer     SupplierMaterialOffer? @relation(fields: [supplierOfferId], references: [id], onDelete: SetNull)
+  estimateInternalLineId String?
+  estimateInternalLine   EstimateInternalLine? @relation(fields: [estimateInternalLineId], references: [id], onDelete: SetNull)
   
   // Vinculación con Planificación
   projectActivityId  String?
@@ -1020,6 +1119,11 @@ model ProjectSupply {
   
   quantity          Float?
   unit              String?
+  expectedUnitCost  Float?
+  expectedTotalCost Float?
+  suggestedSupplierReason String?
+  scheduleRisk      String?  @default("PENDIENTE_ANALISIS")
+  isCriticalForSchedule Boolean @default(false)
   
   observations      String?  @db.Text
   
