@@ -1,6 +1,29 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+const projectInclude = {
+  client: true,
+  invoices: {
+    orderBy: { createdAt: 'desc' as const }
+  },
+  estimates: {
+    orderBy: { createdAt: 'desc' as const }
+  },
+  calendar: true,
+  milestones: { orderBy: { targetDate: 'asc' as const } },
+  constraints: { orderBy: { createdAt: 'desc' as const } },
+  budgetLines: { orderBy: { createdAt: 'asc' as const } },
+  expenses: { orderBy: { date: 'desc' as const } },
+  certifications: {
+    include: { lines: true },
+    orderBy: { date: 'desc' as const }
+  },
+  imputedExpenses: {
+    include: { companyExpense: true },
+    orderBy: { date: 'desc' as const }
+  }
+};
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -10,18 +33,7 @@ export async function GET(
   try {
     const project = await (db as any).project.findUnique({
       where: { id },
-      include: {
-        client: true,
-        invoices: {
-          orderBy: { createdAt: 'desc' }
-        },
-        estimates: {
-          orderBy: { createdAt: 'desc' }
-        },
-        calendar: true,
-        milestones: { orderBy: { targetDate: 'asc' } },
-        constraints: { orderBy: { createdAt: 'desc' } }
-      }
+      include: projectInclude
     });
 
     if (!project) {
@@ -62,7 +74,8 @@ export async function PUT(
         contractualEndDate: contractualEndDate ? new Date(contractualEndDate) : null,
         observations,
         setupStatus
-      }
+      },
+      include: projectInclude
     });
 
     return NextResponse.json(project);

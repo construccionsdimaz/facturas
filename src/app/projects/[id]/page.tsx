@@ -35,6 +35,13 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
           companyExpense: true
         },
         orderBy: { date: 'desc' }
+      },
+      calendar: true,
+      milestones: {
+        orderBy: { targetDate: 'asc' }
+      },
+      constraints: {
+        orderBy: { createdAt: 'desc' }
       }
     }
   });
