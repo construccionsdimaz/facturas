@@ -31,6 +31,8 @@ type Proposal = {
     commercialTotal: number;
   };
   notes: string[];
+  typologyCode?: string | null;
+  source?: 'MASTER' | 'FALLBACK';
 };
 
 type EstimateItem = {
@@ -270,9 +272,21 @@ export default function AutoEstimateBuilder({
         </button>
       </div>
 
-      {proposal && (
-        <div style={{ marginTop: '20px', display: 'grid', gap: '16px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
+	      {proposal && (
+	        <div style={{ marginTop: '20px', display: 'grid', gap: '16px' }}>
+	          <div className="glass-panel" style={{ padding: '14px', borderColor: proposal.source === 'FALLBACK' ? '#f59e0b' : 'rgba(255,255,255,0.08)' }}>
+	            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Fuente aplicada</div>
+	            <div style={{ fontWeight: 700 }}>
+	              {proposal.source || 'MASTER'}{proposal.typologyCode ? ` | ${proposal.typologyCode}` : ''}
+	            </div>
+	            {proposal.notes.length > 0 && (
+	              <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
+	                {proposal.notes.join(' | ')}
+	              </div>
+	            )}
+	          </div>
+
+	          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
             <div className="glass-panel" style={{ padding: '14px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Coste interno</div>
               <strong>{formatCurrency(proposal.summary.internalCost)}</strong>

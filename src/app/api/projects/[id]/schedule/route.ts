@@ -42,6 +42,11 @@ export async function POST(
         wbsId: data.wbsId || null,
         locationId: data.locationId || null,
         standardActivityId: data.standardActivityId || null,
+        generationSource: data.generationSource || 'MANUAL',
+        originTypologyCode: data.originTypologyCode || null,
+        originActivityTemplateCode: data.originActivityTemplateCode || null,
+        originCostItemCode: data.originCostItemCode || null,
+        originProductivityRateName: data.originProductivityRateName || null,
         
         name: data.name,
         code: data.code || null,

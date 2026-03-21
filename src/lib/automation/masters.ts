@@ -492,9 +492,12 @@ const TYPOLOGY_SEEDS: TypologySeed[] = [
   },
 ];
 
-async function upsertStandardActivities() {
+const AUTOMATION_SEED_KEY = 'automation-masters';
+const AUTOMATION_SEED_VERSION = 2;
+
+async function upsertStandardActivities(client: any = db) {
   for (const seed of STANDARD_ACTIVITY_SEEDS) {
-    await (db as any).standardActivity.upsert({
+    await client.standardActivity.upsert({
       where: { code: seed.code },
       update: {
         name: seed.name,
@@ -519,12 +522,12 @@ async function upsertStandardActivities() {
   }
 }
 
-async function upsertProductivityRates() {
-  const activities = await (db as any).standardActivity.findMany();
+async function upsertProductivityRates(client: any = db) {
+  const activities = await client.standardActivity.findMany();
   const activityMap = new Map<string, string>(activities.map((activity: { code: string; id: string }) => [activity.code, activity.id]));
 
   for (const seed of PRODUCTIVITY_RATE_SEEDS) {
-    await (db as any).productivityRate.upsert({
+    await client.productivityRate.upsert({
       where: { id: `${seed.standardActivityCode}-${seed.name}` },
       update: {
         value: seed.value,
@@ -552,14 +555,14 @@ async function upsertProductivityRates() {
   }
 }
 
-async function upsertTypologies() {
-  const activities = await (db as any).standardActivity.findMany();
-  const rates = await (db as any).productivityRate.findMany();
+async function upsertTypologies(client: any = db) {
+  const activities = await client.standardActivity.findMany();
+  const rates = await client.productivityRate.findMany();
   const activityMap = new Map<string, string>(activities.map((activity: { code: string; id: string }) => [activity.code, activity.id]));
   const rateMap = new Map<string, string>(rates.map((rate: { name: string; id: string }) => [rate.name, rate.id]));
 
   for (const seed of TYPOLOGY_SEEDS) {
-    const typology = await (db as any).projectTypology.upsert({
+    const typology = await client.projectTypology.upsert({
       where: { code: seed.code },
       update: {
         name: seed.name,
@@ -588,12 +591,12 @@ async function upsertTypologies() {
       },
     });
 
-    await (db as any).typologyCostItem.deleteMany({ where: { typologyId: typology.id } });
-    await (db as any).typologyLocationTemplate.deleteMany({ where: { typologyId: typology.id } });
-    await (db as any).typologyActivityTemplate.deleteMany({ where: { typologyId: typology.id } });
+    await client.typologyCostItem.deleteMany({ where: { typologyId: typology.id } });
+    await client.typologyLocationTemplate.deleteMany({ where: { typologyId: typology.id } });
+    await client.typologyActivityTemplate.deleteMany({ where: { typologyId: typology.id } });
 
     for (const item of seed.costItems) {
-      await (db as any).typologyCostItem.create({
+      await client.typologyCostItem.create({
         data: {
           typologyId: typology.id,
           code: item.code,
@@ -614,7 +617,7 @@ async function upsertTypologies() {
     }
 
     for (const location of seed.locationTemplates) {
-      await (db as any).typologyLocationTemplate.create({
+      await client.typologyLocationTemplate.create({
         data: {
           typologyId: typology.id,
           code: location.code,
@@ -633,7 +636,7 @@ async function upsertTypologies() {
       const standardActivityId = activityMap.get(activity.standardActivityCode);
       if (!standardActivityId) continue;
 
-      await (db as any).typologyActivityTemplate.create({
+      await client.typologyActivityTemplate.create({
         data: {
           typologyId: typology.id,
           code: activity.code,
@@ -655,20 +658,81 @@ async function upsertTypologies() {
   }
 }
 
-let automationMastersReady = false;
+async function validateAutomationSeedIntegrity(client: any = db) {
+  const typologies = await client.projectTypology.findMany({
+    where: { code: { in: TYPOLOGY_SEEDS.map((seed) => seed.code) } },
+    include: {
+      costItems: true,
+      locationTemplates: true,
+      activityTemplates: true,
+    },
+  });
+  const activities = await client.standardActivity.count({
+    where: { code: { in: STANDARD_ACTIVITY_SEEDS.map((seed) => seed.code) } },
+  });
+  const rates = await client.productivityRate.count({
+    where: { id: { in: PRODUCTIVITY_RATE_SEEDS.map((seed) => `${seed.standardActivityCode}-${seed.name}`) } },
+  });
+
+  const byCode = new Map<string, any>(typologies.map((typology: any) => [typology.code, typology]));
+  const typologyIntegrity = TYPOLOGY_SEEDS.every((seed) => {
+    const saved = byCode.get(seed.code);
+    return saved
+      && saved.costItems.length === seed.costItems.length
+      && saved.locationTemplates.length === seed.locationTemplates.length
+      && saved.activityTemplates.length === seed.activityTemplates.length;
+  });
+
+  return {
+    valid:
+      activities === STANDARD_ACTIVITY_SEEDS.length
+      && rates === PRODUCTIVITY_RATE_SEEDS.length
+      && typologies.length === TYPOLOGY_SEEDS.length
+      && typologyIntegrity,
+    snapshot: {
+      standardActivities: activities,
+      productivityRates: rates,
+      typologies: typologies.length,
+      seedVersion: AUTOMATION_SEED_VERSION,
+    },
+  };
+}
 
 export async function ensureAutomationMasters() {
-  if (automationMastersReady) return;
-  const typologyCount = await (db as any).projectTypology.count().catch(() => 0);
-  if (typologyCount > 0) {
-    automationMastersReady = true;
-    return;
-  }
+  const state = await (db as any).automationSeedState.findUnique({
+    where: { key: AUTOMATION_SEED_KEY },
+  }).catch(() => null);
+  const integrity = await validateAutomationSeedIntegrity();
 
-  await upsertStandardActivities();
-  await upsertProductivityRates();
-  await upsertTypologies();
-  automationMastersReady = true;
+  if (state?.version === AUTOMATION_SEED_VERSION && integrity.valid) return;
+
+  await (db as any).$transaction(async (tx: any) => {
+    await upsertStandardActivities(tx);
+    await upsertProductivityRates(tx);
+    await upsertTypologies(tx);
+
+    const finalIntegrity = await validateAutomationSeedIntegrity(tx);
+    if (!finalIntegrity.valid) {
+      throw new Error('Automation masters seeding finished with incomplete integrity.');
+    }
+
+    await tx.automationSeedState.upsert({
+      where: { key: AUTOMATION_SEED_KEY },
+      update: {
+        version: AUTOMATION_SEED_VERSION,
+        status: 'OK',
+        seededAt: new Date(),
+        details: finalIntegrity.snapshot,
+      },
+      create: {
+        key: AUTOMATION_SEED_KEY,
+        version: AUTOMATION_SEED_VERSION,
+        status: 'OK',
+        seededAt: new Date(),
+        details: finalIntegrity.snapshot,
+      },
+    });
+  });
 }
 
 export async function loadAutomationTypology(context: AutomationContext) {

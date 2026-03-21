@@ -63,7 +63,12 @@ export interface PlanningActivityNode {
   durationDays: number;
   responsible?: string | null;
   notes?: string | null;
+  standardActivityId?: string | null;
   standardActivityCode?: string | null;
+  generationSource?: 'MASTER' | 'FALLBACK';
+  originTypologyCode?: string | null;
+  originActivityTemplateCode?: string | null;
+  originCostItemCode?: string | null;
   productivityRateName?: string | null;
 }
 
@@ -97,6 +102,7 @@ function buildFallbackBlueprint(context: PlanningGenerationInput): PlanningBluep
         locationKey: 'site-root',
         durationDays: Math.max(1, Number(((context.area || 0) / 25).toFixed(1))),
         responsible: 'Produccion',
+        generationSource: 'FALLBACK',
       },
     ],
     dependencyNodes: [],
@@ -162,7 +168,12 @@ export async function generatePlanningBlueprint(context: PlanningGenerationInput
         durationDays: Math.max(1, durationDays),
         responsible: template.standardActivity.category === 'INSTALACIONES' ? 'Instalaciones' : template.standardActivity.category === 'CARPINTERIA' ? 'Carpinteria' : 'Produccion',
         notes: `Generada desde plantilla ${template.code}${costItem ? ` | Partida: ${costItem.name}` : ''}`,
+        standardActivityId: template.standardActivity.id || null,
         standardActivityCode: template.standardActivity.code || null,
+        generationSource: 'MASTER' as const,
+        originTypologyCode: typology.code,
+        originActivityTemplateCode: template.code,
+        originCostItemCode: template.costItemCode || null,
         productivityRateName: template.productivityRate?.name || costItem?.productivityRate?.name || null,
       };
     });

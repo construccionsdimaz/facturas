@@ -198,7 +198,12 @@ export async function POST(
             projectId: id,
             wbsId: wbsMap.get(node.wbsKey) || null,
             locationId: node.locationKey ? locationMap.get(node.locationKey) || null : null,
-            standardActivityId: null,
+            standardActivityId: node.standardActivityId || null,
+            generationSource: node.generationSource || blueprint.source,
+            originTypologyCode: node.originTypologyCode || blueprint.typologyCode || null,
+            originActivityTemplateCode: node.originActivityTemplateCode || null,
+            originCostItemCode: node.originCostItemCode || null,
+            originProductivityRateName: node.productivityRateName || null,
             name: node.name,
             code: node.code,
             responsible: node.responsible || null,
@@ -240,6 +245,12 @@ export async function POST(
             durationDays: node.durationDays,
             wbsKey: node.wbsKey,
             locationKey: node.locationKey || null,
+            generationSource: node.generationSource || blueprint.source,
+            originTypologyCode: node.originTypologyCode || blueprint.typologyCode || null,
+            originActivityTemplateCode: node.originActivityTemplateCode || null,
+            originCostItemCode: node.originCostItemCode || null,
+            originProductivityRateName: node.productivityRateName || null,
+            standardActivityId: node.standardActivityId || null,
           })),
         },
       });
@@ -255,6 +266,8 @@ export async function POST(
 
     return NextResponse.json({
       ...result,
+      source: blueprint.source,
+      typologyCode: blueprint.typologyCode || null,
       notes: blueprint.notes,
     });
   } catch (error) {

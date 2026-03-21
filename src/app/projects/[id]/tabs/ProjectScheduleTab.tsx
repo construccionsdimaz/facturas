@@ -155,7 +155,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
       }
 
       const data = await res.json();
-      alert(`Planning generado: ${data.createdActivities} actividades, ${data.createdWbs} partidas y ${data.createdLocations} ubicaciones.`);
+      alert(`Planning generado: ${data.createdActivities} actividades, ${data.createdWbs} partidas y ${data.createdLocations} ubicaciones. Fuente: ${data.source || 'MASTER'}${data.typologyCode ? ` | Tipologia: ${data.typologyCode}` : ''}`);
       fetchData();
     } catch (error: any) {
       alert(error.message || 'Error generando planning');
@@ -293,6 +293,11 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
                          {act.standardActivity && (
                             <div style={{ fontSize: '11px', color: 'var(--accent-primary)' }}>
                                📚 {act.standardActivity.name}
+                            </div>
+                         )}
+                         {(act.generationSource || act.originTypologyCode) && (
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                               {act.generationSource || 'MASTER'}{act.originTypologyCode ? ` | ${act.originTypologyCode}` : ''}{act.originActivityTemplateCode ? ` | ${act.originActivityTemplateCode}` : ''}
                             </div>
                          )}
                          <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop:'4px' }}>

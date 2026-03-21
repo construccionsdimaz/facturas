@@ -316,6 +316,16 @@ model TypologyActivityTemplate {
   @@unique([typologyId, code])
 }
 
+model AutomationSeedState {
+  key          String   @id
+  version      Int
+  status       String   @default("OK")
+  seededAt     DateTime @default(now())
+  details      Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
 model ProjectBudgetLine {
   id              String                  @id @default(cuid())
   name            String
@@ -759,6 +769,12 @@ model ProjectActivity {
   standardActivityId String?
   standardActivity StandardActivity? @relation(fields: [standardActivityId], references: [id], onDelete: SetNull)
 
+  generationSource          String? // MASTER, FALLBACK, MANUAL
+  originTypologyCode        String?
+  originActivityTemplateCode String?
+  originCostItemCode        String?
+  originProductivityRateName String?
+  
   // Datos Operativos
   name            String
   code            String?
