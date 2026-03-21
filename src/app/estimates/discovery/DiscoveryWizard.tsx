@@ -69,6 +69,7 @@ export default function DiscoveryWizard() {
   const searchParams = useSearchParams();
   const projectId = searchParams.get('projectId');
   const clientIdFromQuery = searchParams.get('clientId');
+  const existingSessionId = searchParams.get('sessionId') || searchParams.get('discoverySessionId');
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [clients, setClients] = useState<Client[]>([]);
   const [projectName, setProjectName] = useState('');
@@ -103,6 +104,22 @@ export default function DiscoveryWizard() {
     let mounted = true;
     async function init() {
       try {
+        if (existingSessionId) {
+          const existingRes = await fetch(`/api/discovery/sessions/${existingSessionId}`);
+          const existingData = await existingRes.json();
+          if (!existingRes.ok) throw new Error(existingData.error || 'No se pudo cargar la sesion discovery');
+          if (!mounted) return;
+          setSessionId(existingData.id);
+          setClientId(existingData.clientId || '');
+          if (existingData.client?.name) setClientSearch(existingData.client.name);
+          setProjectName(existingData.project?.name || '');
+          setBudgetGoal(existingData.budgetGoal);
+          setPrecisionMode(existingData.precisionMode);
+          setCompletionStep(existingData.completionStep || 1);
+          setSessionData(existingData.sessionData as DiscoverySessionData);
+          return;
+        }
+
         let resolvedClientId = clientIdFromQuery || '';
         let resolvedProjectName = '';
         if (projectId) {
@@ -144,7 +161,7 @@ export default function DiscoveryWizard() {
     return () => {
       mounted = false;
     };
-  }, [clientIdFromQuery, projectId]);
+  }, [clientIdFromQuery, existingSessionId, projectId]);
 
   useEffect(() => {
     if (!sessionId || isInitializing) return;

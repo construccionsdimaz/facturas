@@ -77,6 +77,9 @@ function NewEstimateContent() {
   const searchParams = useSearchParams();
   const projectIdParam = searchParams.get('projectId');
   const discoverySessionId = searchParams.get('discoverySessionId');
+  const discoveryEditUrl = discoverySessionId
+    ? `/estimates/discovery?sessionId=${discoverySessionId}${projectIdParam ? `&projectId=${projectIdParam}` : ''}`
+    : null;
   
   // Database State
   const [clients, setClients] = useState<Client[]>([]);
@@ -459,7 +462,14 @@ function NewEstimateContent() {
         <div className={styles.formPanel}>
           {discoverySessionId && (
             <div className={`glass-panel ${styles.card}`} style={{ border: '1px solid rgba(59, 130, 246, 0.35)', background: 'rgba(59, 130, 246, 0.08)' }}>
-              <h3 style={{ marginTop: 0 }}>Propuesta llegada desde Discovery</h3>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                <h3 style={{ marginTop: 0, marginBottom: 0 }}>Propuesta llegada desde Discovery</h3>
+                {discoveryEditUrl && (
+                  <a href={discoveryEditUrl} className="btn-secondary" style={{ textDecoration: 'none' }}>
+                    Editar datos de obra
+                  </a>
+                )}
+              </div>
               <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
                 <div>
                   {isApplyingDiscovery
@@ -468,6 +478,7 @@ function NewEstimateContent() {
                       ? `Perfil detectado: ${discoverySummary.summary.headline.workTypeLabel}`
                       : 'La propuesta guiada ya esta enlazada a este editor.'}
                 </div>
+                <div>Puedes volver al Discovery, cambiar las opciones de la obra y regenerar la estructura del presupuesto.</div>
                 {discoverySummary?.warnings?.length ? (
                   <div> Avisos: {discoverySummary.warnings.map((warning) => warning.message).join(' | ')}</div>
                 ) : null}
