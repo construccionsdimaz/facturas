@@ -208,6 +208,8 @@ model Project {
   weeklyPlans  WeeklyPlan[]
   restrictions Restriction[]
   supplies     ProjectSupply[]
+  baselines    ProjectBaseline[]
+  changeRequests ProjectChangeRequest[]
 }
 
 model ProjectBudgetLine {
@@ -840,4 +842,45 @@ model ProjectSupply {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 }
+
+// Phase 58: Baseline (Instantáneas del Plan)
+model ProjectBaseline {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  name            String   // Ej: Baseline Contractual V1
+  description     String?
+  responsible     String?
+  status          String   @default("VIGENTE") // VIGENTE, ARCHIVADA, BORRADOR
+  
+  // Snapshot de las actividades en este momento
+  snapshotData    Json     // Guardaremos un dump de las fechas de actividades para comparativa rápida
+  
+  createdAt       DateTime @default(now())
+}
+
+// Phase 58: Control de Cambios (Modificaciones Formales)
+model ProjectChangeRequest {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  title           String
+  description     String?
+  reason          String   // ALCANCE, TECNICO, SUMINISTRO, CLIENTE, etc.
+  impact          String?  // PLAZO, COSTE, SECUENCIA
+  priority        String   @default("MEDIA")
+  
+  status          String   @default("PROPUESTO") // PROPUESTO, REVISADO, APROBADO, IMPLEMENTADO, RECHAZADO
+  requestedDate   DateTime @default(now())
+  approvedDate    DateTime?
+  responsible     String?
+  
+  observations    String?  @db.Text
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}
+
 

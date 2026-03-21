@@ -20,6 +20,7 @@ import ProjectWeeklyPlanTab from './tabs/ProjectWeeklyPlanTab';
 import ProjectTrackingTab from './tabs/ProjectTrackingTab';
 import ProjectRestrictionsTab from './tabs/ProjectRestrictionsTab';
 import ProjectProcurementTab from './tabs/ProjectProcurementTab';
+import ProjectBaselineTab from './tabs/ProjectBaselineTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -53,7 +54,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -1078,6 +1079,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             🚛 Compras/Plazo
           </button>
           <button
+            onClick={() => setActiveTab('baseline')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'baseline' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'baseline' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📋 Baseline/Cambios
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -1129,6 +1143,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'procurement' && (
             <ProjectProcurementTab projectId={project.id} />
+          )}
+          {activeTab === 'baseline' && (
+            <ProjectBaselineTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (
