@@ -1148,11 +1148,14 @@ model LearningDeviation {
   id          String   @id @default(cuid())
   projectId   String
   project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fingerprint String
+  scopedFingerprint String @unique
 
   category    String
   dimension   String
   severity    String   @default("INFO")
   status      String   @default("DETECTED")
+  isActive    Boolean  @default(true)
 
   title       String
   description String?  @db.Text
@@ -1168,6 +1171,9 @@ model LearningDeviation {
 
   sourceRef    Json?
   evidence     Json?
+  firstDetectedAt DateTime @default(now())
+  lastDetectedAt  DateTime @default(now())
+  inactiveAt      DateTime?
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -1177,6 +1183,8 @@ model RecalibrationSuggestion {
   id        String   @id @default(cuid())
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  fingerprint String
+  scopedFingerprint String @unique
 
   suggestionType String
   targetType     String
@@ -1186,6 +1194,7 @@ model RecalibrationSuggestion {
 
   status      String   @default("PENDING_REVIEW")
   priority    String   @default("MEDIA")
+  isActive    Boolean  @default(true)
   rationale   String   @db.Text
   reviewNotes String?  @db.Text
 
@@ -1198,6 +1207,9 @@ model RecalibrationSuggestion {
   basis            Json?
   suggestedChanges Json?
   reviewedAt       DateTime?
+  firstDetectedAt  DateTime @default(now())
+  lastDetectedAt   DateTime @default(now())
+  inactiveAt       DateTime?
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

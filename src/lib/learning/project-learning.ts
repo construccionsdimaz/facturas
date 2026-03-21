@@ -9,6 +9,8 @@ type LearningResult = {
     scheduleDeviations: number;
     procurementDeviations: number;
     pendingSuggestions: number;
+    archivedSuggestions: number;
+    archivedDeviations: number;
     notices: string[];
   };
   deviations: any[];
@@ -84,8 +86,29 @@ function uniqueById<T extends { id: string }>(items: T[]) {
   });
 }
 
+function normalizeKeyPart(value: unknown) {
+  if (value === null || value === undefined || value === '') return 'na';
+  return String(value)
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'na';
+}
+
+function makeFingerprint(parts: Array<unknown>) {
+  return parts.map(normalizeKeyPart).join('|');
+}
+
 function pushDeviation(target: any[], input: any) {
+  const fingerprint =
+    input.fingerprint ??
+    makeFingerprint([
+      input.category,
+      input.dimension,
+      input.targetCode ?? input.targetName,
+      input.title,
+    ]);
   target.push({
+    fingerprint,
     category: input.category,
     dimension: input.dimension,
     severity: input.severity ?? getSeverity(input.deltaPercent),
@@ -106,7 +129,16 @@ function pushDeviation(target: any[], input: any) {
 }
 
 function pushSuggestion(target: any[], input: any) {
+  const fingerprint =
+    input.fingerprint ??
+    makeFingerprint([
+      input.suggestionType,
+      input.targetType,
+      input.targetCode ?? input.targetId ?? input.targetName,
+      input.targetName,
+    ]);
   target.push({
+    fingerprint,
     suggestionType: input.suggestionType,
     targetType: input.targetType,
     targetId: input.targetId ?? null,
@@ -124,6 +156,133 @@ function pushSuggestion(target: any[], input: any) {
     basis: input.basis ?? null,
     suggestedChanges: input.suggestedChanges ?? null,
     reviewedAt: input.reviewedAt ?? null,
+  });
+}
+
+async function reconcileLearningState(projectId: string, deviations: any[], suggestions: any[]) {
+  const now = new Date();
+
+  await (db as any).$transaction(async (tx: any) => {
+    const existingDeviations = await tx.learningDeviation.findMany({ where: { projectId } });
+    const existingSuggestions = await tx.recalibrationSuggestion.findMany({ where: { projectId } });
+
+    const deviationMap = new Map<string, any>(existingDeviations.map((item: any) => [item.scopedFingerprint, item]));
+    const suggestionMap = new Map<string, any>(existingSuggestions.map((item: any) => [item.scopedFingerprint, item]));
+
+    const activeDeviationKeys = new Set<string>();
+    const activeSuggestionKeys = new Set<string>();
+
+    for (const deviation of deviations) {
+      const scopedFingerprint = `${projectId}:${deviation.fingerprint}`;
+      activeDeviationKeys.add(scopedFingerprint);
+      const existing = deviationMap.get(scopedFingerprint);
+
+      if (existing) {
+        await tx.learningDeviation.update({
+          where: { id: existing.id },
+          data: {
+            category: deviation.category,
+            dimension: deviation.dimension,
+            severity: deviation.severity,
+            status: 'DETECTED',
+            isActive: true,
+            title: deviation.title,
+            description: deviation.description,
+            targetCode: deviation.targetCode,
+            targetName: deviation.targetName,
+            estimatedValue: deviation.estimatedValue,
+            actualValue: deviation.actualValue,
+            deltaValue: deviation.deltaValue,
+            deltaPercent: deviation.deltaPercent,
+            unit: deviation.unit,
+            evidenceCount: deviation.evidenceCount,
+            sourceRef: deviation.sourceRef,
+            evidence: deviation.evidence,
+            lastDetectedAt: now,
+            inactiveAt: null,
+          },
+        });
+      } else {
+        await tx.learningDeviation.create({
+          data: {
+            projectId,
+            ...deviation,
+            scopedFingerprint,
+            isActive: true,
+            status: deviation.status ?? 'DETECTED',
+            firstDetectedAt: now,
+            lastDetectedAt: now,
+          },
+        });
+      }
+    }
+
+    for (const suggestion of suggestions) {
+      const scopedFingerprint = `${projectId}:${suggestion.fingerprint}`;
+      activeSuggestionKeys.add(scopedFingerprint);
+      const existing = suggestionMap.get(scopedFingerprint);
+
+      if (existing) {
+        await tx.recalibrationSuggestion.update({
+          where: { id: existing.id },
+          data: {
+            suggestionType: suggestion.suggestionType,
+            targetType: suggestion.targetType,
+            targetId: suggestion.targetId,
+            targetCode: suggestion.targetCode,
+            targetName: suggestion.targetName,
+            priority: suggestion.priority,
+            rationale: suggestion.rationale,
+            currentValue: suggestion.currentValue,
+            suggestedValue: suggestion.suggestedValue,
+            unit: suggestion.unit,
+            sampleSize: suggestion.sampleSize,
+            confidence: suggestion.confidence,
+            basis: suggestion.basis,
+            suggestedChanges: suggestion.suggestedChanges,
+            isActive: true,
+            lastDetectedAt: now,
+            inactiveAt: null,
+          },
+        });
+      } else {
+        await tx.recalibrationSuggestion.create({
+          data: {
+            projectId,
+            ...suggestion,
+            scopedFingerprint,
+            isActive: true,
+            firstDetectedAt: now,
+            lastDetectedAt: now,
+          },
+        });
+      }
+    }
+
+    for (const deviation of existingDeviations) {
+      if (!activeDeviationKeys.has(deviation.scopedFingerprint)) {
+        await tx.learningDeviation.update({
+          where: { id: deviation.id },
+          data: {
+            isActive: false,
+            status: deviation.status === 'RESOLVED' ? deviation.status : 'STALE',
+            inactiveAt: now,
+          },
+        });
+      }
+    }
+
+    for (const suggestion of existingSuggestions) {
+      if (!activeSuggestionKeys.has(suggestion.scopedFingerprint)) {
+        await tx.recalibrationSuggestion.update({
+          where: { id: suggestion.id },
+          data: {
+            isActive: false,
+            inactiveAt: now,
+          },
+        });
+      }
+    }
   });
 }
 
@@ -615,32 +774,12 @@ export async function rebuildProjectLearning(projectId: string): Promise<Learnin
     }))
   ).map(({ id, ...item }) => item);
 
-  await (db as any).$transaction(async (tx: any) => {
-    await tx.learningDeviation.deleteMany({ where: { projectId } });
-    await tx.recalibrationSuggestion.deleteMany({ where: { projectId } });
-
-    for (const deviation of cleanDeviations) {
-      await tx.learningDeviation.create({
-        data: {
-          projectId,
-          ...deviation,
-        },
-      });
-    }
-
-    for (const suggestion of cleanSuggestions) {
-      await tx.recalibrationSuggestion.create({
-        data: {
-          projectId,
-          ...suggestion,
-        },
-      });
-    }
-  });
+  await reconcileLearningState(projectId, cleanDeviations, cleanSuggestions);
 
   const persistedDeviations = await (db as any).learningDeviation.findMany({
     where: { projectId },
     orderBy: [
+      { isActive: 'desc' },
       { severity: 'desc' },
       { updatedAt: 'desc' },
     ],
@@ -649,21 +788,27 @@ export async function rebuildProjectLearning(projectId: string): Promise<Learnin
   const persistedSuggestions = await (db as any).recalibrationSuggestion.findMany({
     where: { projectId },
     orderBy: [
+      { isActive: 'desc' },
       { priority: 'desc' },
       { createdAt: 'desc' },
     ],
   });
 
+  const activeDeviations = persistedDeviations.filter((item: any) => item.isActive);
+  const activeSuggestions = persistedSuggestions.filter((item: any) => item.isActive);
+
   return {
     summary: {
-      costDeviations: persistedDeviations.filter((item: any) => item.category === 'COST').length,
-      scheduleDeviations: persistedDeviations.filter((item: any) => item.category === 'SCHEDULE').length,
-      procurementDeviations: persistedDeviations.filter((item: any) => item.category === 'PROCUREMENT').length,
-      pendingSuggestions: persistedSuggestions.filter((item: any) => item.status === 'PENDING_REVIEW').length,
+      costDeviations: activeDeviations.filter((item: any) => item.category === 'COST').length,
+      scheduleDeviations: activeDeviations.filter((item: any) => item.category === 'SCHEDULE').length,
+      procurementDeviations: activeDeviations.filter((item: any) => item.category === 'PROCUREMENT').length,
+      pendingSuggestions: activeSuggestions.filter((item: any) => item.status === 'PENDING_REVIEW').length,
+      archivedSuggestions: persistedSuggestions.filter((item: any) => !item.isActive).length,
+      archivedDeviations: persistedDeviations.filter((item: any) => !item.isActive).length,
       notices,
     },
-    deviations: persistedDeviations,
-    suggestions: persistedSuggestions,
+    deviations: activeDeviations,
+    suggestions: activeSuggestions,
   };
 }
 
@@ -678,6 +823,7 @@ export async function getProjectLearning(projectId: string, refresh = false): Pr
   const deviations = await (db as any).learningDeviation.findMany({
     where: { projectId },
     orderBy: [
+      { isActive: 'desc' },
       { severity: 'desc' },
       { updatedAt: 'desc' },
     ],
@@ -686,20 +832,26 @@ export async function getProjectLearning(projectId: string, refresh = false): Pr
   const suggestions = await (db as any).recalibrationSuggestion.findMany({
     where: { projectId },
     orderBy: [
+      { isActive: 'desc' },
       { priority: 'desc' },
       { createdAt: 'desc' },
     ],
   });
 
+  const activeDeviations = deviations.filter((item: any) => item.isActive);
+  const activeSuggestions = suggestions.filter((item: any) => item.isActive);
+
   return {
     summary: {
-      costDeviations: deviations.filter((item: any) => item.category === 'COST').length,
-      scheduleDeviations: deviations.filter((item: any) => item.category === 'SCHEDULE').length,
-      procurementDeviations: deviations.filter((item: any) => item.category === 'PROCUREMENT').length,
-      pendingSuggestions: suggestions.filter((item: any) => item.status === 'PENDING_REVIEW').length,
+      costDeviations: activeDeviations.filter((item: any) => item.category === 'COST').length,
+      scheduleDeviations: activeDeviations.filter((item: any) => item.category === 'SCHEDULE').length,
+      procurementDeviations: activeDeviations.filter((item: any) => item.category === 'PROCUREMENT').length,
+      pendingSuggestions: activeSuggestions.filter((item: any) => item.status === 'PENDING_REVIEW').length,
+      archivedSuggestions: suggestions.filter((item: any) => !item.isActive).length,
+      archivedDeviations: deviations.filter((item: any) => !item.isActive).length,
       notices: [],
     },
-    deviations,
-    suggestions,
+    deviations: activeDeviations,
+    suggestions: activeSuggestions,
   };
 }

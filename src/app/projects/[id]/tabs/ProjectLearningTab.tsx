@@ -9,6 +9,8 @@ type LearningResponse = {
     scheduleDeviations: number;
     procurementDeviations: number;
     pendingSuggestions: number;
+    archivedSuggestions: number;
+    archivedDeviations: number;
     notices: string[];
   };
   deviations: any[];
@@ -113,6 +115,17 @@ export default function ProjectLearningTab({ projectId }: { projectId: string })
           {isRefreshing ? 'Recalculando...' : 'Recalcular aprendizaje'}
         </button>
       </div>
+
+      {(data?.summary.archivedDeviations || data?.summary.archivedSuggestions) ? (
+        <div className="glass-panel" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
+          <div style={{ color: 'var(--text-secondary)' }}>
+            Historico conservado: {data?.summary.archivedDeviations || 0} desvios inactivos
+          </div>
+          <div style={{ color: 'var(--text-secondary)' }}>
+            {data?.summary.archivedSuggestions || 0} sugerencias archivadas o fuera de ciclo
+          </div>
+        </div>
+      ) : null}
 
       {data?.summary.notices?.length ? (
         <div className="glass-panel" style={{ padding: '20px', borderLeft: '4px solid #f59e0b' }}>
