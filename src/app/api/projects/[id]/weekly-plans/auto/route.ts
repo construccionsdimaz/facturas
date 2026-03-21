@@ -21,7 +21,7 @@ function formatWeekName(start: Date, end: Date) {
   return `Semana ${start.toLocaleDateString('es-ES')} - ${end.toLocaleDateString('es-ES')}`;
 }
 
-function getPriority(activity: { name?: string; code?: string; plannedDuration?: number }) {
+function getPriority(activity: { name?: string; code?: string | null; plannedDuration?: number | null }) {
   const text = `${activity.name || ''} ${activity.code || ''}`.toLowerCase();
   if (/demolic|estructura|instal|legal|entrega|hito|licencia/.test(text)) return 'CLAVE';
   if (/pladur|alicat|pintur|suelo|carpinter|remate/.test(text)) return 'IMPORTANTE';
