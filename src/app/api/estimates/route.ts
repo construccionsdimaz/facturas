@@ -2,6 +2,18 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } from '@/lib/estimates/internal-analysis';
 
+function sanitizeEstimateItems(items: any[] = []) {
+  return items
+    .map((item) => ({
+      description: typeof item.description === 'string' ? item.description.trim() : '',
+      quantity: Number(item.quantity),
+      price: Number(item.price),
+      unit: typeof item.unit === 'string' && item.unit.trim() ? item.unit.trim() : 'ud',
+      chapter: typeof item.chapter === 'string' && item.chapter.trim() ? item.chapter.trim() : '01 GENERAL',
+    }))
+    .filter((item) => item.description || item.quantity > 0 || item.price > 0);
+}
+
 export async function GET() {
   try {
     const estimates = await db.estimate.findMany({
@@ -31,6 +43,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId } = body;
     const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
+    const normalizedItems = sanitizeEstimateItems(items);
 
     // Resolve Demo User
     let user = await db.user.findFirst();
@@ -47,6 +60,50 @@ export async function POST(request: Request) {
         );
     }
 
+    if (normalizedItems.length === 0) {
+      return NextResponse.json(
+        { error: 'El presupuesto debe incluir al menos una partida valida antes de guardarlo.' },
+        { status: 400 }
+      );
+    }
+
+    const invalidItem = normalizedItems.find(
+      (item) =>
+        !item.description ||
+        !Number.isFinite(item.quantity) ||
+        item.quantity <= 0 ||
+        !Number.isFinite(item.price) ||
+        item.price < 0
+    );
+
+    if (invalidItem) {
+      return NextResponse.json(
+        { error: 'Todas las partidas deben tener descripcion, cantidad mayor que 0 y precio valido.' },
+        { status: 400 }
+      );
+    }
+
+    if (projectId) {
+      const project = await db.project.findUnique({
+        where: { id: projectId },
+        select: { id: true, clientId: true },
+      });
+
+      if (!project) {
+        return NextResponse.json(
+          { error: 'La obra seleccionada no existe o ya no esta disponible.' },
+          { status: 400 }
+        );
+      }
+
+      if (project.clientId !== clientId) {
+        return NextResponse.json(
+          { error: 'La obra seleccionada no pertenece al cliente elegido.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const newEstimate = await db.estimate.create({
       data: {
         number,
@@ -59,7 +116,7 @@ export async function POST(request: Request) {
         projectId: projectId || null,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
-          create: items.map((item: any) => ({
+          create: normalizedItems.map((item: any) => ({
             description: item.description,
             quantity: item.quantity,
             price: item.price,

@@ -267,6 +267,16 @@ function NewEstimateContent() {
   };
 
   const selectedClient = clients.find(c => c.id === selectedClientId);
+  const meaningfulItems = items.filter((item) => item.description.trim() || item.quantity > 0 || item.price > 0);
+  const invalidItems = meaningfulItems.filter(
+    (item) =>
+      !item.description.trim() ||
+      !Number.isFinite(item.quantity) ||
+      item.quantity <= 0 ||
+      !Number.isFinite(item.price) ||
+      item.price < 0
+  );
+  const canSaveEstimate = Boolean(selectedClientId) && meaningfulItems.length > 0 && invalidItems.length === 0;
 
   const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[]; proposal: InternalProposal }) => {
     setItems(payload.items);
@@ -277,6 +287,14 @@ function NewEstimateContent() {
   const saveEstimate = async () => {
     if (!selectedClientId) {
       alert("Por favor selecciona un cliente antes de guardar.");
+      return;
+    }
+    if (meaningfulItems.length === 0) {
+      alert("Añade al menos una partida válida antes de guardar el presupuesto.");
+      return;
+    }
+    if (invalidItems.length > 0) {
+      alert("Revisa las partidas: todas deben tener descripción, cantidad mayor que 0 y precio válido.");
       return;
     }
     setIsSaving(true);
@@ -313,7 +331,10 @@ function NewEstimateContent() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(estimateData)
       });
-      if (!res.ok) throw new Error('Error al guardar');
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Error al guardar');
+      }
       setSaveSuccess('✓ Presupuesto guardado correctamente');
       setTimeout(() => setSaveSuccess(''), 4000);
       
@@ -321,8 +342,8 @@ function NewEstimateContent() {
       const currentNum = parseInt(estimateNumber.split('-').pop() || '0');
       setEstimateNumber(`PRE-${year}-${(currentNum + 1).toString().padStart(3, '0')}`);
       
-    } catch {
-      alert("Error al guardar el presupuesto.");
+    } catch (error: any) {
+      alert(error.message || "Error al guardar el presupuesto.");
     } finally {
       setIsSaving(false);
     }
@@ -371,7 +392,7 @@ function NewEstimateContent() {
           <button 
             className={`btn-primary ${styles.saveBtn}`} 
             onClick={saveEstimate}
-            disabled={isSaving}
+            disabled={isSaving || !canSaveEstimate}
           >
             {isSaving ? 'Guardando...' : '💾 Guardar Presupuesto'}
           </button>
@@ -385,6 +406,18 @@ function NewEstimateContent() {
               applyAutoProposal({ items, chapters, proposal });
             }}
           />
+
+          {(!selectedClientId || meaningfulItems.length === 0 || invalidItems.length > 0 || !internalProposal) && (
+            <div className={`glass-panel ${styles.card}`} style={{ border: '1px solid rgba(245, 158, 11, 0.35)', background: 'rgba(245, 158, 11, 0.08)' }}>
+              <h3 style={{ marginTop: 0 }}>Checklist mínimo antes de guardar</h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                <div>{selectedClientId ? '✅ Cliente seleccionado' : '⚠️ Falta seleccionar cliente'}</div>
+                <div>{meaningfulItems.length > 0 ? '✅ Hay partidas cargadas' : '⚠️ Falta añadir una partida válida'}</div>
+                <div>{invalidItems.length === 0 ? '✅ Partidas consistentes' : `⚠️ Hay ${invalidItems.length} partidas incompletas o inválidas`}</div>
+                <div>{internalProposal ? `✅ Propuesta interna conservada (${internalProposal.source}${internalProposal.typologyCode ? ` | ${internalProposal.typologyCode}` : ''})` : 'ℹ️ Puedes guardar sin propuesta automática, pero no tendrás análisis interno generado'}</div>
+              </div>
+            </div>
+          )}
 
           <div className={`glass-panel ${styles.card}`}>
             <h3>Datos del Presupuesto</h3>

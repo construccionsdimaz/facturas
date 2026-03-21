@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import styles from '@/app/invoices/page.module.css';
 
-export default function ProjectScheduleTab({ projectId }: { projectId: string }) {
+export default function ProjectScheduleTab({ projectId, project }: { projectId: string; project: any }) {
   const [activities, setActivities] = useState<any[]>([]);
   const [wbsOptions, setWbsOptions] = useState<any[]>([]);
   const [locationOptions, setLocationOptions] = useState<any[]>([]);
@@ -22,6 +22,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
   const [editingActivity, setEditingActivity] = useState<any>(null);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
   const [isRecalculating, setIsRecalculating] = useState(false);
+  const [plannerNotice, setPlannerNotice] = useState('');
 
   const initialForm = {
     name: '', code: '', wbsId: '', locationId: '', standardActivityId: '',
@@ -157,6 +158,9 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
 
       const data = await res.json();
       const issueSuffix = data.scheduling?.issues?.length ? ` | Avisos scheduler: ${data.scheduling.issues.length}` : '';
+      setPlannerNotice(
+        `Generado con ${data.source || 'MASTER'}${data.typologyCode ? ` | ${data.typologyCode}` : ''}${data.warnings?.length ? ` | Avisos de contexto: ${data.warnings.length}` : ''}${data.scheduling?.issues?.length ? ` | Avisos temporales: ${data.scheduling.issues.length}` : ''}`
+      );
       alert(`Planning generado: ${data.createdActivities} actividades, ${data.createdWbs} partidas y ${data.createdLocations} ubicaciones. Fuente: ${data.source || 'MASTER'}${data.typologyCode ? ` | Tipologia: ${data.typologyCode}` : ''}${data.scheduling?.scheduledWith ? ` | Cronograma: ${data.scheduling.scheduledWith}` : ''}${issueSuffix}`);
       fetchData();
     } catch (error: any) {
@@ -181,6 +185,9 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
       }
 
       const data = await res.json();
+      setPlannerNotice(
+        `Cronograma recalculado con ${data.scheduling?.scheduledWith || 'PROJECT_CALENDAR'}${data.scheduling?.issues?.length ? ` | Avisos temporales: ${data.scheduling.issues.length}` : ''}`
+      );
       alert(`Cronograma recalculado: ${data.updatedActivities} actividades | ${data.scheduling?.scheduledWith || 'PROJECT_CALENDAR'}${data.scheduling?.issues?.length ? ` | Avisos: ${data.scheduling.issues.length}` : ''}`);
       fetchData();
     } catch (error: any) {
@@ -217,6 +224,14 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
     const matchLoc = filterLocation ? a.locationId === filterLocation : true;
     return matchQ && matchLoc && matchWbs;
   });
+  const latestEstimate = project.estimates?.[0] || null;
+  const hasInternalEstimate = Boolean(latestEstimate?.internalAnalysis);
+  const scheduleWarnings = [
+    !project.calendar ? 'La obra no tenia calendario propio y la planificacion puede apoyarse en un calendario por defecto.' : null,
+    project.setupStatus !== 'READY_FOR_PLANNING' && project.setupStatus !== 'VALIDATED' ? 'La obra sigue marcada como no validada para planificacion.' : null,
+    !hasInternalEstimate ? 'No hay estimate con analisis interno guardado; el planning trabaja con menos contexto economico.' : null,
+    !project.projectType ? 'Falta tipologia o tipo de obra definido en setup.' : null,
+  ].filter(Boolean) as string[];
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -265,6 +280,22 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
           </button>
         </div>
       </div>
+
+      {(scheduleWarnings.length > 0 || plannerNotice) && (
+        <div className="glass-panel" style={{ padding: '18px', borderLeft: '4px solid #f59e0b' }}>
+          <h4 style={{ margin: '0 0 10px 0' }}>Contexto operativo del cronograma</h4>
+          {plannerNotice ? (
+            <div style={{ fontSize: '13px', color: '#bfdbfe', marginBottom: scheduleWarnings.length > 0 ? '10px' : 0 }}>
+              {plannerNotice}
+            </div>
+          ) : null}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+            {scheduleWarnings.map((warning) => (
+              <div key={warning}>⚠️ {warning}</div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* PANEL PRINCIPAL */}
       <div className="glass-panel" style={{ padding: '24px' }}>

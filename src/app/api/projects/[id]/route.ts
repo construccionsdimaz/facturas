@@ -7,7 +7,15 @@ const projectInclude = {
     orderBy: { createdAt: 'desc' as const }
   },
   estimates: {
-    orderBy: { createdAt: 'desc' as const }
+    orderBy: { createdAt: 'desc' as const },
+    include: {
+      items: true,
+      internalAnalysis: {
+        include: {
+          lines: true,
+        },
+      },
+    },
   },
   calendar: true,
   milestones: { orderBy: { targetDate: 'asc' as const } },
@@ -17,6 +25,12 @@ const projectInclude = {
   certifications: {
     include: { lines: true },
     orderBy: { date: 'desc' as const }
+  },
+  activities: {
+    orderBy: { createdAt: 'asc' as const },
+  },
+  supplies: {
+    orderBy: { createdAt: 'desc' as const },
   },
   imputedExpenses: {
     include: { companyExpense: true },

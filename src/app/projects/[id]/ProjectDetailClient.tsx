@@ -45,6 +45,8 @@ interface ProjectDetailClientProps {
     client: { name: string };
     invoices: any[];
     estimates: any[];
+    activities: any[];
+    supplies: any[];
     budgetLines: any[];
     expenses: any[];
     certifications: any[];
@@ -1145,7 +1147,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             <ProjectWBSTab project={project} />
           )}
           {activeTab === 'schedule' && (
-            <ProjectScheduleTab projectId={project.id} />
+            <ProjectScheduleTab projectId={project.id} project={project} />
           )}
           {activeTab === 'weekly' && (
             <ProjectWeeklyPlanTab projectId={project.id} />

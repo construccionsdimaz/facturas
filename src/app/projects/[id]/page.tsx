@@ -16,7 +16,15 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         orderBy: { createdAt: 'desc' }
       },
       estimates: {
-        orderBy: { createdAt: 'desc' }
+        orderBy: { createdAt: 'desc' },
+        include: {
+          items: true,
+          internalAnalysis: {
+            include: {
+              lines: true,
+            },
+          },
+        },
       },
       budgetLines: {
         orderBy: { createdAt: 'asc' }
@@ -41,6 +49,12 @@ export default async function ProjectDetailPage({ params }: { params: Promise<{ 
         orderBy: { targetDate: 'asc' }
       },
       constraints: {
+        orderBy: { createdAt: 'desc' }
+      },
+      activities: {
+        orderBy: { createdAt: 'asc' }
+      },
+      supplies: {
         orderBy: { createdAt: 'desc' }
       }
     }

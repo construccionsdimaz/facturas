@@ -86,7 +86,14 @@ export async function POST(
         estimates: {
           orderBy: { createdAt: 'desc' },
           take: 1,
-          include: { items: true },
+          include: {
+            items: true,
+            internalAnalysis: {
+              include: {
+                lines: true,
+              },
+            },
+          },
         },
         wbs: true,
         locations: true,
@@ -107,6 +114,7 @@ export async function POST(
 
     const sourceText = `${project.name} ${project.description || ''} ${project.observations || ''} ${project.projectType || ''}`;
     const latestEstimate = project.estimates[0];
+    const warnings: string[] = [];
     const estimateText = latestEstimate?.items?.map((item) => `${item.description} ${item.chapter} ${item.unit}`).join(' ') || '';
     const combinedText = `${sourceText} ${estimateText}`;
 
@@ -114,7 +122,8 @@ export async function POST(
     const scopeType = inferScopeType(combinedText, siteType);
     const workType = inferWorkType(scopeType);
     const accessLevel = inferAccessLevel(combinedText);
-    const area = parseArea(combinedText) || (siteType === 'EDIFICIO' ? 420 : siteType === 'LOCAL' ? 140 : siteType === 'OBRA_NUEVA' ? 180 : 95);
+    const detectedArea = parseArea(combinedText);
+    const area = detectedArea || (siteType === 'EDIFICIO' ? 420 : siteType === 'LOCAL' ? 140 : siteType === 'OBRA_NUEVA' ? 180 : 95);
     const bathrooms = inferCount(combinedText, [/(\d+)\s*ba(?:n|ñ)os?/i, /ba(?:n|ñ)os?\s*(\d+)/i], siteType === 'LOCAL' ? 1 : 2);
     const kitchens = inferCount(combinedText, [/(\d+)\s*cocinas?/i, /cocinas?\s*(\d+)/i], siteType === 'PISO' ? 1 : 0);
     const rooms = inferCount(combinedText, [/(\d+)\s*habitaciones?/i, /habitaciones?\s*(\d+)/i], siteType === 'EDIFICIO' ? 0 : 3);
@@ -122,6 +131,25 @@ export async function POST(
     const floors = inferCount(combinedText, [/(\d+)\s*plantas?/i, /(\d+)\s*niveles?/i], siteType === 'EDIFICIO' ? 4 : 1);
     const structuralWorks = /estructura|portante|forjado|pilar|redistrib|reconfigur|varias viviendas/i.test(combinedText);
     const hasElevator = !/sin ascensor|no ascensor/i.test(combinedText);
+
+    if (!latestEstimate) {
+      warnings.push('No hay estimate vinculado; el planning se genera solo con datos de obra e inferencias.');
+    }
+    if (latestEstimate && !latestEstimate.internalAnalysis) {
+      warnings.push('El ultimo estimate no conserva analisis interno; el planning automatico tiene menos base economica.');
+    }
+    if (!project.calendar) {
+      warnings.push('La obra no tenia calendario propio y se ha usado un calendario de referencia.');
+    }
+    if (!detectedArea) {
+      warnings.push(`No se ha detectado superficie explicita; se usa un area orientativa para ${siteType}.`);
+    }
+    if (!project.projectType) {
+      warnings.push('Falta tipo de obra en setup y la tipologia se ha inferido desde texto libre.');
+    }
+    if (project.setupStatus === 'INCOMPLETE') {
+      warnings.push('La obra sigue marcada como setup incompleto.');
+    }
 
     const blueprint = await generatePlanningBlueprint({
       name: project.name,
@@ -335,6 +363,7 @@ export async function POST(
       source: blueprint.source,
       typologyCode: blueprint.typologyCode || null,
       notes: blueprint.notes,
+      warnings,
       scheduling: {
         scheduledWith: scheduling.scheduledWith,
         startDate: scheduling.startDate,

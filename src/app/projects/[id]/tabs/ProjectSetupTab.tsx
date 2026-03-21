@@ -131,6 +131,54 @@ export default function ProjectSetupTab({ project, onUpdate }: ProjectSetupTabPr
 
   const isReady = project.manager && project.targetEndDate && project.calendar && project.milestones?.length > 0;
   const criticalConstraints = project.constraints?.filter((c:any) => c.status === 'ABIERTA' && (c.impact === 'BLOQUEANTE' || c.priority === 'CRITICA'));
+  const latestEstimate = project.estimates?.[0] || null;
+  const hasInternalEstimate = Boolean(latestEstimate?.internalAnalysis);
+  const hasPlanning = (project.activities?.length || 0) > 0;
+  const hasSupplies = (project.supplies?.length || 0) > 0;
+  const hasOperationalContext = Boolean(project.projectType && (project.description || project.observations));
+  const setupChecklist = [
+    {
+      label: 'Datos generales minimos',
+      ok: Boolean(project.manager && project.targetEndDate && project.projectType),
+      detail: project.manager && project.targetEndDate && project.projectType ? 'Responsable, tipo y fecha objetivo definidos.' : 'Falta responsable, tipo de obra o fecha objetivo.',
+    },
+    {
+      label: 'Contexto operativo describible',
+      ok: hasOperationalContext,
+      detail: hasOperationalContext ? 'La obra tiene descripcion u observaciones para inferencia y trazabilidad.' : 'Conviene describir alcance y condicionantes de la obra.',
+    },
+    {
+      label: 'Calendario de obra',
+      ok: Boolean(project.calendar),
+      detail: project.calendar ? `Calendario activo (${project.calendar.timeCriteria || 'LABORABLES'} | ${project.calendar.workHours || '08:00-18:00'}).` : 'Falta inicializar calendario base.',
+    },
+    {
+      label: 'Presupuesto con analisis interno',
+      ok: hasInternalEstimate,
+      detail: hasInternalEstimate ? `Ultimo estimate con capa interna (${latestEstimate?.internalAnalysis?.source || 'MASTER'}).` : 'No hay estimate con capa interna; la automatizacion operara con menos contexto.',
+    },
+    {
+      label: 'Planning generado',
+      ok: hasPlanning,
+      detail: hasPlanning ? `${project.activities.length} actividades en cronograma.` : 'Todavia no se ha generado el planning base.',
+    },
+    {
+      label: 'Supplies / procurement inicial',
+      ok: hasSupplies,
+      detail: hasSupplies ? `${project.supplies.length} necesidades de suministro registradas.` : 'Todavia no se han generado necesidades de compra ligadas al planning.',
+    },
+  ];
+  const nextRecommendedStep = !project.manager || !project.targetEndDate || !project.projectType
+    ? 'Completar datos generales minimos de la obra.'
+    : !project.calendar
+    ? 'Configurar el calendario base antes de planificar.'
+    : !hasInternalEstimate
+    ? 'Generar y guardar un presupuesto automatico con analisis interno.'
+    : !hasPlanning
+    ? 'Generar el planning automatico con fechas previstas.'
+    : !hasSupplies
+    ? 'Generar supplies y validar compras criticas.'
+    : 'La obra ya tiene base operativa para arrancar un piloto controlado.';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -172,6 +220,44 @@ export default function ProjectSetupTab({ project, onUpdate }: ProjectSetupTabPr
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '20px' }}>
+            <div className="glass-panel" style={{ padding: '20px', gridColumn: '1 / -1' }}>
+              <h4 style={{ margin: '0 0 16px 0' }}>Checklist operativo minimo</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+                {setupChecklist.map((item) => (
+                  <div key={item.label} style={{ padding: '14px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: `1px solid ${item.ok ? 'rgba(16, 185, 129, 0.28)' : 'rgba(245, 158, 11, 0.28)'}` }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', fontWeight: 600, marginBottom: '6px' }}>
+                      <span>{item.label}</span>
+                      <span>{item.ok ? '✅' : '⚠️'}</span>
+                    </div>
+                    <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{item.detail}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '20px', gridColumn: '1 / -1', borderLeft: '4px solid #3b82f6' }}>
+              <h4 style={{ margin: '0 0 8px 0' }}>Siguiente paso recomendado</h4>
+              <p style={{ margin: 0, color: 'var(--text-secondary)', fontSize: '14px' }}>{nextRecommendedStep}</p>
+            </div>
+
+            <div className="glass-panel" style={{ padding: '20px', gridColumn: '1 / -1' }}>
+              <h4 style={{ margin: '0 0 12px 0' }}>Datos mínimos operativos</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '14px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                <div>
+                  <strong style={{ color: '#fff' }}>Obligatorios de verdad</strong>
+                  <div style={{ marginTop: '6px' }}>Responsable, tipo de obra, fecha objetivo y calendario base.</div>
+                </div>
+                <div>
+                  <strong style={{ color: '#fff' }}>Muy recomendables</strong>
+                  <div style={{ marginTop: '6px' }}>Descripcion de alcance, estimate con analisis interno y al menos un hito principal.</div>
+                </div>
+                <div>
+                  <strong style={{ color: '#fff' }}>El sistema puede inferir</strong>
+                  <div style={{ marginTop: '6px' }}>Parte de la tipologia, unidades y magnitudes basicas, pero con mas riesgo si faltan datos.</div>
+                </div>
+              </div>
+            </div>
+
             {/* Box 1 */}
             <div className="glass-panel" style={{ padding: '20px', borderLeft: project.manager && project.targetEndDate ? '4px solid #10b981' : '4px solid #ef4444' }}>
               <h4 style={{ margin: '0 0 16px 0', display: 'flex', justifyContent: 'space-between' }}>
