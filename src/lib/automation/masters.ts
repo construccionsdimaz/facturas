@@ -163,6 +163,198 @@ const scopeFactor: Record<string, number> = {
   CAMBIO_USO: 1.2,
 };
 
+function buildComplexBuildingTypology(seed: {
+  code: string;
+  name: string;
+  description: string;
+  workType: string;
+  scopeType: string;
+  complexityFactor: number;
+  costSensitivity: number;
+  timeSensitivity: number;
+  operationalSensitivity: number;
+  includeFacade?: boolean;
+  includeKitchenPackage?: boolean;
+}) {
+  const kitchenPackage = seed.includeKitchenPackage === false
+    ? []
+    : [
+        {
+          code: 'COCINAS_OFFICE',
+          chapterCode: '05',
+          chapterName: 'ACABADOS Y EQUIPAMIENTO',
+          name: 'Kitchenettes, cocinas comunes y puntos de office',
+          unit: 'ud',
+          order: 58,
+          standardActivityCode: 'CAR-REM',
+          productivityRateName: 'Carpinteria y remates',
+          inclusionRule: { anyCountSources: ['kitchens'], fallbackUnlessScopeIn: ['CAMBIO_USO', 'REESTRUCTURACION', 'REHABILITACION'] },
+          measurementRule: { terms: [{ source: 'kitchens', factor: 1 }], min: 0.1 },
+          pricingRule: { materialRate: 2800, associatedRate: 180, commercialFactor: 1.28, fallbackLaborHoursPerUnit: 10 },
+        },
+      ];
+
+  const facadePackage = seed.includeFacade
+    ? [
+        {
+          code: 'ENVOLVENTE',
+          chapterCode: '07',
+          chapterName: 'ENVOLVENTE Y OBRAS EXTERIORES',
+          name: 'Fachadas, huecos, impermeabilizacion y ajustes de envolvente',
+          unit: 'm2',
+          order: 80,
+          standardActivityCode: 'ACA-GEN',
+          productivityRateName: 'Acabados generales',
+          inclusionRule: { worksAnyTags: ['tile', 'joinery'], fallbackUnlessScopeIn: ['REHABILITACION', 'CAMBIO_USO'] },
+          measurementRule: { terms: [{ source: 'area', factor: 0.12 }, { source: 'floors', factor: 18 }], min: 0.1 },
+          pricingRule: { materialRate: 45, associatedRate: 16, commercialFactor: 1.26, fallbackLaborHoursPerUnit: 0.24 },
+        },
+      ]
+    : [];
+
+  return {
+    code: seed.code,
+    name: seed.name,
+    description: seed.description,
+    workType: seed.workType,
+    siteType: 'EDIFICIO',
+    scopeType: seed.scopeType,
+    complexityFactor: seed.complexityFactor,
+    costSensitivity: seed.costSensitivity,
+    timeSensitivity: seed.timeSensitivity,
+    operationalSensitivity: seed.operationalSensitivity,
+    costItems: [
+      {
+        code: 'PRELIMINARES',
+        chapterCode: '01',
+        chapterName: 'IMPLANTACION Y SEGURIDAD',
+        name: 'Implantacion, protecciones, sectorizacion y medios auxiliares de edificio',
+        unit: 'ud',
+        lineKind: 'PROVISIONAL',
+        order: 10,
+        standardActivityCode: 'PRE-IMPL',
+        productivityRateName: 'Implantacion base',
+        measurementRule: { base: 1, terms: [{ source: 'floors', factor: 0.12 }, { source: 'units', factor: 0.05 }] },
+        pricingRule: { materialRate: 420, associatedRate: 240, commercialFactor: 1.2, fallbackLaborHoursPerUnit: 18 },
+      },
+      {
+        code: 'DEMOLICION',
+        chapterCode: '02',
+        chapterName: 'DEMOLICIONES Y DESMONTAJES',
+        name: 'Demolicion interior, desmontajes y retirada selectiva',
+        unit: 'm2',
+        order: 20,
+        standardActivityCode: 'DEM-RET',
+        productivityRateName: 'Demolicion interior',
+        inclusionRule: { worksAnyTags: ['demolition'], fallbackUnlessScopeIn: ['CAMBIO_USO', 'REESTRUCTURACION', 'REHABILITACION'] },
+        measurementRule: { terms: [{ source: 'area', factor: 0.42 }, { source: 'rooms', factor: 2 }], conditionalTerms: [{ tag: 'demolition', source: 'area', factor: 0.32 }], min: 0.1 },
+        pricingRule: { materialRate: 14, associatedRate: 30, commercialFactor: 1.24, fallbackLaborHoursPerUnit: 0.3 },
+      },
+      {
+        code: 'REDISTRIBUCION',
+        chapterCode: '03',
+        chapterName: 'ALBANILERIA Y REDISTRIBUCION',
+        name: 'Nuevas distribuciones, pladur, cierres y regularizacion',
+        unit: 'm2',
+        order: 30,
+        standardActivityCode: 'ALB-INT',
+        productivityRateName: 'Albanileria interior',
+        inclusionRule: { worksAnyTags: ['plasterboard'], includeIfStructural: true, fallbackUnlessScopeIn: ['REESTRUCTURACION', 'CAMBIO_USO', 'REHABILITACION'] },
+        measurementRule: { terms: [{ source: 'area', factor: 0.2 }, { source: 'rooms', factor: 4 }, { source: 'units', factor: 6 }], conditionalTerms: [{ tag: 'plasterboard', source: 'area', factor: 0.24 }], min: 0.1 },
+        pricingRule: { materialRate: 32, associatedRate: 12, commercialFactor: 1.25, fallbackLaborHoursPerUnit: 0.26 },
+      },
+      {
+        code: 'INSTALACIONES',
+        chapterCode: '04',
+        chapterName: 'INSTALACIONES GENERALES',
+        name: 'Electricidad, fontaneria, saneamiento, ventilacion y climatizacion base',
+        unit: 'punto',
+        order: 40,
+        standardActivityCode: 'INS-GEN',
+        productivityRateName: 'Instalaciones interiores',
+        inclusionRule: { worksAnyTags: ['installations'], fallbackUnlessScopeIn: ['CAMBIO_USO', 'REESTRUCTURACION', 'REHABILITACION'] },
+        measurementRule: { terms: [{ source: 'area', factor: 0.55 }, { source: 'bathrooms', factor: 16 }, { source: 'kitchens', factor: 12 }, { source: 'rooms', factor: 3.5 }], conditionalTerms: [{ tag: 'installations', source: 'area', factor: 0.28 }], min: 0.1 },
+        pricingRule: { materialRate: 52, associatedRate: 17, commercialFactor: 1.29, fallbackLaborHoursPerUnit: 0.36 },
+      },
+      {
+        code: 'BANOS_REPETITIVOS',
+        chapterCode: '05',
+        chapterName: 'ACABADOS Y EQUIPAMIENTO',
+        name: 'Banos repetitivos, alicatados y aparatos sanitarios',
+        unit: 'ud',
+        order: 50,
+        standardActivityCode: 'ACA-GEN',
+        productivityRateName: 'Acabados generales',
+        inclusionRule: { anyCountSources: ['bathrooms'], fallbackUnlessScopeIn: ['CAMBIO_USO', 'REESTRUCTURACION', 'REHABILITACION'] },
+        measurementRule: { terms: [{ source: 'bathrooms', factor: 1 }], min: 0.1 },
+        pricingRule: { materialRate: 2350, associatedRate: 120, commercialFactor: 1.27, fallbackLaborHoursPerUnit: 11 },
+      },
+      ...kitchenPackage,
+      {
+        code: 'ACABADOS_HAB',
+        chapterCode: '05',
+        chapterName: 'ACABADOS Y EQUIPAMIENTO',
+        name: 'Suelos, pintura, techos y acabados de habitaciones y unidades',
+        unit: 'm2',
+        order: 60,
+        standardActivityCode: 'ACA-GEN',
+        productivityRateName: 'Acabados generales',
+        measurementRule: { terms: [{ source: 'area', factor: 0.84 }], min: 0.1 },
+        pricingRule: { materialRate: 34, associatedRate: 9, commercialFactor: 1.25, fallbackLaborHoursPerUnit: 0.18 },
+      },
+      {
+        code: 'ZONAS_COMUNES',
+        chapterCode: '06',
+        chapterName: 'ZONAS COMUNES Y REMATES',
+        name: 'Portales, pasillos, escaleras, office comun y remates generales',
+        unit: 'm2',
+        order: 70,
+        standardActivityCode: 'CAR-REM',
+        productivityRateName: 'Carpinteria y remates',
+        measurementRule: { terms: [{ source: 'area', factor: 0.18 }, { source: 'floors', factor: 6 }], min: 0.1 },
+        pricingRule: { materialRate: 48, associatedRate: 14, commercialFactor: 1.24, fallbackLaborHoursPerUnit: 0.22 },
+      },
+      ...facadePackage,
+      {
+        code: 'CIERRE',
+        chapterCode: '08',
+        chapterName: 'LIMPIEZA Y ENTREGA',
+        name: 'Limpieza final, legalizacion documental y entrega',
+        unit: 'ud',
+        lineKind: 'ASSOCIATED',
+        order: 90,
+        standardActivityCode: 'ENT-CIE',
+        productivityRateName: 'Cierre y entrega',
+        measurementRule: { base: 1, terms: [{ source: 'units', factor: 0.08 }] },
+        pricingRule: { materialRate: 120, associatedRate: 65, commercialFactor: 1.2, fallbackLaborHoursPerUnit: 10 },
+      },
+    ],
+    locationTemplates: [
+      { code: 'site-root', name: 'Edificio', type: 'EDIFICIO', order: 10, generationMode: 'FIXED', quantityRule: { count: 1 } },
+      { code: 'floor', name: 'Planta', type: 'PLANTA', parentCode: 'site-root', order: 20, generationMode: 'COUNT', quantityRule: { source: 'floors', fallback: 2 } },
+      { code: 'unit', name: 'Unidad', type: 'VIVIENDA', parentCode: 'site-root', order: 30, generationMode: 'COUNT', quantityRule: { source: 'units', fallback: 4 } },
+      { code: 'room', name: 'Habitacion', type: 'HABITACION', parentCode: 'site-root', order: 40, generationMode: 'COUNT', quantityRule: { source: 'rooms', fallback: 8 } },
+      { code: 'bath', name: 'Bano', type: 'BANO', parentCode: 'site-root', order: 50, generationMode: 'COUNT', quantityRule: { source: 'bathrooms', fallback: 4 } },
+      { code: 'kitchen', name: 'Cocina / kitchenette', type: 'COCINA', parentCode: 'site-root', order: 60, generationMode: 'COUNT', quantityRule: { source: 'kitchens', fallback: 2 } },
+      { code: 'common', name: 'Zonas comunes', type: 'ZONA_COMUN', parentCode: 'site-root', order: 70, generationMode: 'FIXED', quantityRule: { count: 1 } },
+    ],
+    activityTemplates: [
+      { code: 'ACT-PRELIM', standardActivityCode: 'PRE-IMPL', wbsCode: '01', locationCode: 'site-root', costItemCode: 'PRELIMINARES', order: 10 },
+      { code: 'ACT-DEM', standardActivityCode: 'DEM-RET', wbsCode: '02', locationCode: 'site-root', costItemCode: 'DEMOLICION', order: 20, dependencyType: 'FS', lagDays: 0 },
+      { code: 'ACT-RED', standardActivityCode: 'ALB-INT', wbsCode: '03', locationCode: 'floor', costItemCode: 'REDISTRIBUCION', order: 30, dependencyType: 'FS', lagDays: 0 },
+      { code: 'ACT-INS', standardActivityCode: 'INS-GEN', wbsCode: '04', locationCode: 'room', costItemCode: 'INSTALACIONES', order: 40, dependencyType: 'FS', lagDays: 0 },
+      { code: 'ACT-BAN', standardActivityCode: 'ACA-GEN', wbsCode: '05', locationCode: 'bath', costItemCode: 'BANOS_REPETITIVOS', order: 50, dependencyType: 'FS', lagDays: 0 },
+      ...(seed.includeKitchenPackage === false
+        ? []
+        : [{ code: 'ACT-KIT', standardActivityCode: 'CAR-REM', wbsCode: '05', locationCode: 'kitchen', costItemCode: 'COCINAS_OFFICE', order: 55, dependencyType: 'FS', lagDays: 0 }]),
+      { code: 'ACT-ACA', standardActivityCode: 'ACA-GEN', wbsCode: '05', locationCode: 'room', costItemCode: 'ACABADOS_HAB', order: 60, dependencyType: 'FS', lagDays: 0 },
+      { code: 'ACT-COM', standardActivityCode: 'CAR-REM', wbsCode: '06', locationCode: 'common', costItemCode: 'ZONAS_COMUNES', order: 70, dependencyType: 'FS', lagDays: 0 },
+      ...(seed.includeFacade ? [{ code: 'ACT-FAC', standardActivityCode: 'ACA-GEN', wbsCode: '07', locationCode: 'site-root', costItemCode: 'ENVOLVENTE', order: 80, dependencyType: 'FS', lagDays: 0 }] : []),
+      { code: 'ACT-CIE', standardActivityCode: 'ENT-CIE', wbsCode: '08', locationCode: 'site-root', costItemCode: 'CIERRE', order: 90, dependencyType: 'FS', lagDays: 0 },
+    ],
+  } satisfies TypologySeed;
+}
+
 export function detectWorkTags(text: string) {
   const value = (text || '').toLowerCase();
   return {
@@ -490,10 +682,75 @@ const TYPOLOGY_SEEDS: TypologySeed[] = [
       { code: 'ACT-CIE', standardActivityCode: 'ENT-CIE', wbsCode: '07', locationCode: 'site-root', order: 50 },
     ],
   },
+  buildComplexBuildingTypology({
+    code: 'REHABILITACION_EDIFICIO_BASE',
+    name: 'Rehabilitacion ligera edificio',
+    description: 'Tipologia base para rehabilitacion ligera de edificio, hotel o inmueble multiunidad',
+    workType: 'REHABILITACION_LIGERA',
+    scopeType: 'REHABILITACION',
+    complexityFactor: 1.18,
+    costSensitivity: 1.16,
+    timeSensitivity: 1.18,
+    operationalSensitivity: 1.18,
+    includeFacade: true,
+    includeKitchenPackage: true,
+  }),
+  buildComplexBuildingTypology({
+    code: 'EDIFICIO_REESTRUCTURACION_BASE',
+    name: 'Reestructuracion edificio completa',
+    description: 'Tipologia base para redistribucion intensa, instalaciones completas y reforma integral de edificio',
+    workType: 'REHABILITACION_LIGERA',
+    scopeType: 'REESTRUCTURACION',
+    complexityFactor: 1.28,
+    costSensitivity: 1.24,
+    timeSensitivity: 1.26,
+    operationalSensitivity: 1.24,
+    includeFacade: false,
+    includeKitchenPackage: true,
+  }),
+  buildComplexBuildingTypology({
+    code: 'EDIFICIO_CAMBIO_USO_BASE',
+    name: 'Cambio de uso edificio',
+    description: 'Tipologia base para cambio de uso de edificio con redistribucion, instalaciones completas y repeticion de habitaciones o unidades',
+    workType: 'REHABILITACION_LIGERA',
+    scopeType: 'CAMBIO_USO',
+    complexityFactor: 1.32,
+    costSensitivity: 1.28,
+    timeSensitivity: 1.3,
+    operationalSensitivity: 1.3,
+    includeFacade: true,
+    includeKitchenPackage: true,
+  }),
+  buildComplexBuildingTypology({
+    code: 'COLIVING_REESTRUCTURACION_BASE',
+    name: 'Coliving multiunidad',
+    description: 'Tipologia base para coliving, habitaciones repetitivas, banos, kitchenettes y zonas comunes',
+    workType: 'COLIVING',
+    scopeType: 'REESTRUCTURACION',
+    complexityFactor: 1.3,
+    costSensitivity: 1.26,
+    timeSensitivity: 1.28,
+    operationalSensitivity: 1.3,
+    includeFacade: false,
+    includeKitchenPackage: true,
+  }),
+  buildComplexBuildingTypology({
+    code: 'COLIVING_CAMBIO_USO_BASE',
+    name: 'Coliving por cambio de uso',
+    description: 'Tipologia base para cambio de uso a coliving con repeticion de habitaciones, banos y kitchenettes',
+    workType: 'COLIVING',
+    scopeType: 'CAMBIO_USO',
+    complexityFactor: 1.36,
+    costSensitivity: 1.3,
+    timeSensitivity: 1.34,
+    operationalSensitivity: 1.34,
+    includeFacade: true,
+    includeKitchenPackage: true,
+  }),
 ];
 
 const AUTOMATION_SEED_KEY = 'automation-masters';
-export const AUTOMATION_SEED_VERSION = 2;
+export const AUTOMATION_SEED_VERSION = 3;
 
 async function upsertStandardActivities(client: any = db) {
   for (const seed of STANDARD_ACTIVITY_SEEDS) {
