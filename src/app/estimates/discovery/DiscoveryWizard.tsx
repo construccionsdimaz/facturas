@@ -30,6 +30,11 @@ export default function DiscoveryWizard() {
   const [clients, setClients] = useState<Client[]>([]);
   const [projectName, setProjectName] = useState('');
   const [clientId, setClientId] = useState<string>(clientIdFromQuery || '');
+  const [clientSearch, setClientSearch] = useState('');
+  const [showClientDropdown, setShowClientDropdown] = useState(false);
+  const [showQuickCreateClient, setShowQuickCreateClient] = useState(false);
+  const [quickClientName, setQuickClientName] = useState('');
+  const [isCreatingClient, setIsCreatingClient] = useState(false);
   const [budgetGoal, setBudgetGoal] = useState<BudgetGoal>('COMERCIAL');
   const [precisionMode, setPrecisionMode] = useState<PrecisionMode>('MEDIO');
   const [completionStep, setCompletionStep] = useState(1);
@@ -44,6 +49,14 @@ export default function DiscoveryWizard() {
   useEffect(() => {
     fetch('/api/clients').then((res) => res.json()).then((data) => setClients(data || [])).catch(() => setClients([]));
   }, []);
+
+  useEffect(() => {
+    if (!clientId) return;
+    const selectedClient = clients.find((client) => client.id === clientId);
+    if (selectedClient) {
+      setClientSearch(selectedClient.name);
+    }
+  }, [clientId, clients]);
 
   useEffect(() => {
     let mounted = true;
@@ -74,6 +87,9 @@ export default function DiscoveryWizard() {
         if (!mounted) return;
         setSessionId(data.id);
         setClientId(data.clientId || resolvedClientId || '');
+        if (data.client?.name) {
+          setClientSearch(data.client.name);
+        }
         setProjectName(resolvedProjectName);
         setBudgetGoal(data.budgetGoal);
         setPrecisionMode(data.precisionMode);
@@ -127,6 +143,11 @@ export default function DiscoveryWizard() {
   const derivedPreview = useMemo(() => deriveInputFromSession(sessionData, budgetGoal, precisionMode, evaluation.warnings, evaluation.assumptions, evaluation.confidenceLevel), [budgetGoal, evaluation.assumptions, evaluation.confidenceLevel, evaluation.warnings, precisionMode, sessionData]);
   const summaryPreview = useMemo(() => buildDiscoverySummary(sessionData, evaluation.assumptions, evaluation.warnings, derivedPreview.workType), [derivedPreview.workType, evaluation.assumptions, evaluation.warnings, sessionData]);
   const selectedAreas = sessionData.areas.filter((area) => area.selected);
+  const filteredClients = useMemo(() => {
+    const query = clientSearch.trim().toLowerCase();
+    if (!query) return clients.slice(0, 8);
+    return clients.filter((client) => client.name.toLowerCase().includes(query)).slice(0, 8);
+  }, [clientSearch, clients]);
 
   const setAssetType = (assetType: DiscoveryAssetType) => {
     const nextDefaults = createEmptyDiscoverySessionData(assetType);
@@ -177,6 +198,39 @@ export default function DiscoveryWizard() {
 
   const goStep = (nextStep: number) => setCompletionStep(Math.max(1, Math.min(DISCOVERY_STEPS.length, nextStep)));
 
+  const handleQuickCreateClient = async () => {
+    const name = quickClientName.trim();
+    if (!name) {
+      alert('Indica el nombre del cliente.');
+      return;
+    }
+
+    setIsCreatingClient(true);
+    try {
+      const res = await fetch('/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          category: 'CLIENTE',
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'No se pudo crear el cliente');
+
+      setClients((current) => [data, ...current]);
+      setClientId(data.id);
+      setClientSearch(data.name);
+      setQuickClientName('');
+      setShowQuickCreateClient(false);
+      setShowClientDropdown(false);
+    } catch (error: any) {
+      alert(error.message || 'Error creando cliente');
+    } finally {
+      setIsCreatingClient(false);
+    }
+  };
+
   const handleGenerate = async () => {
     if (!sessionId) return;
     if (!evaluation.canGenerate) {
@@ -224,7 +278,89 @@ export default function DiscoveryWizard() {
 
         {completionStep === 1 && (
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-            {!projectId && <div className="formGroup"><label>Cliente</label><select className="input-modern" value={clientId} onChange={(e) => setClientId(e.target.value)}><option value="">Seleccionar cliente...</option>{clients.map((client) => <option key={client.id} value={client.id}>{client.name}</option>)}</select></div>}
+            {!projectId && (
+              <div className="formGroup" style={{ position: 'relative' }}>
+                <label>Cliente</label>
+                <input
+                  type="text"
+                  className="input-modern"
+                  placeholder="Buscar cliente..."
+                  value={clientSearch}
+                  onChange={(e) => {
+                    setClientSearch(e.target.value);
+                    setClientId('');
+                    setShowClientDropdown(true);
+                  }}
+                  onFocus={() => setShowClientDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowClientDropdown(false), 180)}
+                />
+                {showClientDropdown && (
+                  <div
+                    style={{
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      zIndex: 30,
+                      marginTop: '6px',
+                      borderRadius: '10px',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      background: '#161b2e',
+                      maxHeight: '260px',
+                      overflowY: 'auto',
+                      boxShadow: '0 18px 40px rgba(0,0,0,0.35)',
+                    }}
+                  >
+                    {filteredClients.length > 0 ? (
+                      filteredClients.map((client) => (
+                        <button
+                          key={client.id}
+                          type="button"
+                          onMouseDown={() => {
+                            setClientId(client.id);
+                            setClientSearch(client.name);
+                            setShowClientDropdown(false);
+                          }}
+                          style={{
+                            display: 'block',
+                            width: '100%',
+                            textAlign: 'left',
+                            background: 'transparent',
+                            color: 'white',
+                            border: 'none',
+                            padding: '10px 12px',
+                            cursor: 'pointer',
+                          }}
+                        >
+                          {client.name}
+                        </button>
+                      ))
+                    ) : (
+                      <div style={{ padding: '10px 12px', color: 'var(--text-secondary)' }}>
+                        No hay coincidencias para esta búsqueda.
+                      </div>
+                    )}
+                    <div style={{ padding: '10px 12px', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                      <button
+                        type="button"
+                        className="btn-secondary"
+                        onMouseDown={() => {
+                          setQuickClientName(clientSearch.trim());
+                          setShowQuickCreateClient(true);
+                          setShowClientDropdown(false);
+                        }}
+                        style={{ width: '100%' }}
+                      >
+                        + Crear cliente nuevo
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-muted)' }}>
+                  {clientId ? 'Cliente vinculado correctamente.' : 'Busca el cliente por nombre o créalo al momento.'}
+                </div>
+              </div>
+            )}
             <div className="formGroup" style={{ gridColumn: '1 / -1' }}><label>Que quieres hacer</label><textarea className="input-modern" rows={3} value={sessionData.classification.freeTextBrief || ''} onChange={(e) => setSessionData((current) => ({ ...current, classification: { ...current.classification, freeTextBrief: e.target.value, certainty: 'ESTIMADO' } }))} /></div>
             <div className="formGroup"><label>Tipo de intervencion</label><select className="input-modern" value={sessionData.classification.interventionType} onChange={(e) => setSessionData((current) => ({ ...current, classification: { ...current.classification, interventionType: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="OBRA_NUEVA">Obra nueva</option><option value="REFORMA">Reforma</option><option value="REHABILITACION">Rehabilitacion</option><option value="ADECUACION">Adecuacion</option><option value="REDISTRIBUCION">Redistribucion</option><option value="REPARACION">Reparacion</option><option value="AMPLIACION">Ampliacion</option></select></div>
             <div className="formGroup"><label>Tipo de inmueble</label><select className="input-modern" value={sessionData.classification.assetType} onChange={(e) => setAssetType(e.target.value as DiscoveryAssetType)}><option value="PISO">Piso</option><option value="CASA">Casa</option><option value="EDIFICIO">Edificio</option><option value="LOCAL">Local</option><option value="OFICINA">Oficina</option><option value="NAVE">Nave</option><option value="HOTEL">Hotel</option><option value="COLIVING">Coliving</option><option value="EXTERIOR">Exterior</option></select></div>
@@ -258,6 +394,35 @@ export default function DiscoveryWizard() {
           {completionStep < DISCOVERY_STEPS.length ? <button className="btn-primary" type="button" onClick={() => goStep(completionStep + 1)}>Siguiente</button> : <button className="btn-primary" type="button" onClick={handleGenerate} disabled={isGenerating || (!clientId && !projectId)}>{isGenerating ? 'Generando...' : 'Generar propuesta y abrir editor'}</button>}
         </div>
       </div>
+
+      {showQuickCreateClient && (
+        <div className="modal-backdrop" style={{ zIndex: 2000 }}>
+          <div className="modal-content glass-panel" style={{ maxWidth: '420px' }}>
+            <h3>Crear cliente rápido</h3>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', marginBottom: '18px' }}>
+              Regístralo ahora y continúa el discovery sin salir del presupuesto.
+            </p>
+            <div className="formGroup">
+              <label>Nombre del cliente</label>
+              <input
+                type="text"
+                className="input-modern"
+                value={quickClientName}
+                onChange={(e) => setQuickClientName(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '18px' }}>
+              <button type="button" className="btn-secondary" onClick={() => setShowQuickCreateClient(false)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-primary" onClick={handleQuickCreateClient} disabled={isCreatingClient}>
+                {isCreatingClient ? 'Creando...' : 'Crear cliente'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
