@@ -16,6 +16,7 @@ import ProjectSetupTab from './tabs/ProjectSetupTab';
 import ProjectLocationsTab from './tabs/ProjectLocationsTab';
 import ProjectWBSTab from './tabs/ProjectWBSTab';
 import ProjectScheduleTab from './tabs/ProjectScheduleTab';
+import ProjectWeeklyPlanTab from './tabs/ProjectWeeklyPlanTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -49,7 +50,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
   );
   
@@ -1022,6 +1023,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             📅 Cronograma Control
           </button>
           <button
+            onClick={() => setActiveTab('weekly')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'weekly' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'weekly' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🎯 Plan Semanal
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -1061,6 +1075,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'schedule' && (
             <ProjectScheduleTab projectId={project.id} />
+          )}
+          {activeTab === 'weekly' && (
+            <ProjectWeeklyPlanTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (

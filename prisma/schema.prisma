@@ -660,6 +660,8 @@ model ProjectActivity {
   predecessorLinks ActivityDependency[] @relation("SuccessorLinks")
   successorLinks   ActivityDependency[] @relation("PredecessorLinks")
   
+  weeklyPlanInclusions WeeklyPlanActivity[]
+  
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -684,4 +686,44 @@ model ActivityDependency {
   updatedAt       DateTime @updatedAt
 
   @@unique([predecessorId, successorId])
+}
+
+// Phase 54: Plan Semanal (Compromiso Operativo)
+model WeeklyPlan {
+  id              String   @id @default(cuid())
+  projectId       String
+  project         Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  
+  weekName        String   // Ej: "2024-W42" o "Semana 42"
+  startDate       DateTime?
+  endDate         DateTime?
+  
+  generalManager  String?  // Responsable general de la semana
+  status          String   @default("BORRADOR") // BORRADOR, ACTIVO, CERRADO
+  observations    String?  @db.Text
+  
+  activities      WeeklyPlanActivity[]
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model WeeklyPlanActivity {
+  id              String   @id @default(cuid())
+  weeklyPlanId    String
+  weeklyPlan      WeeklyPlan @relation(fields: [weeklyPlanId], references: [id], onDelete: Cascade)
+  
+  projectActivityId String
+  projectActivity   ProjectActivity @relation(fields: [projectActivityId], references: [id], onDelete: Cascade)
+  
+  // Datos tácticos
+  priority        String   @default("NORMAL")     // CLAVE, IMPORTANTE, NORMAL, REMATE
+  weeklyStatus    String   @default("PENDIENTE")  // PENDIENTE, EN_CURSO, COMPLETADA, NO_INICIADA, BLOQUEADA, CANCELADA, INCOMPLETA
+  executionDays   String?  // Ej: "L, M, X"
+  operationalNotes String? @db.Text
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([weeklyPlanId, projectActivityId])
 }
