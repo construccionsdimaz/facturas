@@ -2,14 +2,10 @@
 
 import { AREA_ACTION_CATALOG, AREA_LABELS, WORK_CODE_LABELS } from '@/lib/discovery/catalogs';
 import { createDefaultTemplate } from '@/lib/discovery/defaults';
-import {
-  createSuggestedStructuredSeed,
-  mapActionCodeToWorkCodes,
-} from '@/lib/discovery/resolve-spatial-model';
+import { createSuggestedStructuredSeed, mapActionCodeToWorkCodes } from '@/lib/discovery/resolve-spatial-model';
 import type {
   AreaActionCode,
   AreaType,
-  DiscoveryAreaAction,
   DiscoverySessionData,
   FloorNode,
   SpaceGroup,
@@ -30,15 +26,6 @@ function slugify(value: string) {
     .trim()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/(^-|-$)/g, '') || 'item';
-}
-
-function buildAction(actionCode: AreaActionCode): DiscoveryAreaAction {
-  return {
-    actionCode,
-    coverage: 'TOTAL',
-    replaceMode: 'SUSTITUIR',
-    certainty: 'ESTIMADO',
-  };
 }
 
 function buildGroup(groupLabel: string, areaType: AreaType, count: number): SpaceGroup {
@@ -82,9 +69,16 @@ function buildInstance(params: {
   } satisfies SpaceInstance;
 }
 
+function titleCaseAction(actionCode: AreaActionCode) {
+  return actionCode.toLowerCase().replaceAll('_', ' ');
+}
+
 export default function StructuredSpatialEditor({ data, onChange }: Props) {
   const suggestedSeed = createSuggestedStructuredSeed(data.classification.assetType);
   const selectedFloors = data.spatialModel.floors.filter((floor) => floor.selected);
+  const isColivingLike = data.classification.assetType === 'COLIVING' || data.classification.assetType === 'HOTEL';
+  const instanceNoun = isColivingLike ? 'habitacion real' : 'instancia real';
+  const instanceNounPlural = isColivingLike ? 'habitaciones reales' : 'instancias reales';
 
   const addFloor = () => {
     onChange((current) => {
@@ -122,6 +116,23 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
     }));
   };
 
+  const removeFloor = (floorId: string) => {
+    onChange((current) => ({
+      ...current,
+      spatialModel: {
+        ...current.spatialModel,
+        floors: current.spatialModel.floors.filter((floor) => floor.floorId !== floorId),
+        groups: current.spatialModel.groups.map((group) => ({
+          ...group,
+          floorIds: (group.floorIds || []).filter((id) => id !== floorId),
+        })),
+        instances: current.spatialModel.instances.map((instance) =>
+          instance.floorId === floorId ? { ...instance, floorId: null } : instance
+        ),
+      },
+    }));
+  };
+
   const addGroup = () => {
     onChange((current) => {
       const nextLabel = `${AREA_LABELS[suggestedSeed.baseAreaType]} tipo ${current.spatialModel.groups.length + 1}`;
@@ -149,6 +160,17 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
         groups: current.spatialModel.groups.map((group) =>
           group.groupId === groupId ? updater(group) : group
         ),
+      },
+    }));
+  };
+
+  const removeGroup = (groupId: string) => {
+    onChange((current) => ({
+      ...current,
+      spatialModel: {
+        ...current.spatialModel,
+        groups: current.spatialModel.groups.filter((group) => group.groupId !== groupId),
+        instances: current.spatialModel.instances.filter((instance) => instance.groupId !== groupId),
       },
     }));
   };
@@ -195,7 +217,7 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
           instances: [
             ...current.spatialModel.instances,
             buildInstance({
-              label: `Instancia singular ${current.spatialModel.instances.length + 1}`,
+              label: `${isColivingLike ? 'Habitacion' : 'Instancia'} singular ${current.spatialModel.instances.length + 1}`,
               areaType: suggestedSeed.baseAreaType,
               floorId: firstFloorId,
             }),
@@ -212,6 +234,18 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
         ...current.spatialModel,
         instances: current.spatialModel.instances.map((instance) =>
           instance.instanceId === instanceId ? updater(instance) : instance
+        ),
+      },
+    }));
+  };
+
+  const removeInstance = (instanceId: string) => {
+    onChange((current) => ({
+      ...current,
+      spatialModel: {
+        ...current.spatialModel,
+        instances: current.spatialModel.instances.filter(
+          (instance) => instance.instanceId !== instanceId && instance.parentInstanceId !== instanceId
         ),
       },
     }));
@@ -256,11 +290,6 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
           : [...currentActions, nextAction]
         : currentActions.filter((action) => action.actionCode !== actionCode);
 
-      const nextWorkCodes = new Set<WorkCode>(data.macroScope.workCodes);
-      if (checked) {
-        for (const workCode of mapActionCodeToWorkCodes(actionCode)) nextWorkCodes.add(workCode);
-      }
-
       return {
         ...group,
         template: {
@@ -279,17 +308,15 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
       };
     });
 
-    if (checked) {
-      onChange((current) => ({
-        ...current,
-        macroScope: {
-          ...current.macroScope,
-          workCodes: Array.from(
-            new Set([...current.macroScope.workCodes, ...mapActionCodeToWorkCodes(actionCode)])
-          ),
-        },
-      }));
-    }
+    onChange((current) => ({
+      ...current,
+      macroScope: {
+        ...current.macroScope,
+        workCodes: checked
+          ? Array.from(new Set([...current.macroScope.workCodes, ...mapActionCodeToWorkCodes(actionCode)]))
+          : current.macroScope.workCodes,
+      },
+    }));
   };
 
   return (
@@ -299,12 +326,17 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
         <div style={{ marginTop: '6px', color: 'var(--text-secondary)', fontSize: '14px' }}>
           Usa plantas, grupos repetitivos, instancias reales y excepciones solo donde haga falta.
         </div>
+        <div style={{ marginTop: '12px', display: 'grid', gap: '6px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+          <div><strong style={{ color: 'white' }}>Grupo:</strong> un tipo repetitivo. Ejemplo: "Habitacion tipo A" repetida 4 veces.</div>
+          <div><strong style={{ color: 'white' }}>Instancia real:</strong> una habitacion concreta. Ejemplo: H1, H2, H3.</div>
+          <div><strong style={{ color: 'white' }}>Excepcion:</strong> una instancia que cambia respecto al grupo, por ejemplo mas m2 o sin bano.</div>
+        </div>
       </div>
 
       <div className="glass-panel" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <h4 style={{ margin: 0 }}>Plantas</h4>
-          <button type="button" className="btn-secondary" onClick={addFloor}>+ Añadir planta</button>
+          <button type="button" className="btn-secondary" onClick={addFloor}>+ Anadir planta</button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginTop: '12px' }}>
           {data.spatialModel.floors.map((floor) => (
@@ -314,6 +346,13 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
                 <span>Activa</span>
               </label>
               <input className="input-modern" value={floor.label} onChange={(e) => updateFloor(floor.floorId, { label: e.target.value })} />
+              {data.spatialModel.floors.length > 1 && (
+                <div style={{ marginTop: '10px' }}>
+                  <button type="button" className="btn-secondary" onClick={() => removeFloor(floor.floorId)}>
+                    Quitar planta
+                  </button>
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -322,14 +361,21 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
       <div className="glass-panel" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
           <h4 style={{ margin: 0 }}>Grupos repetitivos</h4>
-          <button type="button" className="btn-secondary" onClick={addGroup}>+ Añadir grupo</button>
+          <button type="button" className="btn-secondary" onClick={addGroup}>+ Anadir grupo</button>
+        </div>
+        <div style={{ marginTop: '10px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Crea aqui los tipos de espacios que se repiten. En un coliving normalmente cada grupo representa un tipo de habitacion.
         </div>
         <div style={{ display: 'grid', gap: '16px', marginTop: '14px' }}>
           {data.spatialModel.groups.map((group) => {
             const availableActions = AREA_ACTION_CATALOG[group.template.areaType] || [];
             const actionCodes = new Set(group.template.technicalScope.actions.map((action) => action.actionCode));
+            const derivedInstances = data.spatialModel.instances.filter((instance) => instance.groupId === group.groupId && !instance.parentInstanceId);
             return (
               <div key={group.groupId} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ marginBottom: '10px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  Define un tipo, indica cuantas {instanceNounPlural} hay de ese tipo y luego crea las instancias reales.
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr', gap: '10px' }}>
                   <input className="input-modern" value={group.label} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, label: e.target.value, template: { ...current.template, label: e.target.value } }))} />
                   <select className="input-modern" value={group.template.areaType} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: createDefaultTemplate(e.target.value as AreaType, current.label) }))}>
@@ -339,10 +385,10 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px', marginTop: '10px' }}>
                   <input className="input-modern" type="number" placeholder="m2 base" value={group.template.measurementDrivers.areaM2 || ''} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, measurementDrivers: { ...current.template.measurementDrivers, areaM2: Number(e.target.value) || null, floorSurfaceM2: Number(e.target.value) || null } } }))} />
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(group.template.features.hasBathroom)} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, features: { ...current.template.features, hasBathroom: e.target.checked } } }))} />Baño asociado</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(group.template.features.hasBathroom)} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, features: { ...current.template.features, hasBathroom: e.target.checked } } }))} />Bano asociado</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(group.template.features.hasKitchenette)} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, features: { ...current.template.features, hasKitchenette: e.target.checked } } }))} />Kitchenette</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(group.template.features.isAccessible)} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, features: { ...current.template.features, isAccessible: e.target.checked } } }))} />Adaptado</label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(group.template.features.requiresLeveling)} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, features: { ...current.template.features, requiresLeveling: e.target.checked } } }))} />Nivelación</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(group.template.features.requiresLeveling)} onChange={(e) => updateGroup(group.groupId, (current) => ({ ...current, template: { ...current.template, features: { ...current.template.features, requiresLeveling: e.target.checked } } }))} />Nivelacion</label>
                 </div>
                 <div style={{ marginTop: '12px' }}>
                   <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '8px' }}>Acciones base del grupo</div>
@@ -352,16 +398,21 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
                       return (
                         <label key={actionCode} style={{ padding: '8px 10px', borderRadius: '999px', border: checked ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)', background: checked ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)' }}>
                           <input type="checkbox" checked={checked} onChange={(e) => toggleGroupAction(group.groupId, actionCode, e.target.checked)} style={{ marginRight: '8px' }} />
-                          {actionCode.toLowerCase().replaceAll('_', ' ')}
+                          {titleCaseAction(actionCode)}
                         </label>
                       );
                     })}
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn-secondary" onClick={() => materializeGroup(group)}>Aplicar template a {group.count} instancias</button>
+                  <button type="button" className="btn-secondary" onClick={() => materializeGroup(group)}>
+                    Crear {group.count} {instanceNounPlural}
+                  </button>
+                  <button type="button" className="btn-secondary" onClick={() => removeGroup(group.groupId)}>
+                    Quitar grupo
+                  </button>
                   <div style={{ fontSize: '13px', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                    Plantas activas: {(group.floorIds?.length ? group.floorIds : selectedFloors.map((floor) => floor.floorId)).length || 1}
+                    {derivedInstances.length} creadas · {(group.floorIds?.length ? group.floorIds : selectedFloors.map((floor) => floor.floorId)).length || 1} plantas activas
                   </div>
                 </div>
               </div>
@@ -372,14 +423,21 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
 
       <div className="glass-panel" style={{ padding: '16px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
-          <h4 style={{ margin: 0 }}>Instancias y excepciones</h4>
-          <button type="button" className="btn-secondary" onClick={addSingularInstance}>+ Instancia singular</button>
+          <h4 style={{ margin: 0 }}>Instancias reales y excepciones</h4>
+          <button type="button" className="btn-secondary" onClick={addSingularInstance}>+ {isColivingLike ? 'Habitacion' : 'Instancia'} singular</button>
+        </div>
+        <div style={{ marginTop: '10px', color: 'var(--text-secondary)', fontSize: '14px' }}>
+          Aqui ajustas solo lo que cambia de una {instanceNoun} a otra. Si una no va, puedes quitarla directamente.
         </div>
         <div style={{ display: 'grid', gap: '12px', marginTop: '14px' }}>
           {data.spatialModel.instances.map((instance) => {
             const children = data.spatialModel.instances.filter((child) => child.parentInstanceId === instance.instanceId);
+            const isChild = Boolean(instance.parentInstanceId);
             return (
               <div key={instance.instanceId} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '14px' }}>
+                <div style={{ marginBottom: '10px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+                  {isChild ? 'Subespacio asociado' : instance.groupId ? 'Instancia derivada de un grupo' : 'Instancia singular creada manualmente'}
+                </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 1fr 1fr', gap: '10px' }}>
                   <input className="input-modern" value={instance.label} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, label: e.target.value }))} />
                   <select className="input-modern" value={instance.floorId || ''} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, floorId: e.target.value || null }))}>
@@ -388,7 +446,7 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
                   </select>
                   <input className="input-modern" type="number" placeholder="m2" value={instance.measurementDrivers?.areaM2 || ''} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, measurementDrivers: { ...current.measurementDrivers, areaM2: Number(e.target.value) || null, floorSurfaceM2: Number(e.target.value) || null } }))} />
                   <select className="input-modern" value={instance.features?.finishLevel || 'MEDIO'} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, finishLevel: e.target.value as any } }))}>
-                    <option value="BASICO">Básico</option>
+                    <option value="BASICO">Basico</option>
                     <option value="MEDIO">Medio</option>
                     <option value="MEDIO_ALTO">Medio-alto</option>
                     <option value="ALTO">Alto</option>
@@ -396,16 +454,19 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
                   </select>
                 </div>
                 <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', marginTop: '10px' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(instance.features?.hasBathroom)} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, hasBathroom: e.target.checked } }))} />Baño</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(instance.features?.hasBathroom)} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, hasBathroom: e.target.checked } }))} />Bano</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(instance.features?.hasKitchenette)} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, hasKitchenette: e.target.checked } }))} />Kitchenette</label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(instance.features?.isAccessible)} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, isAccessible: e.target.checked } }))} />Adaptado</label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(instance.features?.requiresLeveling)} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, requiresLeveling: e.target.checked } }))} />Nivelación</label>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={Boolean(instance.features?.requiresLeveling)} onChange={(e) => updateInstance(instance.instanceId, (current) => ({ ...current, features: { ...current.features, requiresLeveling: e.target.checked } }))} />Nivelacion</label>
                 </div>
                 <div style={{ display: 'flex', gap: '10px', marginTop: '12px', flexWrap: 'wrap' }}>
-                  <button type="button" className="btn-secondary" onClick={() => addSubspace(instance, 'BANO')}>+ Baño asociado</button>
-                  <button type="button" className="btn-secondary" onClick={() => addSubspace(instance, 'COCINA')}>+ Kitchenette/Cocina</button>
+                  {!isChild && <button type="button" className="btn-secondary" onClick={() => addSubspace(instance, 'BANO')}>+ Bano asociado</button>}
+                  {!isChild && <button type="button" className="btn-secondary" onClick={() => addSubspace(instance, 'COCINA')}>+ Kitchenette/Cocina</button>}
+                  <button type="button" className="btn-secondary" onClick={() => removeInstance(instance.instanceId)}>
+                    Quitar {isChild ? 'subespacio' : (isColivingLike ? 'habitacion' : 'instancia')}
+                  </button>
                   <div style={{ fontSize: '13px', color: 'var(--text-muted)', alignSelf: 'center' }}>
-                    {instance.groupId ? 'Deriva de grupo' : 'Instancia singular'} · {children.length} subespacios
+                    {instance.groupId ? 'Deriva de grupo' : 'Singular'} · {children.length} subespacios
                   </div>
                 </div>
                 {children.length > 0 && (
@@ -431,7 +492,7 @@ export default function StructuredSpatialEditor({ data, onChange }: Props) {
               {WORK_CODE_LABELS[code]}
             </span>
           ))}
-          {data.macroScope.workCodes.length === 0 && <span style={{ color: 'var(--text-muted)' }}>Todavía no hay familias activas.</span>}
+          {data.macroScope.workCodes.length === 0 && <span style={{ color: 'var(--text-muted)' }}>Todavia no hay familias activas.</span>}
         </div>
       </div>
     </div>
