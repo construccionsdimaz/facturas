@@ -21,6 +21,7 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
   const [showModal, setShowModal] = useState(false);
   const [editingActivity, setEditingActivity] = useState<any>(null);
   const [isAutoGenerating, setIsAutoGenerating] = useState(false);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   const initialForm = {
     name: '', code: '', wbsId: '', locationId: '', standardActivityId: '',
@@ -155,12 +156,37 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
       }
 
       const data = await res.json();
-      alert(`Planning generado: ${data.createdActivities} actividades, ${data.createdWbs} partidas y ${data.createdLocations} ubicaciones. Fuente: ${data.source || 'MASTER'}${data.typologyCode ? ` | Tipologia: ${data.typologyCode}` : ''}`);
+      const issueSuffix = data.scheduling?.issues?.length ? ` | Avisos scheduler: ${data.scheduling.issues.length}` : '';
+      alert(`Planning generado: ${data.createdActivities} actividades, ${data.createdWbs} partidas y ${data.createdLocations} ubicaciones. Fuente: ${data.source || 'MASTER'}${data.typologyCode ? ` | Tipologia: ${data.typologyCode}` : ''}${data.scheduling?.scheduledWith ? ` | Cronograma: ${data.scheduling.scheduledWith}` : ''}${issueSuffix}`);
       fetchData();
     } catch (error: any) {
       alert(error.message || 'Error generando planning');
     } finally {
       setIsAutoGenerating(false);
+    }
+  };
+
+  const handleRecalculateSchedule = async () => {
+    setIsRecalculating(true);
+    try {
+      const res = await fetch(`/api/projects/${projectId}/schedule/recalculate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo recalcular el cronograma');
+      }
+
+      const data = await res.json();
+      alert(`Cronograma recalculado: ${data.updatedActivities} actividades | ${data.scheduling?.scheduledWith || 'PROJECT_CALENDAR'}${data.scheduling?.issues?.length ? ` | Avisos: ${data.scheduling.issues.length}` : ''}`);
+      fetchData();
+    } catch (error: any) {
+      alert(error.message || 'Error recalculando cronograma');
+    } finally {
+      setIsRecalculating(false);
     }
   };
   
@@ -227,12 +253,17 @@ export default function ProjectScheduleTab({ projectId }: { projectId: string })
         <div>
           <h3 style={{ margin: '0 0 4px 0' }}>Generacion automatica de planning</h3>
           <p style={{ margin: 0, fontSize: '13px', color: 'var(--text-secondary)' }}>
-            El sistema propone ubicaciones, WBS, actividades, duraciones y una baseline inicial segun el contexto de la obra.
+            El sistema propone ubicaciones, WBS, actividades, duraciones, fechas previstas y una baseline inicial segun el contexto de la obra.
           </p>
         </div>
-        <button className="btn-primary" onClick={handleAutoGeneratePlan} disabled={isAutoGenerating}>
-          {isAutoGenerating ? 'Generando...' : 'Generar planning automatico'}
-        </button>
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+          <button className="btn-secondary" onClick={handleRecalculateSchedule} disabled={isRecalculating || activities.length === 0}>
+            {isRecalculating ? 'Recalculando...' : 'Recalcular cronograma'}
+          </button>
+          <button className="btn-primary" onClick={handleAutoGeneratePlan} disabled={isAutoGenerating}>
+            {isAutoGenerating ? 'Generando...' : 'Generar planning automatico'}
+          </button>
+        </div>
       </div>
 
       {/* PANEL PRINCIPAL */}

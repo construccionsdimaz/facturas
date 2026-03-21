@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { generatePlanningBlueprint } from '@/lib/automation/planning-generator';
+import {
+  getDefaultProjectCalendarData,
+  scheduleProjectActivities,
+} from '@/lib/scheduling/project-scheduler';
 
 function parseArea(text: string) {
   const match = text.match(/(\d+(?:[.,]\d+)?)\s*m2/i);
@@ -72,6 +76,7 @@ export async function POST(
   try {
     const body = await request.json().catch(() => ({}));
     const replaceExisting = Boolean(body.replaceExisting);
+    const schedulingStart = body.referenceStartDate || null;
 
     const project = await db.project.findUnique({
       where: { id },
@@ -139,7 +144,43 @@ export async function POST(
       conditions: project.observations || project.description || '',
     });
 
+    const calendarRecord =
+      project.calendar || {
+        ...getDefaultProjectCalendarData(),
+      };
+
+    const scheduling = scheduleProjectActivities({
+      activities: blueprint.activityNodes.map((node) => ({
+        id: node.key,
+        name: node.name,
+        durationDays: node.durationDays,
+      })),
+      dependencies: blueprint.dependencyNodes.map((dep) => ({
+        predecessorId: dep.predecessorKey,
+        successorId: dep.successorKey,
+        type: dep.type,
+        lagDays: dep.lagDays,
+      })),
+      calendar: calendarRecord,
+      startDate: schedulingStart,
+    });
+
+    const scheduleByKey = new Map(
+      scheduling.activities.map((activity) => [activity.id, activity])
+    );
+
     const result = await db.$transaction(async (tx) => {
+      if (!project.calendar) {
+        await tx.projectCalendar.upsert({
+          where: { projectId: id },
+          update: getDefaultProjectCalendarData(),
+          create: {
+            projectId: id,
+            ...getDefaultProjectCalendarData(),
+          },
+        });
+      }
+
       if (replaceExisting) {
         await tx.activityDependency.deleteMany({
           where: {
@@ -193,6 +234,7 @@ export async function POST(
 
       const activityMap = new Map<string, string>();
       for (const node of blueprint.activityNodes) {
+        const scheduled = scheduleByKey.get(node.key);
         const created = await tx.projectActivity.create({
           data: {
             projectId: id,
@@ -208,8 +250,8 @@ export async function POST(
             code: node.code,
             responsible: node.responsible || null,
             plannedDuration: node.durationDays,
-            plannedStartDate: null,
-            plannedEndDate: null,
+            plannedStartDate: scheduled?.plannedStartDate || null,
+            plannedEndDate: scheduled?.plannedEndDate || null,
             status: 'PLANIFICADA',
             observations: node.notes || null,
           },
@@ -238,20 +280,43 @@ export async function POST(
           description: 'Generada automaticamente desde la estructura y el contexto de la obra.',
           responsible: project.manager || null,
           status: 'VIGENTE',
-          snapshotData: blueprint.activityNodes.map((node) => ({
-            key: node.key,
-            name: node.name,
-            code: node.code,
-            durationDays: node.durationDays,
-            wbsKey: node.wbsKey,
-            locationKey: node.locationKey || null,
-            generationSource: node.generationSource || blueprint.source,
-            originTypologyCode: node.originTypologyCode || blueprint.typologyCode || null,
-            originActivityTemplateCode: node.originActivityTemplateCode || null,
-            originCostItemCode: node.originCostItemCode || null,
-            originProductivityRateName: node.productivityRateName || null,
-            standardActivityId: node.standardActivityId || null,
-          })),
+          snapshotData: {
+            scheduler: {
+              scheduledWith: scheduling.scheduledWith,
+              startDate: scheduling.startDate,
+              startRule: scheduling.startRule,
+              calendarSource: scheduling.calendar.source,
+              timeCriteria: scheduling.calendar.timeCriteria,
+              workHours: scheduling.calendar.workHours,
+              bufferDays: scheduling.calendar.bufferDays,
+              issues: scheduling.issues,
+            },
+            activities: blueprint.activityNodes.map((node) => {
+              const scheduled = scheduleByKey.get(node.key);
+              return {
+                key: node.key,
+                name: node.name,
+                code: node.code,
+                durationDays: node.durationDays,
+                wbsKey: node.wbsKey,
+                locationKey: node.locationKey || null,
+                plannedStartDate: scheduled?.plannedStartDate || null,
+                plannedEndDate: scheduled?.plannedEndDate || null,
+                generationSource: node.generationSource || blueprint.source,
+                originTypologyCode: node.originTypologyCode || blueprint.typologyCode || null,
+                originActivityTemplateCode: node.originActivityTemplateCode || null,
+                originCostItemCode: node.originCostItemCode || null,
+                originProductivityRateName: node.productivityRateName || null,
+                standardActivityId: node.standardActivityId || null,
+              };
+            }),
+            dependencies: blueprint.dependencyNodes.map((dep) => ({
+              predecessorKey: dep.predecessorKey,
+              successorKey: dep.successorKey,
+              type: dep.type || 'FS',
+              lagDays: dep.lagDays || 0,
+            })),
+          },
         },
       });
 
@@ -261,6 +326,7 @@ export async function POST(
         createdActivities: blueprint.activityNodes.length,
         createdDependencies: blueprint.dependencyNodes.length,
         baselineId: baseline.id,
+        scheduledActivities: scheduling.activities.length,
       };
     });
 
@@ -269,6 +335,15 @@ export async function POST(
       source: blueprint.source,
       typologyCode: blueprint.typologyCode || null,
       notes: blueprint.notes,
+      scheduling: {
+        scheduledWith: scheduling.scheduledWith,
+        startDate: scheduling.startDate,
+        startRule: scheduling.startRule,
+        calendarSource: scheduling.calendar.source,
+        timeCriteria: scheduling.calendar.timeCriteria,
+        bufferDays: scheduling.calendar.bufferDays,
+        issues: scheduling.issues,
+      },
     });
   } catch (error) {
     console.error('Error generating automatic planning:', error);

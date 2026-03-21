@@ -13,6 +13,12 @@ interface Baseline {
   createdAt: string;
 }
 
+function getBaselineActivities(snapshotData: any) {
+  if (Array.isArray(snapshotData)) return snapshotData;
+  if (snapshotData && Array.isArray(snapshotData.activities)) return snapshotData.activities;
+  return [];
+}
+
 interface ChangeRequest {
   id: string;
   title: string;
@@ -117,8 +123,9 @@ export default function ProjectBaselineTab({ projectId }: { projectId: string })
   // Basic Deviation logic
   let delayedActivitiesCount = 0;
   if (activeBaseline && activeBaseline.snapshotData) {
+    const baselineActivities = getBaselineActivities(activeBaseline.snapshotData);
     activities.forEach(act => {
-      const bAct = (activeBaseline.snapshotData as any[]).find(ba => ba.id === act.id);
+      const bAct = baselineActivities.find((ba: any) => ba.id === act.id);
       if (bAct && act.plannedEndDate && bAct.plannedEndDate) {
         if (new Date(act.plannedEndDate) > new Date(bAct.plannedEndDate)) {
           delayedActivitiesCount++;

@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 
+function getBaselineActivities(snapshotData: any) {
+  if (Array.isArray(snapshotData)) return snapshotData;
+  if (snapshotData && Array.isArray(snapshotData.activities)) return snapshotData.activities;
+  return [];
+}
+
 export async function GET(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -80,8 +86,9 @@ export async function GET(
     const currentBaseline = baselines[0];
     let baselineDeviations = 0;
     if (currentBaseline && currentBaseline.snapshotData) {
+      const baselineActivities = getBaselineActivities(currentBaseline.snapshotData);
       activities.forEach((act: any) => {
-        const bAct = (currentBaseline.snapshotData as any[]).find(ba => ba.id === act.id);
+        const bAct = baselineActivities.find((ba: any) => ba.id === act.id);
         if (bAct && act.plannedEndDate && bAct.plannedEndDate && 
             new Date(act.plannedEndDate).getTime() !== new Date(bAct.plannedEndDate).getTime()) {
           baselineDeviations++;

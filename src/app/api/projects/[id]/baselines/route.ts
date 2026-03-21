@@ -30,21 +30,51 @@ export async function POST(
       where: { projectId: id },
       include: {
         wbs: true,
-        location: true
+        location: true,
+        predecessorLinks: true,
       }
     });
 
-    const snapshot = activities.map((a: any) => ({
-      id: a.id,
-      code: a.code,
-      name: a.name,
-      plannedStartDate: a.plannedStartDate,
-      plannedEndDate: a.plannedEndDate,
-      status: a.status,
-      realStartDate: a.realStartDate,
-      realEndDate: a.realEndDate,
-      realProgress: a.realProgress
-    }));
+    const project = await (db as any).project.findUnique({
+      where: { id },
+      include: { calendar: true }
+    });
+
+    const snapshot = {
+      scheduler: {
+        capturedAt: new Date(),
+        calendarConfigured: Boolean(project?.calendar),
+        timeCriteria: project?.calendar?.timeCriteria || 'LABORABLES',
+        workHours: project?.calendar?.workHours || '08:00-18:00',
+        bufferDays: project?.calendar?.bufferDays || 0,
+      },
+      activities: activities.map((a: any) => ({
+        id: a.id,
+        code: a.code,
+        name: a.name,
+        plannedDuration: a.plannedDuration,
+        plannedStartDate: a.plannedStartDate,
+        plannedEndDate: a.plannedEndDate,
+        status: a.status,
+        realStartDate: a.realStartDate,
+        realEndDate: a.realEndDate,
+        realProgress: a.realProgress,
+        standardActivityId: a.standardActivityId || null,
+        generationSource: a.generationSource || null,
+        originTypologyCode: a.originTypologyCode || null,
+        originActivityTemplateCode: a.originActivityTemplateCode || null,
+        originCostItemCode: a.originCostItemCode || null,
+        originProductivityRateName: a.originProductivityRateName || null,
+      })),
+      dependencies: activities.flatMap((a: any) =>
+        (a.predecessorLinks || []).map((dep: any) => ({
+          predecessorId: dep.predecessorId,
+          successorId: dep.successorId,
+          dependencyType: dep.dependencyType,
+          lagDays: dep.lagDays,
+        }))
+      ),
+    };
 
     // 2. Create the baseline
     const baseline = await (db as any).projectBaseline.create({
