@@ -21,6 +21,7 @@ import ProjectTrackingTab from './tabs/ProjectTrackingTab';
 import ProjectRestrictionsTab from './tabs/ProjectRestrictionsTab';
 import ProjectProcurementTab from './tabs/ProjectProcurementTab';
 import ProjectBaselineTab from './tabs/ProjectBaselineTab';
+import ProjectDashboardsTab from './tabs/ProjectDashboardsTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -54,8 +55,8 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
-    initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'budget'
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'dashboards' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+    initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'dashboards'
   );
   
   // Site Journal & Documents
@@ -1092,6 +1093,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             📋 Baseline/Cambios
           </button>
           <button
+            onClick={() => setActiveTab('dashboards')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'dashboards' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'dashboards' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            📊 Dashboards/KPIs
+          </button>
+          <button
             onClick={() => setActiveTab('diario')}
             style={{
               padding: '16px 24px',
@@ -1146,6 +1160,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'baseline' && (
             <ProjectBaselineTab projectId={project.id} />
+          )}
+          {activeTab === 'dashboards' && (
+            <ProjectDashboardsTab projectId={project.id} />
           )}
 
           {activeTab === 'budget' ? (
