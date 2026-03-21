@@ -39,8 +39,23 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, status, validUntil, language, issueDate } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, status, validUntil, language, issueDate, discoverySessionId } = body;
     const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
+
+    if (discoverySessionId) {
+      const session = await db.discoverySession.findUnique({
+        where: { id: discoverySessionId },
+        select: { id: true, clientId: true },
+      });
+
+      if (!session) {
+        return NextResponse.json({ error: 'La sesion discovery indicada no existe.' }, { status: 400 });
+      }
+
+      if (session.clientId && session.clientId !== clientId) {
+        return NextResponse.json({ error: 'La sesion discovery pertenece a otro cliente.' }, { status: 400 });
+      }
+    }
 
     // Delete existing items and create new ones for simplicity
     await db.estimateItem.deleteMany({
@@ -76,6 +91,7 @@ export async function PUT(
         total,
         status,
         language,
+        discoverySessionId: discoverySessionId || null,
         issueDate: issueDate ? new Date(issueDate) : undefined,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {

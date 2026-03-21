@@ -2111,7 +2111,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
         ) : activeTab === 'estimates' ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-              <Link href={`/estimates/new?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
+              <Link href={`/estimates/discovery?projectId=${project.id}`} className="btn-primary" style={{ fontSize: '14px' }}>
                 + Nuevo Presupuesto
               </Link>
             </div>

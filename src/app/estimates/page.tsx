@@ -36,7 +36,7 @@ export default async function EstimatesPage() {
           <h1 className="text-gradient">Presupuestos</h1>
           <p className={styles.subtitle}>Gestiona tus presupuestos y propuestas comerciales.</p>
         </div>
-        <Link href="/estimates/new">
+        <Link href="/estimates/discovery">
           <button className="btn-primary">+ Nuevo Presupuesto</button>
         </Link>
       </div>

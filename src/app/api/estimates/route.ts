@@ -41,7 +41,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId, discoverySessionId } = body;
     const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
     const normalizedItems = sanitizeEstimateItems(items);
 
@@ -104,6 +104,34 @@ export async function POST(request: Request) {
       }
     }
 
+    if (discoverySessionId) {
+      const session = await db.discoverySession.findUnique({
+        where: { id: discoverySessionId },
+        select: { id: true, clientId: true, projectId: true },
+      });
+
+      if (!session) {
+        return NextResponse.json(
+          { error: 'La sesion discovery indicada no existe.' },
+          { status: 400 }
+        );
+      }
+
+      if (session.clientId && session.clientId !== clientId) {
+        return NextResponse.json(
+          { error: 'La sesion discovery pertenece a otro cliente.' },
+          { status: 400 }
+        );
+      }
+
+      if (projectId && session.projectId && session.projectId !== projectId) {
+        return NextResponse.json(
+          { error: 'La sesion discovery pertenece a otra obra.' },
+          { status: 400 }
+        );
+      }
+    }
+
     const newEstimate = await db.estimate.create({
       data: {
         number,
@@ -114,6 +142,7 @@ export async function POST(request: Request) {
         total,
         language: language || 'ES',
         projectId: projectId || null,
+        discoverySessionId: discoverySessionId || null,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
           create: normalizedItems.map((item: any) => ({

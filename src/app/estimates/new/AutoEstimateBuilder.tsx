@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { formatCurrency } from '@/lib/format';
 
-type ProposalLine = {
+export type ProposalLine = {
   chapter: string;
   code?: string | null;
   description: string;
@@ -25,7 +25,7 @@ type ProposalLine = {
   appliedAssumptions?: Record<string, unknown> | null;
 };
 
-type Proposal = {
+export type Proposal = {
   chapters: string[];
   lines: ProposalLine[];
   summary: {
@@ -45,7 +45,7 @@ type Proposal = {
   seedVersion?: number | null;
 };
 
-type EstimateItem = {
+export type EstimateItem = {
   id: string;
   description: string;
   quantity: number;
@@ -53,6 +53,27 @@ type EstimateItem = {
   unit: string;
   chapter: string;
 };
+
+export function mapProposalToEstimateDraft(proposal: Proposal): {
+  items: EstimateItem[];
+  chapters: string[];
+  proposal: Proposal;
+} {
+  const items: EstimateItem[] = proposal.lines.map((line, index) => ({
+    id: `auto-${index + 1}`,
+    description: `${line.description} (${line.kind})`,
+    quantity: line.quantity,
+    price: line.commercialPrice / Math.max(line.quantity, 0.0001),
+    unit: line.unit,
+    chapter: line.chapter,
+  }));
+
+  return {
+    items,
+    chapters: proposal.chapters,
+    proposal,
+  };
+}
 
 export default function AutoEstimateBuilder({
   onApply,
@@ -121,17 +142,7 @@ export default function AutoEstimateBuilder({
 
   const applyProposal = () => {
     if (!proposal) return;
-
-    const items: EstimateItem[] = proposal.lines.map((line, index) => ({
-      id: `auto-${index + 1}`,
-      description: `${line.description} (${line.kind})`,
-      quantity: line.quantity,
-      price: line.commercialPrice / Math.max(line.quantity, 0.0001),
-      unit: line.unit,
-      chapter: line.chapter,
-    }));
-
-    onApply({ items, chapters: proposal.chapters, proposal });
+    onApply(mapProposalToEstimateDraft(proposal));
   };
 
   const sitePresets: Record<string, { works: string; scopeType: string; units: string; floors: string; structuralWorks: boolean }> = {

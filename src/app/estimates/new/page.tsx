@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation';
 import styles from '@/app/invoices/new/page.module.css';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import { formatCurrency } from '@/lib/format';
-import AutoEstimateBuilder from './AutoEstimateBuilder';
+import AutoEstimateBuilder, { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from './AutoEstimateBuilder';
 
 interface EstimateItem {
   id: string;
@@ -50,46 +50,19 @@ interface ProjectSummary {
   };
 }
 
-interface InternalProposalLine {
-  chapter: string;
-  code?: string | null;
-  description: string;
-  unit: string;
-  quantity: number;
-  commercialPrice: number;
-  internalCost: number;
-  laborHours: number;
-  laborCost: number;
-  materialCost: number;
-  associatedCost: number;
-  kind: string;
-  source: 'MASTER' | 'FALLBACK';
-  typologyCode?: string | null;
-  standardActivityCode?: string | null;
-  productivityRateName?: string | null;
-  measurementRule?: Record<string, unknown> | null;
-  pricingRule?: Record<string, unknown> | null;
-  appliedAssumptions?: Record<string, unknown> | null;
-}
-
-interface InternalProposal {
-  chapters: string[];
-  lines: InternalProposalLine[];
-  summary: {
-    materialCost: number;
-    laborCost: number;
-    associatedCost: number;
-    internalCost: number;
-    contingencyAmount: number;
-    marginAmount: number;
-    commercialSubtotal: number;
-    vatAmount: number;
-    commercialTotal: number;
-  };
-  notes: string[];
-  typologyCode?: string | null;
-  source: 'MASTER' | 'FALLBACK';
-  seedVersion?: number | null;
+interface DiscoverySessionResponse {
+  id: string;
+  clientId?: string | null;
+  projectId?: string | null;
+  budgetGoal: string;
+  precisionMode: string;
+  summary?: {
+    headline?: {
+      workTypeLabel?: string;
+    };
+  } | null;
+  warnings?: { code: string; message: string }[] | null;
+  assumptions?: { code: string; message: string }[] | null;
 }
 
 export default function NewEstimate() {
@@ -103,6 +76,7 @@ export default function NewEstimate() {
 function NewEstimateContent() {
   const searchParams = useSearchParams();
   const projectIdParam = searchParams.get('projectId');
+  const discoverySessionId = searchParams.get('discoverySessionId');
   
   // Database State
   const [clients, setClients] = useState<Client[]>([]);
@@ -124,7 +98,10 @@ function NewEstimateContent() {
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
-  const [internalProposal, setInternalProposal] = useState<InternalProposal | null>(null);
+  const [internalProposal, setInternalProposal] = useState<GeneratedProposal | null>(null);
+  const [discoverySummary, setDiscoverySummary] = useState<DiscoverySessionResponse | null>(null);
+  const [isApplyingDiscovery, setIsApplyingDiscovery] = useState(false);
+  const [discoveryError, setDiscoveryError] = useState('');
   
   // Calculation States
   const [taxRate, setTaxRate] = useState(21);
@@ -132,6 +109,7 @@ function NewEstimateContent() {
   const [total, setTotal] = useState(0);
   
   const pdfRef = useRef<HTMLDivElement>(null);
+  const appliedDiscoveryRef = useRef<string | null>(null);
 
   // Quick Add Client State
   const [clientSearch, setClientSearch] = useState('');
@@ -168,6 +146,90 @@ function NewEstimateContent() {
       }
     }).catch(err => console.error("Error loading data", err));
   }, [projectIdParam]);
+
+  useEffect(() => {
+    if (!discoverySessionId || appliedDiscoveryRef.current === discoverySessionId) return;
+
+    let mounted = true;
+
+    async function applyDiscoveryProposal() {
+      setIsApplyingDiscovery(true);
+      setDiscoveryError('');
+
+      try {
+        const sessionRes = await fetch(`/api/discovery/sessions/${discoverySessionId}`);
+        const sessionData: DiscoverySessionResponse & { error?: string } = await sessionRes.json();
+
+        if (!sessionRes.ok) {
+          throw new Error(sessionData.error || 'No se pudo cargar la sesion discovery');
+        }
+
+        if (!mounted) return;
+
+        setDiscoverySummary(sessionData);
+
+        if (sessionData.clientId) {
+          setSelectedClientId(sessionData.clientId);
+        }
+
+        if (sessionData.projectId) {
+          setSelectedProjectId(sessionData.projectId);
+        }
+
+        let proposal: GeneratedProposal | null = null;
+
+        if (typeof window !== 'undefined') {
+          const cachedProposal = window.sessionStorage.getItem(`discovery-proposal:${discoverySessionId}`);
+          if (cachedProposal) {
+            proposal = JSON.parse(cachedProposal) as GeneratedProposal;
+          }
+        }
+
+        if (!proposal) {
+          const generateRes = await fetch(`/api/discovery/sessions/${discoverySessionId}/generate`, {
+            method: 'POST',
+          });
+          const generateData = await generateRes.json();
+
+          if (!generateRes.ok) {
+            throw new Error(generateData.error || 'No se pudo generar la propuesta desde discovery');
+          }
+
+          proposal = generateData.proposal as GeneratedProposal;
+          setDiscoverySummary((current) => ({
+            ...(current || sessionData),
+            summary: generateData.summary ?? current?.summary ?? sessionData.summary,
+            warnings: generateData.warnings ?? current?.warnings ?? sessionData.warnings,
+            assumptions: generateData.assumptions ?? current?.assumptions ?? sessionData.assumptions,
+          }));
+
+          if (typeof window !== 'undefined') {
+            window.sessionStorage.setItem(`discovery-proposal:${discoverySessionId}`, JSON.stringify(proposal));
+          }
+        }
+
+        if (!mounted || !proposal) return;
+
+        const mapped = mapProposalToEstimateDraft(proposal);
+        applyAutoProposal(mapped);
+        appliedDiscoveryRef.current = discoverySessionId;
+      } catch (error: any) {
+        if (mounted) {
+          setDiscoveryError(error.message || 'No se pudo aplicar la propuesta discovery');
+        }
+      } finally {
+        if (mounted) {
+          setIsApplyingDiscovery(false);
+        }
+      }
+    }
+
+    applyDiscoveryProposal();
+
+    return () => {
+      mounted = false;
+    };
+  }, [discoverySessionId]);
 
   // Fetch projects when client changes
   useEffect(() => {
@@ -278,7 +340,7 @@ function NewEstimateContent() {
   );
   const canSaveEstimate = Boolean(selectedClientId) && meaningfulItems.length > 0 && invalidItems.length === 0;
 
-  const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[]; proposal: InternalProposal }) => {
+  const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[]; proposal: GeneratedProposal }) => {
     setItems(payload.items);
     setChapters(payload.chapters);
     setInternalProposal(payload.proposal);
@@ -310,6 +372,7 @@ function NewEstimateContent() {
         issueDate: issueDate || undefined,
         validUntil: validUntil || undefined,
         projectId: selectedProjectId || undefined,
+        discoverySessionId: discoverySessionId || undefined,
         items: items.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -401,6 +464,28 @@ function NewEstimateContent() {
 
       <div className={styles.contentGrid + " no-print"}>
         <div className={styles.formPanel}>
+          {discoverySessionId && (
+            <div className={`glass-panel ${styles.card}`} style={{ border: '1px solid rgba(59, 130, 246, 0.35)', background: 'rgba(59, 130, 246, 0.08)' }}>
+              <h3 style={{ marginTop: 0 }}>Propuesta llegada desde Discovery</h3>
+              <div style={{ display: 'grid', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
+                <div>
+                  {isApplyingDiscovery
+                    ? 'Aplicando propuesta guiada al editor...'
+                    : discoverySummary?.summary?.headline?.workTypeLabel
+                      ? `Perfil detectado: ${discoverySummary.summary.headline.workTypeLabel}`
+                      : 'La propuesta guiada ya esta enlazada a este editor.'}
+                </div>
+                {discoverySummary?.warnings?.length ? (
+                  <div> Avisos: {discoverySummary.warnings.map((warning) => warning.message).join(' | ')}</div>
+                ) : null}
+                {discoverySummary?.assumptions?.length ? (
+                  <div> Supuestos: {discoverySummary.assumptions.map((assumption) => assumption.message).join(' | ')}</div>
+                ) : null}
+                {discoveryError ? <div style={{ color: '#fca5a5' }}>{discoveryError}</div> : null}
+              </div>
+            </div>
+          )}
+
           <AutoEstimateBuilder
             onApply={({ items, chapters, proposal }) => {
               applyAutoProposal({ items, chapters, proposal });
