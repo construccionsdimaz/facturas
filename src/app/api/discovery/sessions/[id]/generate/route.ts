@@ -82,10 +82,10 @@ export async function POST(
         confidenceScore: evaluation.confidenceScore,
         confidenceLevel: evaluation.confidenceLevel,
         lastStepKey: 'condicionantes-resumen',
-        derivedInput,
-        summary,
-        warnings: evaluation.warnings,
-        assumptions: evaluation.assumptions,
+        derivedInput: JSON.parse(JSON.stringify(derivedInput)),
+        summary: JSON.parse(JSON.stringify(summary)),
+        warnings: JSON.parse(JSON.stringify(evaluation.warnings)),
+        assumptions: JSON.parse(JSON.stringify(evaluation.assumptions)),
       },
     });
 

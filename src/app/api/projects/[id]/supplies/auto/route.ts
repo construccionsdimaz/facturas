@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ensureProcurementCatalog } from '@/lib/procurement/catalog';
+import { buildDiscoverySupplyHints } from '@/lib/procurement/discovery-context';
 import {
   addDays,
   chooseSupplierOffer,
@@ -52,6 +53,7 @@ export async function POST(
           orderBy: { createdAt: 'desc' },
           take: 1,
           include: {
+            discoverySession: true,
             internalAnalysis: {
               include: {
                 lines: true,
@@ -101,6 +103,8 @@ export async function POST(
 
     const latestEstimate = project.estimates[0];
     const estimateInternalAnalysis = latestEstimate?.internalAnalysis;
+    const executionContext = (latestEstimate?.discoverySession?.derivedInput as any)?.executionContext || null;
+    const discoveryHints = buildDiscoverySupplyHints(executionContext);
 
     const typology = estimateInternalAnalysis?.typologyCode
       ? await db.projectTypology.findUnique({
@@ -350,11 +354,45 @@ export async function POST(
       }
     }
 
+    if (discoveryHints.length > 0) {
+      for (const hint of discoveryHints) {
+        const key = makeExistingKey({
+          projectActivityId: null,
+          materialId: null,
+          description: hint.description,
+          category: hint.category,
+        });
+        if (existingKeys.has(key)) continue;
+        if (onlyCritical && hint.priority !== 'CRITICA') continue;
+
+        const supply = await db.projectSupply.create({
+          data: {
+            projectId: id,
+            description: hint.description,
+            category: hint.category,
+            originSource: 'DISCOVERY_EXECUTION_CONTEXT',
+            requiredOnSiteDate: addDays(referenceDate, 10),
+            leadTimeDays: 7,
+            priority: hint.priority,
+            status: 'IDENTIFICADA',
+            responsible: 'Compras / Produccion',
+            quantity: hint.quantity,
+            unit: hint.unit,
+            scheduleRisk: 'PENDIENTE_ANALISIS',
+            observations: `Generado desde contexto estructurado de discovery${hint.requiredSpaceId ? ` | Espacio ${hint.requiredSpaceId}` : ''}`,
+          },
+        });
+        existingKeys.add(key);
+        created.push({ id: supply.id, description: supply.description, material: null });
+      }
+    }
+
     return NextResponse.json({
       created: created.length,
       source: mode === 'hybrid' ? 'HYBRID' : mode.toUpperCase(),
       supplies: created,
       issues,
+      discoveryContextUsed: Boolean(executionContext),
     });
   } catch (error) {
     console.error('Error generating supplies:', error);

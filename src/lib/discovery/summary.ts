@@ -50,6 +50,12 @@ export function buildDiscoverySummary(
     else pending.push(text);
   });
 
+  if (data.modelingStrategy === 'STRUCTURED_REPETITIVE') {
+    estimated.push(
+      `Modelo estructurado con ${data.spatialModel.floors.filter((floor) => floor.selected).length} plantas, ${data.spatialModel.groups.length} grupos y ${data.spatialModel.instances.length} instancias`
+    );
+  }
+
   const includedByUs = Object.entries(data.inclusions)
     .filter(([, mode]) => mode === 'INCLUIDO')
     .map(([key, mode]) => inclusionLabel(key, mode));

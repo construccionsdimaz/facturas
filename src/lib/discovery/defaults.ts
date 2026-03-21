@@ -1,5 +1,21 @@
-import { AREA_CATALOG, AREA_LABELS, DISCOVERY_SCHEMA_VERSION, DISCOVERY_SUMMARY_VERSION, DERIVED_INPUT_VERSION, INCLUSION_FAMILIES } from './catalogs';
-import { DiscoveryArea, DiscoveryAssetType, DiscoverySessionData, InclusionMode } from './types';
+import {
+  AREA_CATALOG,
+  AREA_LABELS,
+  DISCOVERY_SCHEMA_VERSION,
+  DISCOVERY_SUMMARY_VERSION,
+  DERIVED_INPUT_VERSION,
+  INCLUSION_FAMILIES,
+} from './catalogs';
+import type {
+  AreaType,
+  DiscoveryArea,
+  DiscoveryAssetType,
+  DiscoverySessionData,
+  FloorNode,
+  InclusionMode,
+  SpaceTemplate,
+  SpaceTechnicalScope,
+} from './types';
 
 function createDefaultAreas(assetType: DiscoveryAssetType): DiscoveryArea[] {
   return AREA_CATALOG[assetType].map((areaType, index) => ({
@@ -22,6 +38,61 @@ function createDefaultInclusions(): Record<string, InclusionMode> {
   }, {});
 }
 
+export function createDefaultTechnicalScope(): SpaceTechnicalScope {
+  return {
+    mergeMode: 'INHERIT',
+    activeSystems: [],
+    actions: [],
+    finishes: {},
+    inclusions: {},
+    notes: null,
+  };
+}
+
+export function createDefaultTemplate(areaType: AreaType, label: string): SpaceTemplate {
+  return {
+    templateId: `${areaType.toLowerCase()}-template`,
+    areaType,
+    unitKind: areaType === 'HABITACION' ? 'HABITACION' : areaType === 'VIVIENDA' ? 'VIVIENDA' : null,
+    spaceKind: areaType === 'VIVIENDA' ? 'UNIDAD_PRINCIPAL' : 'ESTANCIA',
+    subspaceKind: areaType === 'BANO' ? 'BANO_ASOCIADO' : areaType === 'COCINA' ? 'COCINA_ASOCIADA' : null,
+    label,
+    features: {
+      countAsArea: true,
+      areaIncludedInParent: false,
+      countAsRoom: areaType === 'HABITACION',
+      countAsBathroom: areaType === 'BANO' || areaType === 'ASEO',
+      countAsKitchen: areaType === 'COCINA',
+      countAsUnit: areaType === 'VIVIENDA',
+      hasBathroom: areaType === 'BANO',
+      hasKitchenette: areaType === 'COCINA',
+      finishLevel: 'MEDIO',
+    },
+    measurementDrivers: {
+      areaM2: null,
+      floorSurfaceM2: null,
+    },
+    technicalScope: createDefaultTechnicalScope(),
+    subspaces: [],
+  };
+}
+
+function createDefaultFloors(): FloorNode[] {
+  return [
+    {
+      floorId: 'floor-1',
+      label: 'Planta principal',
+      index: 1,
+      type: 'BAJA',
+      selected: true,
+      features: {},
+      measurementDrivers: {},
+      technicalScope: {},
+      notes: '',
+    },
+  ];
+}
+
 export function createEmptyDiscoverySessionData(assetType: DiscoveryAssetType = 'PISO'): DiscoverySessionData {
   return {
     classification: {
@@ -31,6 +102,9 @@ export function createEmptyDiscoverySessionData(assetType: DiscoveryAssetType = 
       globalScope: 'PARCIAL',
       certainty: 'PENDIENTE',
     },
+    budgetGoal: 'COMERCIAL',
+    precisionMode: 'MEDIO',
+    modelingStrategy: 'SIMPLE_AREA_BASED',
     assetContext: {
       areaM2: null,
       magnitudeLabel: '',
@@ -63,6 +137,18 @@ export function createEmptyDiscoverySessionData(assetType: DiscoveryAssetType = 
     macroScope: {
       workCodes: [],
       certainty: 'PENDIENTE',
+    },
+    spatialModel: {
+      mode: 'SIMPLE_AREA_BASED',
+      floors: createDefaultFloors(),
+      groups: [],
+      instances: [],
+      overrides: {
+        project: {},
+        floors: {},
+        groups: {},
+        instances: {},
+      },
     },
     areas: createDefaultAreas(assetType),
     actionsByArea: [],
@@ -100,6 +186,7 @@ export function createEmptyDiscoverySessionData(assetType: DiscoveryAssetType = 
         finishes: 'PENDIENTE',
         constraints: 'PENDIENTE',
         inclusions: 'PENDIENTE',
+        spatialModel: 'PENDIENTE',
       },
       unknowns: [],
       useSystemCriteria: true,

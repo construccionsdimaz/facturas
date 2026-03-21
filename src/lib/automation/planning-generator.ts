@@ -66,6 +66,16 @@ export interface PlanningGenerationInput {
   currentVsTarget?: Record<string, unknown>;
   executionConstraints?: Record<string, unknown>;
   certainty?: unknown;
+  executionContext?: {
+    resolvedSpaces?: Array<{
+      spaceId: string;
+      areaType: string;
+      label: string;
+      floorId?: string | null;
+      parentSpaceId?: string | null;
+      measurementDrivers?: { areaM2?: number | null };
+    }>;
+  };
 }
 
 export interface PlanningLocationNode {
@@ -187,7 +197,19 @@ function buildLocationNodes(context: PlanningGenerationInput, typology: any) {
 
   const selectedAreas = (context.areas || []).filter((area) => area.label);
   if (selectedAreas.length === 0) {
-    return masterLocationNodes;
+    const structuredSpaces = context.executionContext?.resolvedSpaces || [];
+    if (structuredSpaces.length === 0) return masterLocationNodes;
+    return [
+      ...masterLocationNodes,
+      ...structuredSpaces.map((space) => ({
+        key: `space-${space.spaceId}`,
+        name: space.label,
+        type: space.areaType,
+        parentKey: space.parentSpaceId ? `space-${space.parentSpaceId}` : 'site-root',
+        code: space.areaType,
+        description: typeof space.measurementDrivers?.areaM2 === 'number' ? `${space.measurementDrivers.areaM2} m2` : null,
+      })),
+    ];
   }
 
   const existingKeys = new Set(masterLocationNodes.map((node: PlanningLocationNode) => node.key));

@@ -205,6 +205,7 @@ export async function POST(
       currentVsTarget: discoveryDerivedInput?.currentVsTarget as Record<string, unknown> | undefined,
       executionConstraints: discoveryDerivedInput?.executionConstraints as Record<string, unknown> | undefined,
       certainty: discoveryDerivedInput?.certainty,
+      executionContext: discoveryDerivedInput?.executionContext as any,
     });
 
     const calendarRecord =

@@ -183,10 +183,278 @@ export type InclusionFamily =
   | 'MOBILIARIO'
   | 'ACABADOS_ESPECIALES';
 
+export type ModelingStrategy = 'SIMPLE_AREA_BASED' | 'STRUCTURED_REPETITIVE';
+
 export type QuantityHint = {
   unit: 'M2' | 'ML' | 'UD' | 'LOTE';
   value?: number | null;
   certainty: CertaintyLevel;
+};
+
+export type FloorType =
+  | 'SOTANO'
+  | 'SEMISOTANO'
+  | 'BAJA'
+  | 'ENTREPLANTA'
+  | 'PLANTA_TIPO'
+  | 'ATICO'
+  | 'CUBIERTA'
+  | 'TECNICA'
+  | 'EXTERIOR'
+  | 'OTRA';
+
+export type UnitKind =
+  | 'VIVIENDA'
+  | 'HABITACION'
+  | 'ESTUDIO'
+  | 'APARTAMENTO'
+  | 'SUITE'
+  | 'LOCAL'
+  | 'OFICINA'
+  | 'NAVE'
+  | 'ZONA_COMUN'
+  | 'MODULO_OTRO';
+
+export type SpaceKind =
+  | 'UNIDAD_PRINCIPAL'
+  | 'ESTANCIA'
+  | 'ESPACIO_COMUN'
+  | 'NUCLEO_VERTICAL'
+  | 'ENVOLVENTE'
+  | 'EXTERIOR';
+
+export type SubspaceKind =
+  | 'BANO_ASOCIADO'
+  | 'ASEO_ASOCIADO'
+  | 'KITCHENETTE'
+  | 'COCINA_ASOCIADA'
+  | 'VESTIDOR'
+  | 'LAVADERO'
+  | 'BALCON'
+  | 'TERRAZA'
+  | 'INSTALACION_TECNICA'
+  | 'ALMACEN_ASOCIADO';
+
+export type InterventionMode =
+  | 'NUEVO'
+  | 'SUSTITUCION'
+  | 'CONSERVACION'
+  | 'PARCIAL'
+  | 'COMPLETO';
+
+export type ScopeMergeMode = 'INHERIT' | 'REPLACE' | 'EXTEND';
+
+export type SystemCode =
+  | 'DEMOLICION'
+  | 'REDISTRIBUCION'
+  | 'ALBANILERIA'
+  | 'PLADUR'
+  | 'ELECTRICIDAD'
+  | 'FONTANERIA'
+  | 'SANEAMIENTO'
+  | 'CLIMATIZACION'
+  | 'VENTILACION'
+  | 'ILUMINACION'
+  | 'CARPINTERIA_INTERIOR'
+  | 'CARPINTERIA_EXTERIOR'
+  | 'REVESTIMIENTOS'
+  | 'PINTURA'
+  | 'FALSO_TECHO'
+  | 'COCINA'
+  | 'BANOS'
+  | 'ESTRUCTURA'
+  | 'FACHADA'
+  | 'CUBIERTA'
+  | 'IMPERMEABILIZACION'
+  | 'AISLAMIENTO'
+  | 'EXTERIOR_URBANIZACION';
+
+export type TechnicalActionCode =
+  | 'DEMOLER'
+  | 'RETIRAR_ELEMENTOS'
+  | 'TIRAR_TABIQUES'
+  | 'LEVANTAR_TABIQUES'
+  | 'RENOVAR_INSTALACION_ELECTRICA'
+  | 'RENOVAR_INSTALACION_FONTANERIA'
+  | 'RENOVAR_INSTALACION_SANEAMIENTO'
+  | 'RENOVAR_CLIMATIZACION'
+  | 'RENOVAR_VENTILACION'
+  | 'RENOVAR_ILUMINACION'
+  | 'COLOCAR_SUELO'
+  | 'ALICATAR'
+  | 'PINTAR'
+  | 'CAMBIAR_PUERTAS'
+  | 'CAMBIAR_VENTANAS'
+  | 'MONTAR_FALSO_TECHO'
+  | 'MONTAR_COCINA'
+  | 'MONTAR_MOBILIARIO'
+  | 'RENOVAR_BANO'
+  | 'COLOCAR_SANITARIOS'
+  | 'CARPINTERIA_A_MEDIDA'
+  | 'ACTUAR_ESTRUCTURA'
+  | 'ACTUAR_FACHADA'
+  | 'ACTUAR_CUBIERTA'
+  | 'IMPERMEABILIZAR'
+  | 'AISLAR'
+  | 'URBANIZAR_EXTERIOR';
+
+export type SpaceCountingFlags = {
+  countAsArea?: boolean;
+  areaIncludedInParent?: boolean;
+  countAsRoom?: boolean;
+  countAsBathroom?: boolean;
+  countAsKitchen?: boolean;
+  countAsUnit?: boolean;
+};
+
+export type MeasurementDrivers = {
+  areaM2?: number | null;
+  perimeterMl?: number | null;
+  heightM?: number | null;
+  doorsCount?: number | null;
+  windowsCount?: number | null;
+  sanitaryFixturesCount?: number | null;
+  waterPointsCount?: number | null;
+  electricalPointsCount?: number | null;
+  lightingPointsCount?: number | null;
+  hvacUnitsCount?: number | null;
+  wallSurfaceM2?: number | null;
+  ceilingSurfaceM2?: number | null;
+  floorSurfaceM2?: number | null;
+  tilingSurfaceM2?: number | null;
+  linearMeters?: number | null;
+};
+
+export type SpaceFeatures = SpaceCountingFlags & {
+  hasBathroom?: boolean;
+  hasKitchenette?: boolean;
+  bathroomType?: 'NINGUNO' | 'ESTANDAR' | 'ADAPTADO' | 'PREMIUM';
+  kitchenType?: 'NINGUNA' | 'KITCHENETTE' | 'COCINA_COMPLETA';
+  isAccessible?: boolean;
+  requiresLeveling?: boolean;
+  hasExteriorOpenings?: boolean;
+  occupancySensitive?: boolean;
+  finishLevel?: 'BASICO' | 'MEDIO' | 'MEDIO_ALTO' | 'ALTO' | 'PREMIUM';
+};
+
+export type SystemScope = {
+  system: SystemCode;
+  enabled: boolean;
+  interventionMode: InterventionMode;
+  coverage?: 'PARCIAL' | 'TOTAL';
+  notes?: string | null;
+  certainty: CertaintyLevel;
+};
+
+export type TechnicalAction = {
+  actionCode: TechnicalActionCode;
+  system: SystemCode;
+  enabled: boolean;
+  interventionMode: InterventionMode;
+  coverage?: 'PARCIAL' | 'TOTAL';
+  quantityHint?: QuantityHint | null;
+  notes?: string | null;
+  certainty: CertaintyLevel;
+};
+
+export type FinishOverrideKey =
+  | 'GLOBAL'
+  | 'SUELO'
+  | 'REVESTIMIENTOS'
+  | 'PINTURA'
+  | 'CARPINTERIA_INTERIOR'
+  | 'CARPINTERIA_EXTERIOR'
+  | 'BANOS'
+  | 'COCINA'
+  | 'ILUMINACION'
+  | 'CLIMATIZACION';
+
+export type FinishOverrides = Partial<Record<FinishOverrideKey, 'BASICO' | 'MEDIO' | 'MEDIO_ALTO' | 'ALTO' | 'PREMIUM'>>;
+
+export type SpaceTechnicalScope = {
+  mergeMode: ScopeMergeMode;
+  activeSystems: SystemScope[];
+  actions: TechnicalAction[];
+  finishes?: FinishOverrides;
+  inclusions?: Partial<Record<InclusionFamily, InclusionMode>>;
+  notes?: string | null;
+};
+
+export type FloorNode = {
+  floorId: string;
+  label: string;
+  index?: number | null;
+  type?: FloorType;
+  selected: boolean;
+  features?: SpaceFeatures;
+  measurementDrivers?: Partial<MeasurementDrivers>;
+  technicalScope?: Partial<SpaceTechnicalScope>;
+  notes?: string | null;
+};
+
+export type SpaceTemplate = {
+  templateId: string;
+  areaType: AreaType;
+  unitKind?: UnitKind | null;
+  spaceKind: SpaceKind;
+  subspaceKind?: SubspaceKind | null;
+  label: string;
+  features: SpaceFeatures;
+  measurementDrivers: MeasurementDrivers;
+  technicalScope: SpaceTechnicalScope;
+  subspaces?: SpaceTemplate[];
+};
+
+export type SpaceGroup = {
+  groupId: string;
+  label: string;
+  category: UnitKind | 'OTRO';
+  template: SpaceTemplate;
+  count: number;
+  floorIds?: string[];
+  features?: SpaceFeatures;
+  measurementDrivers?: Partial<MeasurementDrivers>;
+  technicalScope?: Partial<SpaceTechnicalScope>;
+  certainty: CertaintyLevel;
+};
+
+export type SpaceInstance = {
+  instanceId: string;
+  groupId?: string | null;
+  floorId?: string | null;
+  parentInstanceId?: string | null;
+  areaType: AreaType;
+  unitKind?: UnitKind | null;
+  spaceKind: SpaceKind;
+  subspaceKind?: SubspaceKind | null;
+  label: string;
+  isTemplateDerived: boolean;
+  features?: SpaceFeatures;
+  measurementDrivers?: Partial<MeasurementDrivers>;
+  technicalScope?: Partial<SpaceTechnicalScope>;
+  certainty: CertaintyLevel;
+};
+
+export type OverridePatch = {
+  features?: Partial<SpaceFeatures>;
+  measurementDrivers?: Partial<MeasurementDrivers>;
+  technicalScope?: Partial<SpaceTechnicalScope>;
+  notes?: string | null;
+};
+
+export type DiscoveryOverrides = {
+  project?: OverridePatch;
+  floors?: Record<string, OverridePatch>;
+  groups?: Record<string, OverridePatch>;
+  instances?: Record<string, OverridePatch>;
+};
+
+export type SpatialModel = {
+  mode: ModelingStrategy;
+  floors: FloorNode[];
+  groups: SpaceGroup[];
+  instances: SpaceInstance[];
+  overrides: DiscoveryOverrides;
 };
 
 export type DiscoveryArea = {
@@ -234,6 +502,7 @@ export type DiscoveryAssumption = {
     | 'FINISHES'
     | 'CONSTRAINTS'
     | 'INCLUSIONS'
+    | 'SPATIAL_MODEL'
     | 'DERIVED_INPUT';
   message: string;
   certaintyImpact: 'LOW' | 'MEDIUM' | 'HIGH';
@@ -252,6 +521,7 @@ export type DiscoveryWarning = {
     | 'FINISHES'
     | 'CONSTRAINTS'
     | 'INCLUSIONS'
+    | 'SPATIAL_MODEL'
     | 'DERIVED_INPUT';
 };
 
@@ -278,6 +548,60 @@ export type DiscoverySummary = {
   nextRiskPoints: string[];
 };
 
+export type ResolvedSpace = {
+  spaceId: string;
+  floorId?: string | null;
+  parentSpaceId?: string | null;
+  sourceTemplateId?: string | null;
+  sourceGroupId?: string | null;
+  areaType: AreaType;
+  unitKind?: UnitKind | null;
+  spaceKind: SpaceKind;
+  subspaceKind?: SubspaceKind | null;
+  label: string;
+  features: SpaceFeatures;
+  measurementDrivers: MeasurementDrivers;
+  technicalScope: SpaceTechnicalScope;
+  derivedWorkCodes: WorkCode[];
+  quantityHints: Record<string, number | null>;
+  certainty: CertaintyLevel;
+  overrideTrace: string[];
+};
+
+export type ExecutionContext = {
+  mode: ModelingStrategy;
+  project: {
+    workType: WorkType;
+    siteType: SiteType;
+    scopeType: ScopeType;
+    finishLevel: FinishLevel;
+    accessLevel: AccessLevel;
+    conditions: string;
+    structuralWorks: boolean;
+    complexityProfile?: ComplexityProfile;
+  };
+  totals: {
+    areaM2: number;
+    bathrooms: number;
+    kitchens: number;
+    rooms: number;
+    units: number;
+    floors: number;
+  };
+  workCodes: WorkCode[];
+  subtypes: DiscoverySubtypeCode[];
+  resolvedSpaces: ResolvedSpace[];
+  inclusions: Record<InclusionFamily, InclusionMode>;
+  currentVsTarget?: Record<string, unknown>;
+  executionConstraints?: Record<string, unknown>;
+  certainty?: {
+    confidenceLevel: 'BAJA' | 'MEDIA' | 'ALTA';
+    byBlock: Record<string, string>;
+  };
+  warnings: string[];
+  assumptions: string[];
+};
+
 export type DiscoverySessionData = {
   classification: {
     freeTextBrief?: string;
@@ -286,6 +610,9 @@ export type DiscoverySessionData = {
     globalScope: DiscoveryGlobalScope;
     certainty: CertaintyLevel;
   };
+  budgetGoal?: BudgetGoal;
+  precisionMode?: PrecisionMode;
+  modelingStrategy?: ModelingStrategy;
   assetContext: {
     areaM2?: number | null;
     magnitudeLabel?: string | null;
@@ -319,6 +646,7 @@ export type DiscoverySessionData = {
     workCodes: WorkCode[];
     certainty: CertaintyLevel;
   };
+  spatialModel: SpatialModel;
   areas: DiscoveryArea[];
   actionsByArea: DiscoveryAreaActions[];
   interventionProfile: {
@@ -361,6 +689,7 @@ export type DiscoverySessionData = {
       finishes: CertaintyLevel;
       constraints: CertaintyLevel;
       inclusions: CertaintyLevel;
+      spatialModel: CertaintyLevel;
     };
     unknowns: string[];
     useSystemCriteria: boolean;
@@ -410,9 +739,11 @@ export type DerivedInput = {
   };
   precisionMode: PrecisionMode;
   budgetGoal: BudgetGoal;
+  modelingStrategy: ModelingStrategy;
   inclusions: Record<InclusionFamily, InclusionMode>;
   currentVsTarget: DiscoverySessionData['currentVsTarget'];
   executionConstraints: DiscoverySessionData['executionConstraints'];
+  executionContext: ExecutionContext;
   certainty: {
     byBlock: DiscoverySessionData['certainty']['byBlock'];
     confidenceLevel: 'BAJA' | 'MEDIA' | 'ALTA';

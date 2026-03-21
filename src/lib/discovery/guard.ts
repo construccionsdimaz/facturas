@@ -1,4 +1,5 @@
 import { DiscoveryAssumption, DiscoverySessionData, DiscoveryWarning } from './types';
+import { shouldUseStructuredMode } from './resolve-spatial-model';
 
 export type DiscoveryGenerateCheck = {
   canGenerate: boolean;
@@ -21,8 +22,14 @@ export function evaluateDiscoveryForGenerate(data: DiscoverySessionData): Discov
   if (!data.assetContext.accessLevel || data.assetContext.accessLevel === 'NO_LO_SE') blockers.push('Falta nivel de acceso.');
   if (!data.assetContext.occupancyState || data.assetContext.occupancyState === 'NO_LO_SE') blockers.push('Falta indicar si el inmueble esta ocupado.');
   if (data.macroScope.workCodes.length === 0) blockers.push('Falta seleccionar al menos una familia de trabajo.');
-  if (data.areas.filter((area) => area.selected).length === 0 && data.classification.assetType !== 'EXTERIOR') blockers.push('Falta seleccionar al menos una zona afectada.');
-  if (data.actionsByArea.length === 0 || data.actionsByArea.every((item) => item.actions.length === 0)) blockers.push('Falta indicar acciones principales por area.');
+  const hasSimpleAreas = data.areas.some((area) => area.selected);
+  const hasStructuredSpaces = data.spatialModel.groups.length > 0 || data.spatialModel.instances.length > 0;
+  if (!hasSimpleAreas && !hasStructuredSpaces && data.classification.assetType !== 'EXTERIOR') blockers.push('Falta seleccionar al menos una zona afectada o definir estructura espacial.');
+  const hasSimpleActions = data.actionsByArea.some((item) => item.actions.length > 0);
+  const hasStructuredActions =
+    data.spatialModel.groups.some((group) => (group.template.technicalScope.actions || []).length > 0 || (group.template.technicalScope.activeSystems || []).some((system) => system.enabled)) ||
+    data.spatialModel.instances.some((instance) => (instance.technicalScope?.actions || []).length > 0 || (instance.technicalScope?.activeSystems || []).some((system) => system.enabled));
+  if (!hasSimpleActions && !hasStructuredActions) blockers.push('Falta indicar acciones principales por area o por instancia.');
   if (!data.interventionProfile.globalIntensity) blockers.push('Falta intensidad de intervencion.');
   if (!data.finishProfile.globalLevel) blockers.push('Falta nivel de acabado global.');
 
@@ -32,6 +39,15 @@ export function evaluateDiscoveryForGenerate(data: DiscoverySessionData): Discov
 
   if (data.currentVsTarget.changeOfUse?.value && data.classification.assetType === 'LOCAL' && !data.assetContext.unitsCurrent && !data.assetContext.areaM2) {
     blockers.push('Cambio de uso sin magnitud ni contexto minimo del activo.');
+  }
+
+  if (shouldUseStructuredMode(data)) {
+    if (data.spatialModel.floors.filter((floor) => floor.selected).length === 0) {
+      blockers.push('En modo estructurado hace falta al menos una planta seleccionada.');
+    }
+    if (data.spatialModel.groups.length === 0 && data.spatialModel.instances.length === 0) {
+      blockers.push('En modo estructurado hace falta definir al menos un grupo o una instancia real.');
+    }
   }
 
   if (!data.assetContext.areaM2) {
