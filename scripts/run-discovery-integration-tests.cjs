@@ -47,6 +47,12 @@ async function run() {
     materializeEstimateOperationalView,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-runtime-materialization.ts'));
   const {
+    applyRuntimeLinePatch,
+    deriveLegacyItemsFromRuntimeOutput,
+    ensureRuntimeOutputForEditing,
+    rebuildEstimateStatusFromRuntimeOutput,
+  } = require(path.join(srcRoot, 'lib/estimate/estimate-runtime-editing.ts'));
+  const {
     acceptEstimate,
     applyEstimateReadinessOverride,
     assertEstimateCanConvert,
@@ -1046,6 +1052,45 @@ async function run() {
       (item) => item.chapter !== '99 LEGACY'
     )
   );
+  const editableProjectionRuntime = ensureRuntimeOutputForEditing({
+    projection: integratedTechnical.commercialEstimateProjection,
+  });
+  assert(editableProjectionRuntime);
+  assert.equal(editableProjectionRuntime.source, integratedTechnical.commercialEstimateProjection.source);
+  const technicalRuntimeLine = integratedTechnicalRuntime.lines.find(
+    (line) => line.generatedFrom === 'TECHNICAL'
+  );
+  assert(technicalRuntimeLine);
+  const manuallyEditedRuntime = applyRuntimeLinePatch(integratedTechnicalRuntime, {
+    id: technicalRuntimeLine.id,
+    quantity: technicalRuntimeLine.quantity + 1,
+    unitPrice: ((technicalRuntimeLine.commercialPrice || 0) / Math.max(technicalRuntimeLine.quantity, 0.0001)) + 25,
+    description: `${technicalRuntimeLine.description} (ajuste manual)`,
+  });
+  const editedLine = manuallyEditedRuntime.lines.find((line) => line.id === technicalRuntimeLine.id);
+  assert(editedLine);
+  assert.equal(editedLine.description.endsWith('(ajuste manual)'), true);
+  assert.equal(editedLine.generatedFrom, 'HYBRID');
+  assert.equal(editedLine.costSource, 'HYBRID');
+  assert.equal(editedLine.economicStatus.priceSource, 'MANUAL_OVERRIDE');
+  assert.equal(editedLine.economicStatus.pendingValidation, true);
+  assert.equal(editedLine.economicStatus.commercialPriceProvisional, true);
+  assert.equal(editedLine.manualAdjustment.applied, true);
+  const editedLegacyItems = deriveLegacyItemsFromRuntimeOutput(manuallyEditedRuntime);
+  assert(
+    editedLegacyItems.some(
+      (item) =>
+        item.description.endsWith('(ajuste manual)') &&
+        item.quantity === technicalRuntimeLine.quantity + 1
+    )
+  );
+  const editedStatus = rebuildEstimateStatusFromRuntimeOutput(
+    integratedTechnical.estimateStatus,
+    manuallyEditedRuntime
+  );
+  assert(editedStatus);
+  assert.equal(editedStatus.pendingValidationCount > 0, true);
+  assert.equal(editedStatus.hasHybridBuckets, true);
   const projectionMaterialized = materializeEstimateOperationalView({
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
   });

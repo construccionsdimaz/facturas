@@ -30,6 +30,13 @@ export type CommercialEstimateRuntimeLine = {
   pricingLineIds: string[];
   provisional: boolean;
   economicStatus: EstimateLineEconomicSnapshot;
+  manualAdjustment?: {
+    applied: boolean;
+    timestamp: string;
+    editedFields: string[];
+    degradedTrace: boolean;
+    reason: string;
+  } | null;
 };
 
 export type CommercialEstimateRuntimeOutput = {
@@ -211,6 +218,7 @@ export function adaptCommercialRuntimeOutputToLegacyProposal(
       measurementLineIds: line.measurementLineIds,
       recipeLineIds: line.recipeLineIds,
       pricingLineIds: line.pricingLineIds,
+      manualAdjustment: line.manualAdjustment || null,
     },
     economicStatus: line.economicStatus,
   }));

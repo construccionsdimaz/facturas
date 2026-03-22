@@ -8,6 +8,17 @@ import { formatCurrency } from '@/lib/format';
 import AutoEstimateBuilder, { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from './AutoEstimateBuilder';
 import { applyEstimateReadinessOverride } from '@/lib/estimate/estimate-status';
 import { materializeEstimateOperationalView } from '@/lib/estimate/estimate-runtime-materialization';
+import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import {
+  appendRuntimeLine,
+  applyRuntimeLinePatch,
+  deriveLegacyItemsFromRuntimeOutput,
+  ensureRuntimeOutputForEditing,
+  rebuildEstimateStatusFromRuntimeOutput,
+  removeRuntimeChapter,
+  removeRuntimeLine,
+  renameRuntimeChapter,
+} from '@/lib/estimate/estimate-runtime-editing';
 
 interface EstimateItem {
   id: string;
@@ -137,6 +148,7 @@ function NewEstimateContent() {
   const [selectedProjectId, setSelectedProjectId] = useState('');
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
   const [internalProposal, setInternalProposal] = useState<GeneratedProposal | null>(null);
+  const [runtimeOutput, setRuntimeOutput] = useState<CommercialEstimateRuntimeOutput | null>(null);
   const [discoverySummary, setDiscoverySummary] = useState<DiscoverySessionResponse | null>(null);
   const [isApplyingDiscovery, setIsApplyingDiscovery] = useState(false);
   const [discoveryError, setDiscoveryError] = useState('');
@@ -280,6 +292,10 @@ function NewEstimateContent() {
 
   // Item & Chapter management
   const addItemToChapter = (chapterName: string) => {
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) => appendRuntimeLine(current, { chapter: chapterName }));
+      return;
+    }
     setItems([...items, { 
       id: Date.now().toString(), 
       description: '', 
@@ -293,6 +309,10 @@ function NewEstimateContent() {
   const addChapter = () => {
     const nextNum = chapters.length + 1;
     const newChapter = `${nextNum.toString().padStart(2, '0')} NUEVO CAPÍTULO`;
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) => appendRuntimeLine(current, { chapter: newChapter }));
+      return;
+    }
     setChapters([...chapters, newChapter]);
     setItems([...items, { 
       id: Date.now().toString(), 
@@ -306,23 +326,48 @@ function NewEstimateContent() {
 
   const removeChapter = (chapterName: string) => {
     if (chapters.length > 1) {
+      if (runtimeOutput) {
+        applyRuntimeMutation((current) => removeRuntimeChapter(current, chapterName));
+        return;
+      }
       setChapters(chapters.filter(c => c !== chapterName));
       setItems(items.filter(item => item.chapter !== chapterName));
     }
   };
 
   const updateChapterName = (oldName: string, newName: string) => {
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) => renameRuntimeChapter(current, oldName, newName));
+      return;
+    }
     setChapters(chapters.map(c => c === oldName ? newName : c));
     setItems(items.map(item => item.chapter === oldName ? { ...item, chapter: newName } : item));
   };
 
   const removeItem = (id: string) => {
     if (items.length > 1) {
+      if (runtimeOutput) {
+        applyRuntimeMutation((current) => removeRuntimeLine(current, id));
+        return;
+      }
       setItems(items.filter(item => item.id !== id));
     }
   };
 
   const updateItem = (id: string, field: keyof EstimateItem, value: string | number) => {
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) =>
+        applyRuntimeLinePatch(current, {
+          id,
+          description: field === 'description' ? String(value) : undefined,
+          quantity: field === 'quantity' ? Number(value) : undefined,
+          unit: field === 'unit' ? String(value) : undefined,
+          chapter: field === 'chapter' ? String(value) : undefined,
+          unitPrice: field === 'price' ? Number(value) : undefined,
+        })
+      );
+      return;
+    }
     setItems(items.map(item => item.id === id ? { ...item, [field]: value } : item));
   };
 
@@ -371,6 +416,89 @@ function NewEstimateContent() {
   );
   const canSaveEstimate = Boolean(selectedClientId) && meaningfulItems.length > 0 && invalidItems.length === 0;
 
+  const mapRuntimeOutputToEditorItems = (nextRuntimeOutput: CommercialEstimateRuntimeOutput) =>
+    nextRuntimeOutput.lines.map((line) => ({
+      id: line.id,
+      description: line.description,
+      quantity: line.quantity,
+      price: (line.commercialPrice ?? 0) / Math.max(line.quantity, 0.0001),
+      unit: line.unit,
+      chapter: line.chapter,
+    }));
+
+  const proposalSummaryFromRuntime = (
+    nextRuntimeOutput: CommercialEstimateRuntimeOutput,
+    baseSummary?: GeneratedProposal['summary']
+  ): GeneratedProposal['summary'] => ({
+    ...(baseSummary || {
+      materialCost: 0,
+      laborCost: 0,
+      associatedCost: 0,
+      internalCost: 0,
+      contingencyAmount: 0,
+      marginAmount: 0,
+      commercialSubtotal: 0,
+      vatAmount: 0,
+      commercialTotal: 0,
+    }),
+    materialCost: nextRuntimeOutput.summary.materialCost,
+    laborCost: nextRuntimeOutput.summary.laborCost,
+    associatedCost: nextRuntimeOutput.summary.indirectCost,
+    internalCost: nextRuntimeOutput.summary.internalCost || 0,
+    contingencyAmount: nextRuntimeOutput.summary.contingencyAmount,
+    marginAmount: nextRuntimeOutput.summary.marginAmount,
+    commercialSubtotal: nextRuntimeOutput.summary.commercialSubtotal || 0,
+    vatAmount: nextRuntimeOutput.summary.vatAmount,
+    commercialTotal: nextRuntimeOutput.summary.commercialTotal || 0,
+  });
+
+  const syncEditorFromRuntimeOutput = (
+    nextRuntimeOutput: CommercialEstimateRuntimeOutput,
+    proposalOverride?: GeneratedProposal | null
+  ) => {
+    const baseProposal = proposalOverride === undefined ? internalProposal : proposalOverride;
+    if (!baseProposal) {
+      setRuntimeOutput(nextRuntimeOutput);
+      setItems(mapRuntimeOutputToEditorItems(nextRuntimeOutput));
+      setChapters(nextRuntimeOutput.chapters.length ? nextRuntimeOutput.chapters : ['01 GENERAL']);
+      return;
+    }
+
+    const nextEstimateStatus =
+      rebuildEstimateStatusFromRuntimeOutput(baseProposal.estimateStatus, nextRuntimeOutput) ||
+      baseProposal.estimateStatus;
+    const runtimeOutputWithStatus = {
+      ...nextRuntimeOutput,
+      status: nextEstimateStatus,
+    };
+
+    setRuntimeOutput(runtimeOutputWithStatus);
+    setItems(mapRuntimeOutputToEditorItems(runtimeOutputWithStatus));
+    setChapters(runtimeOutputWithStatus.chapters.length ? runtimeOutputWithStatus.chapters : ['01 GENERAL']);
+
+    setInternalProposal({
+      ...baseProposal,
+      commercialRuntimeOutput: runtimeOutputWithStatus,
+      estimateStatus: nextEstimateStatus,
+      summary: proposalSummaryFromRuntime(runtimeOutputWithStatus, baseProposal.summary),
+    });
+  };
+
+  const applyRuntimeMutation = (
+    mutator: (current: CommercialEstimateRuntimeOutput) => CommercialEstimateRuntimeOutput
+  ) => {
+    const baseProposal = internalProposal;
+    const baseRuntimeOutput = ensureRuntimeOutputForEditing({
+      runtimeOutput: runtimeOutput || baseProposal?.commercialRuntimeOutput || null,
+      projection: baseProposal?.commercialEstimateProjection || null,
+    });
+
+    if (!baseRuntimeOutput) return;
+
+    const nextRuntimeOutput = mutator(baseRuntimeOutput);
+    syncEditorFromRuntimeOutput(nextRuntimeOutput);
+  };
+
   const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[]; proposal: GeneratedProposal }) => {
     const operational = materializeEstimateOperationalView({
       commercialRuntimeOutput: payload.proposal.commercialRuntimeOutput || null,
@@ -385,6 +513,20 @@ function NewEstimateContent() {
       })),
       legacySummary: payload.proposal.summary,
     });
+    const nextRuntimeOutput = ensureRuntimeOutputForEditing({
+      runtimeOutput: operational.runtimeOutput || payload.proposal.commercialRuntimeOutput || null,
+      projection: operational.projection || payload.proposal.commercialEstimateProjection || null,
+    });
+
+    if (nextRuntimeOutput) {
+      syncEditorFromRuntimeOutput(nextRuntimeOutput, {
+        ...payload.proposal,
+        commercialRuntimeOutput: nextRuntimeOutput,
+      });
+      return;
+    }
+
+    setRuntimeOutput(null);
     setItems(
       operational.legacyItems.map((item, index) => ({
         id: `${Date.now()}-${index}`,
@@ -415,18 +557,29 @@ function NewEstimateContent() {
     setIsSaving(true);
     setSaveSuccess('');
     try {
+      const effectiveRuntimeOutput =
+        runtimeOutput || internalProposal?.commercialRuntimeOutput || null;
+      const effectiveItems = effectiveRuntimeOutput
+        ? deriveLegacyItemsFromRuntimeOutput(effectiveRuntimeOutput)
+        : items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            price: item.price,
+            unit: item.unit,
+            chapter: item.chapter,
+          }));
       const estimateData = {
         number: estimateNumber,
         clientId: selectedClientId,
-        subtotal: internalProposal?.commercialRuntimeOutput?.summary.commercialSubtotal || subtotal,
-        taxAmount: internalProposal?.commercialRuntimeOutput?.summary.vatAmount || taxAmount,
-        total: internalProposal?.commercialRuntimeOutput?.summary.commercialTotal || total,
+        subtotal: effectiveRuntimeOutput?.summary.commercialSubtotal || subtotal,
+        taxAmount: effectiveRuntimeOutput?.summary.vatAmount || taxAmount,
+        total: effectiveRuntimeOutput?.summary.commercialTotal || total,
         language,
         issueDate: issueDate || undefined,
         validUntil: validUntil || undefined,
         projectId: selectedProjectId || undefined,
         discoverySessionId: discoverySessionId || undefined,
-        items: items.map(item => ({
+        items: effectiveItems.map(item => ({
           description: item.description,
           quantity: item.quantity,
           price: item.price,
@@ -441,9 +594,9 @@ function NewEstimateContent() {
           estimateStatus: internalProposal.estimateStatus,
           integratedCostBuckets: internalProposal.integratedCostBuckets || [],
           commercialEstimateProjection: internalProposal.commercialEstimateProjection || null,
-          commercialRuntimeOutput: internalProposal.commercialRuntimeOutput || null,
-          summary: internalProposal.commercialRuntimeOutput?.summary || internalProposal.summary,
-          lines: (internalProposal.commercialRuntimeOutput?.lines || internalProposal.lines).map((line: any) => ({
+          commercialRuntimeOutput: effectiveRuntimeOutput,
+          summary: effectiveRuntimeOutput?.summary || internalProposal.summary,
+          lines: (effectiveRuntimeOutput?.lines || internalProposal.lines).map((line: any) => ({
             ...line,
             laborHours: 'laborHours' in line ? line.laborHours : 0,
             laborCost: 'laborCost' in line ? line.laborCost : 0,
@@ -484,12 +637,25 @@ function NewEstimateContent() {
 
     setInternalProposal((current) => {
       if (!current?.estimateStatus) return current;
+      const nextEstimateStatus = applyEstimateReadinessOverride(current.estimateStatus, {
+        reason,
+        actor: 'Usuario actual',
+      });
+      if (runtimeOutput) {
+        setRuntimeOutput({
+          ...runtimeOutput,
+          status: nextEstimateStatus,
+        });
+      }
       return {
         ...current,
-        estimateStatus: applyEstimateReadinessOverride(current.estimateStatus, {
-          reason,
-          actor: 'Usuario actual',
-        }),
+        commercialRuntimeOutput: current.commercialRuntimeOutput
+          ? {
+              ...current.commercialRuntimeOutput,
+              status: nextEstimateStatus,
+            }
+          : current.commercialRuntimeOutput,
+        estimateStatus: nextEstimateStatus,
       };
     });
   };

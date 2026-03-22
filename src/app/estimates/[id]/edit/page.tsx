@@ -6,6 +6,19 @@ import styles from '@/app/invoices/new/page.module.css';
 import { formatCurrency } from '@/lib/format';
 import { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from '@/app/estimates/new/AutoEstimateBuilder';
 import { materializeEstimateOperationalView } from '@/lib/estimate/estimate-runtime-materialization';
+import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
+import type { EstimateStatusSnapshot } from '@/lib/estimate/estimate-status';
+import {
+  appendRuntimeLine,
+  applyRuntimeLinePatch,
+  deriveLegacyItemsFromRuntimeOutput,
+  ensureRuntimeOutputForEditing,
+  rebuildEstimateStatusFromRuntimeOutput,
+  removeRuntimeChapter,
+  removeRuntimeLine,
+  renameRuntimeChapter,
+} from '@/lib/estimate/estimate-runtime-editing';
 
 interface EstimateItem {
   id: string;
@@ -45,6 +58,14 @@ export default function EditEstimatePage() {
   const [discoverySessionId, setDiscoverySessionId] = useState('');
   const [linkedProjectId, setLinkedProjectId] = useState('');
   const [isRegenerating, setIsRegenerating] = useState(false);
+  const [runtimeOutput, setRuntimeOutput] = useState<CommercialEstimateRuntimeOutput | null>(null);
+  const [commercialEstimateProjection, setCommercialEstimateProjection] = useState<CommercialEstimateProjection | null>(null);
+  const [estimateStatusSnapshot, setEstimateStatusSnapshot] = useState<EstimateStatusSnapshot | null>(null);
+  const [analysisSource, setAnalysisSource] = useState<'MASTER' | 'FALLBACK'>('MASTER');
+  const [analysisTypologyCode, setAnalysisTypologyCode] = useState<string | null>(null);
+  const [analysisSeedVersion, setAnalysisSeedVersion] = useState<number | null>(null);
+  const [analysisNotes, setAnalysisNotes] = useState<string[]>([]);
+  const [integratedCostBuckets, setIntegratedCostBuckets] = useState<any[]>([]);
 
   const [taxRate, setTaxRate] = useState(21);
   const [taxAmount, setTaxAmount] = useState(0);
@@ -53,6 +74,50 @@ export default function EditEstimatePage() {
   const [clientSearch, setClientSearch] = useState('');
   const [showClientDropdown, setShowClientDropdown] = useState(false);
 
+  const mapRuntimeOutputToEditorItems = (nextRuntimeOutput: CommercialEstimateRuntimeOutput) =>
+    nextRuntimeOutput.lines.map((line) => ({
+      id: line.id,
+      description: line.description,
+      quantity: line.quantity,
+      price: (line.commercialPrice ?? 0) / Math.max(line.quantity, 0.0001),
+      unit: line.unit,
+      chapter: line.chapter,
+    }));
+
+  const syncEditorFromRuntimeOutput = (
+    nextRuntimeOutput: CommercialEstimateRuntimeOutput,
+    nextStatus?: EstimateStatusSnapshot | null
+  ) => {
+    const resolvedStatus =
+      nextStatus || rebuildEstimateStatusFromRuntimeOutput(estimateStatusSnapshot, nextRuntimeOutput);
+    const runtimeOutputWithStatus = {
+      ...nextRuntimeOutput,
+      status: resolvedStatus || nextRuntimeOutput.status,
+    };
+
+    setRuntimeOutput(runtimeOutputWithStatus);
+    setEstimateStatusSnapshot(resolvedStatus || runtimeOutputWithStatus.status || null);
+    setItems(mapRuntimeOutputToEditorItems(runtimeOutputWithStatus));
+    setChapters(
+      runtimeOutputWithStatus.chapters.length
+        ? runtimeOutputWithStatus.chapters
+        : ['01 GENERAL']
+    );
+  };
+
+  const applyRuntimeMutation = (
+    mutator: (current: CommercialEstimateRuntimeOutput) => CommercialEstimateRuntimeOutput
+  ) => {
+    const baseRuntimeOutput = ensureRuntimeOutputForEditing({
+      runtimeOutput,
+      projection: commercialEstimateProjection,
+    });
+
+    if (!baseRuntimeOutput) return;
+
+    syncEditorFromRuntimeOutput(mutator(baseRuntimeOutput));
+  };
+
   useEffect(() => {
     if (!estimateId) return;
 
@@ -60,6 +125,7 @@ export default function EditEstimatePage() {
       fetch(`/api/estimates/${estimateId}`).then((r) => r.json()),
       fetch('/api/clients').then((r) => r.json()),
     ]).then(([estimate, clientsData]) => {
+      const generationNotes = estimate.internalAnalysis?.generationNotes || {};
       setEstimateNumber(estimate.number);
       setSelectedClientId(estimate.clientId);
       setClientSearch(estimate.client?.name || '');
@@ -68,6 +134,32 @@ export default function EditEstimatePage() {
       setDiscoverySessionId(estimate.discoverySessionId || '');
       setLinkedProjectId(estimate.projectId || '');
       if (estimate.language) setLanguage(estimate.language);
+      setCommercialEstimateProjection(estimate.commercialEstimateProjection || null);
+      setEstimateStatusSnapshot(
+        estimate.commercialRuntimeOutput?.status ||
+          estimate.commercialEstimateProjection?.status ||
+          generationNotes.estimateStatus ||
+          null
+      );
+      setAnalysisSource(
+        estimate.internalAnalysis?.generationSource === 'FALLBACK' ? 'FALLBACK' : 'MASTER'
+      );
+      setAnalysisTypologyCode(estimate.internalAnalysis?.typologyCode || null);
+      setAnalysisSeedVersion(
+        typeof estimate.internalAnalysis?.seedVersion === 'number'
+          ? estimate.internalAnalysis.seedVersion
+          : null
+      );
+      setAnalysisNotes(
+        Array.isArray(generationNotes.notes)
+          ? generationNotes.notes.filter((note: unknown): note is string => typeof note === 'string')
+          : []
+      );
+      setIntegratedCostBuckets(
+        Array.isArray(generationNotes.integratedCostBuckets)
+          ? generationNotes.integratedCostBuckets
+          : []
+      );
 
       const operational = materializeEstimateOperationalView({
         commercialRuntimeOutput: estimate.commercialRuntimeOutput,
@@ -81,22 +173,36 @@ export default function EditEstimatePage() {
           chapter: item.chapter || '01 GENERAL',
         })),
       });
+      const editableRuntimeOutput = ensureRuntimeOutputForEditing({
+        runtimeOutput: operational.runtimeOutput || estimate.commercialRuntimeOutput || null,
+        projection: operational.projection || estimate.commercialEstimateProjection || null,
+      });
 
-      const loadedItems = operational.legacyItems.map((item: any, index: number) => ({
-        id: `${estimateId}-${index + 1}`,
-        description: item.description,
-        quantity: item.quantity,
-        price: item.price,
-        unit: item.unit || 'ud',
-        chapter: item.chapter || '01 GENERAL',
-      }));
-      setItems(loadedItems);
+      if (editableRuntimeOutput) {
+        syncEditorFromRuntimeOutput(
+          editableRuntimeOutput,
+          estimate.commercialRuntimeOutput?.status ||
+            estimate.commercialEstimateProjection?.status ||
+            generationNotes.estimateStatus ||
+            null
+        );
+      } else {
+        const loadedItems = operational.legacyItems.map((item: any, index: number) => ({
+          id: `${estimateId}-${index + 1}`,
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          unit: item.unit || 'ud',
+          chapter: item.chapter || '01 GENERAL',
+        }));
+        setItems(loadedItems);
 
-      const uniqueChapters = operational.chapters.length
-        ? operational.chapters
-        : (Array.from(new Set(loadedItems.map((i: any) => i.chapter))) as string[]);
-      if (uniqueChapters.length === 0) uniqueChapters.push('01 GENERAL');
-      setChapters(uniqueChapters.sort());
+        const uniqueChapters = operational.chapters.length
+          ? operational.chapters
+          : (Array.from(new Set(loadedItems.map((i: any) => i.chapter))) as string[]);
+        if (uniqueChapters.length === 0) uniqueChapters.push('01 GENERAL');
+        setChapters(uniqueChapters.sort());
+      }
 
       if (estimate.taxAmount !== undefined) setTaxAmount(estimate.taxAmount);
       if (estimate.total !== undefined) setTotal(estimate.total);
@@ -109,6 +215,10 @@ export default function EditEstimatePage() {
   }, [estimateId]);
 
   const addItemToChapter = (chapterName: string) => {
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) => appendRuntimeLine(current, { chapter: chapterName }));
+      return;
+    }
     setItems([
       ...items,
       {
@@ -125,6 +235,10 @@ export default function EditEstimatePage() {
   const addChapter = () => {
     const nextNum = chapters.length + 1;
     const newChapter = `${nextNum.toString().padStart(2, '0')} NUEVO CAPITULO`;
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) => appendRuntimeLine(current, { chapter: newChapter }));
+      return;
+    }
     setChapters([...chapters, newChapter]);
     setItems([
       ...items,
@@ -141,21 +255,48 @@ export default function EditEstimatePage() {
 
   const removeChapter = (chapterName: string) => {
     if (chapters.length > 1) {
+      if (runtimeOutput) {
+        applyRuntimeMutation((current) => removeRuntimeChapter(current, chapterName));
+        return;
+      }
       setChapters(chapters.filter((c) => c !== chapterName));
       setItems(items.filter((item) => item.chapter !== chapterName));
     }
   };
 
   const updateChapterName = (oldName: string, newName: string) => {
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) => renameRuntimeChapter(current, oldName, newName));
+      return;
+    }
     setChapters(chapters.map((c) => (c === oldName ? newName : c)));
     setItems(items.map((item) => (item.chapter === oldName ? { ...item, chapter: newName } : item)));
   };
 
   const removeItem = (id: string) => {
-    if (items.length > 1) setItems(items.filter((item) => item.id !== id));
+    if (items.length > 1) {
+      if (runtimeOutput) {
+        applyRuntimeMutation((current) => removeRuntimeLine(current, id));
+        return;
+      }
+      setItems(items.filter((item) => item.id !== id));
+    }
   };
 
   const updateItem = (id: string, field: keyof EstimateItem, value: string | number) => {
+    if (runtimeOutput) {
+      applyRuntimeMutation((current) =>
+        applyRuntimeLinePatch(current, {
+          id,
+          description: field === 'description' ? String(value) : undefined,
+          quantity: field === 'quantity' ? Number(value) : undefined,
+          unit: field === 'unit' ? String(value) : undefined,
+          chapter: field === 'chapter' ? String(value) : undefined,
+          unitPrice: field === 'price' ? Number(value) : undefined,
+        })
+      );
+      return;
+    }
     setItems(items.map((item) => (item.id === id ? { ...item, [field]: value } : item)));
   };
 
@@ -195,26 +336,78 @@ export default function EditEstimatePage() {
     setIsSaving(true);
     setSaveSuccess('');
     try {
+      const effectiveRuntimeOutput =
+        runtimeOutput ||
+        ensureRuntimeOutputForEditing({
+          runtimeOutput: null,
+          projection: commercialEstimateProjection,
+        });
+      const effectiveItems = effectiveRuntimeOutput
+        ? deriveLegacyItemsFromRuntimeOutput(effectiveRuntimeOutput)
+        : items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            price: item.price,
+            unit: item.unit,
+            chapter: item.chapter,
+          }));
       const res = await fetch(`/api/estimates/${estimateId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           number: estimateNumber,
           clientId: selectedClientId,
-          subtotal,
-          taxAmount,
-          total,
+          subtotal: effectiveRuntimeOutput?.summary.commercialSubtotal || subtotal,
+          taxAmount: effectiveRuntimeOutput?.summary.vatAmount || taxAmount,
+          total: effectiveRuntimeOutput?.summary.commercialTotal || total,
           status,
           validUntil: validUntil || null,
           language,
           discoverySessionId: discoverySessionId || null,
-          items: items.map((item) => ({
+          items: effectiveItems.map((item) => ({
             description: item.description,
             quantity: item.quantity,
             price: item.price,
             unit: item.unit,
             chapter: item.chapter,
           })),
+          internalAnalysis:
+            effectiveRuntimeOutput || commercialEstimateProjection || estimateStatusSnapshot
+              ? {
+                  source: analysisSource,
+                  typologyCode: analysisTypologyCode,
+                  seedVersion: analysisSeedVersion,
+                  notes: analysisNotes,
+                  estimateStatus:
+                    estimateStatusSnapshot ||
+                    effectiveRuntimeOutput?.status ||
+                    commercialEstimateProjection?.status ||
+                    null,
+                  integratedCostBuckets,
+                  commercialEstimateProjection: commercialEstimateProjection || null,
+                  commercialRuntimeOutput: effectiveRuntimeOutput,
+                  summary: effectiveRuntimeOutput?.summary || {
+                    materialCost: 0,
+                    laborCost: 0,
+                    associatedCost: 0,
+                    internalCost: subtotal,
+                    contingencyAmount: 0,
+                    marginAmount: 0,
+                    commercialSubtotal: subtotal,
+                    vatAmount: taxAmount,
+                    commercialTotal: total,
+                  },
+                  lines: (effectiveRuntimeOutput?.lines || []).map((line: any) => ({
+                    ...line,
+                    laborHours: 0,
+                    laborCost: 0,
+                    materialCost: 0,
+                    associatedCost: 0,
+                    kind: line.provisional ? 'PROVISIONAL' : 'DIRECT',
+                    source: line.generatedFrom === 'LEGACY_FALLBACK' ? 'FALLBACK' : 'MASTER',
+                  })),
+                }
+              : undefined,
         }),
       });
       if (!res.ok) throw new Error('Error');
@@ -241,9 +434,46 @@ export default function EditEstimatePage() {
       if (!res.ok) throw new Error(data.error || 'No se pudo regenerar la propuesta');
 
       const proposal = data.proposal as GeneratedProposal;
-      const mapped = mapProposalToEstimateDraft(proposal);
-      setItems(mapped.items);
-      setChapters(mapped.chapters);
+      const operational = materializeEstimateOperationalView({
+        commercialRuntimeOutput: proposal.commercialRuntimeOutput || null,
+        commercialEstimateProjection: proposal.commercialEstimateProjection || null,
+        estimateStatus: proposal.estimateStatus,
+        legacyItems: mapProposalToEstimateDraft(proposal).items.map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          unit: item.unit,
+          chapter: item.chapter,
+        })),
+        legacySummary: proposal.summary,
+      });
+      const nextRuntimeOutput = ensureRuntimeOutputForEditing({
+        runtimeOutput: operational.runtimeOutput || proposal.commercialRuntimeOutput || null,
+        projection: operational.projection || proposal.commercialEstimateProjection || null,
+      });
+      setCommercialEstimateProjection(
+        proposal.commercialEstimateProjection || operational.projection || null
+      );
+      setEstimateStatusSnapshot(proposal.estimateStatus);
+      setAnalysisSource(proposal.source === 'FALLBACK' ? 'FALLBACK' : 'MASTER');
+      setAnalysisTypologyCode(proposal.typologyCode || null);
+      setAnalysisSeedVersion(proposal.seedVersion ?? null);
+      setAnalysisNotes(proposal.notes || []);
+      setIntegratedCostBuckets(proposal.integratedCostBuckets || []);
+      if (nextRuntimeOutput) {
+        syncEditorFromRuntimeOutput(
+          {
+            ...nextRuntimeOutput,
+            status: proposal.estimateStatus,
+          },
+          proposal.estimateStatus
+        );
+      } else {
+        const mapped = mapProposalToEstimateDraft(proposal);
+        setRuntimeOutput(null);
+        setItems(mapped.items);
+        setChapters(mapped.chapters);
+      }
       setSaveSuccess('✓ Estructura regenerada desde Discovery. Guarda para confirmar los cambios.');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (error: any) {

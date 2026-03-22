@@ -1,6 +1,7 @@
 import type { CommercialEstimateRuntimeOutput } from './commercial-estimate-runtime';
 import type { CommercialEstimateProjection } from './commercial-estimate-projection';
 import type { EstimateStatusSnapshot } from './estimate-status';
+import { deriveLegacyItemsFromRuntimeOutput } from './estimate-runtime-editing';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 
 export type EstimateLegacyItemCompat = {
@@ -33,18 +34,6 @@ export type EstimateOperationalMaterialization = {
 
 function round(value: number) {
   return Number(value.toFixed(2));
-}
-
-function deriveItemsFromRuntimeOutput(
-  runtimeOutput: CommercialEstimateRuntimeOutput
-): EstimateLegacyItemCompat[] {
-  return runtimeOutput.lines.map((line) => ({
-    description: line.description,
-    quantity: line.quantity,
-    price: (line.commercialPrice ?? 0) / Math.max(line.quantity, 0.0001),
-    unit: line.unit,
-    chapter: line.chapter,
-  }));
 }
 
 export function materializeEstimateOperationalView(input: {
@@ -80,7 +69,7 @@ export function materializeEstimateOperationalView(input: {
         vatAmount: runtimeOutput.summary.vatAmount,
         commercialTotal: runtimeOutput.summary.commercialTotal || 0,
       },
-      legacyItems: deriveItemsFromRuntimeOutput(runtimeOutput),
+      legacyItems: deriveLegacyItemsFromRuntimeOutput(runtimeOutput),
     };
   }
 
