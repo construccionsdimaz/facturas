@@ -321,49 +321,64 @@
     size: A4;
     margin: 5mm;
   }
+  
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+    background: white !important;
+  }
+
   .printWrapper {
     padding: 0 !important;
     margin: 0 !important;
-    display: block;
+    display: block !important;
     background: white !important;
     min-height: auto !important;
+    height: auto !important;
+    overflow: visible !important;
   }
+
   .printWrapper .pdfContainer {
-    width: 200mm; /* Slightly less than 210 to account for page margins */
+    width: 100% !important;
+    max-width: 100% !important;
     min-height: auto !important;
     height: auto !important;
     max-height: none !important;
-    margin: 0 auto !important;
-    padding: 5mm 10mm !important;
-    box-shadow: none;
-    position: relative;
-    display: flex;
-    flex-direction: column;
+    margin: 0 !important;
+    padding: 2mm 5mm !important;
+    box-shadow: none !important;
+    position: relative !important;
+    display: block !important; /* Block is safer for print engines than flex for overflow */
     overflow: visible !important;
-    font-size: 11px !important;
+    font-size: 10.5px !important;
+    color: black !important;
   }
 
   /* Compacting elements globally for print */
-  .header { margin-bottom: 8px !important; gap: 10px !important; }
-  .detailsRow { margin-bottom: 10px !important; gap: 15px !important; }
-  .title { font-size: 22px !important; margin-bottom: 10px !important; }
-  .companyName { font-size: 16px !important; }
-  .companyInfo p, .clientInfo p { font-size: 11px !important; margin: 1px 0 !important; }
-  .billToHeader { padding-bottom: 4px !important; margin-bottom: 8px !important; font-size: 11px !important; }
-  .clientInfo h3 { font-size: 14px !important; }
+  .header { margin-bottom: 5px !important; display: flex !important; justify-content: space-between !important; }
+  .detailsRow { margin-bottom: 5px !important; display: flex !important; justify-content: space-between !important; }
+  .title { font-size: 20px !important; margin-bottom: 5px !important; font-weight: 800 !important; }
+  .companyName { font-size: 14px !important; font-weight: 700 !important; }
+  .companyInfo p, .clientInfo p { font-size: 10px !important; margin: 0 !important; line-height: 1.2 !important; }
+  .billToHeader { padding-bottom: 2px !important; margin-bottom: 5px !important; font-size: 10px !important; }
+  .clientInfo h3 { font-size: 13px !important; margin-bottom: 2px !important; }
 
-  .itemsSection { margin-bottom: 10px !important; }
-  .table th { padding: 6px 10px !important; font-size: 11px !important; }
-  .table td { padding: 3px 10px !important; font-size: 11px !important; }
+  .itemsSection { margin-bottom: 5px !important; }
+  .table { width: 100% !important; border-collapse: collapse !important; }
+  .table th { padding: 4px 8px !important; font-size: 10px !important; background-color: #f3f4f6 !important; color: black !important; }
+  .table td { padding: 2px 8px !important; font-size: 10px !important; line-height: 1.2 !important; }
   
-  .summarySection { margin-bottom: 15px !important; }
-  .summaryBox { width: 240px !important; }
-  .summaryRow { padding: 3px 0 !important; }
-  .summaryLabel, .summaryValue { font-size: 11px !important; }
-  .summaryTotalRow { font-size: 14px !important; padding: 6px 0 !important; margin-top: 5px !important; }
+  .summarySection { margin-bottom: 10px !important; display: flex !important; justify-content: flex-end !important; }
+  .summaryBox { width: 220px !important; }
+  .summaryRow { padding: 2px 0 !important; }
+  .summaryLabel, .summaryValue { font-size: 10px !important; }
+  .summaryTotalRow { font-size: 13px !important; padding: 4px 0 !important; margin-top: 3px !important; border-top: 1.5px solid black !important; }
 
-  .footer { padding-top: 10px !important; }
-  .paymentInfo { margin-bottom: 8px !important; font-size: 10px !important; }
-  .gdpr { font-size: 7.5px !important; line-height: 1.1 !important; margin-bottom: 8px !important; padding: 4px !important; }
-  .thanks { font-size: 12px !important; margin-bottom: 4px !important; }
+  .footer { padding-top: 5px !important; page-break-inside: avoid !important; }
+  .paymentInfo { margin-bottom: 5px !important; font-size: 9.5px !important; }
+  .gdpr { font-size: 7px !important; line-height: 1.1 !important; margin-bottom: 5px !important; padding: 3px !important; background: #fafafa !important; }
+  .thanks { font-size: 10px !important; margin-bottom: 2px !important; }
+  
+  /* Prevent large gaps */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
