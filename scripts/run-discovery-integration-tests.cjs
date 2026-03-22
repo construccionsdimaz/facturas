@@ -1172,6 +1172,16 @@ async function run() {
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_PANEL_BASIC_UD'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PLUMBING_WET_ROOM_STD_PT'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_DRAINAGE_WET_ROOM_STD_PT'));
+  const partitionRecipeLine = measuredInput.recipeResult.lines.find((line) => line.solutionCode === 'PARTITION_PLADUR_STD');
+  assert(partitionRecipeLine);
+  assert(partitionRecipeLine.labor.some((labor) => labor.tradeCode === 'OFICIO_PLADUR'));
+  assert(partitionRecipeLine.labor.some((labor) => labor.crewCode === 'CREW_PARTITIONS_STD'));
+  assert(partitionRecipeLine.labor.some((labor) => (labor.adjustedHoursPerUnit || 0) > 0));
+  assert(partitionRecipeLine.labor.some((labor) => (labor.adjustedCrewDays || 0) > 0));
+  const wetRecipeLine = measuredInput.recipeResult.lines.find((line) => line.solutionCode === 'PLUMBING_WET_ROOM_PLUS');
+  assert(wetRecipeLine);
+  assert(wetRecipeLine.labor.some((labor) => labor.tradeCode === 'OFICIO_FONTANERO'));
+  assert(wetRecipeLine.labor.some((labor) => (labor.productivityFactors || []).length > 0));
 
   const inferredPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -1183,6 +1193,16 @@ async function run() {
   );
   assert.equal(inferredPricing.status, 'READY');
   assert.equal(inferredPricing.estimateMode, 'RECIPE_PRICED');
+  const partitionPricingLine = inferredPricing.lines.find((line) => line.solutionCode === 'PARTITION_PLADUR_STD');
+  assert(partitionPricingLine);
+  assert(partitionPricingLine.laborPricing.some((labor) => labor.tradeCode === 'OFICIO_PLADUR'));
+  assert(partitionPricingLine.laborPricing.some((labor) => labor.crewCode === 'CREW_PARTITIONS_STD'));
+  assert(partitionPricingLine.laborPricing.some((labor) => (labor.adjustedCrewDays || 0) > 0));
+  assert(partitionPricingLine.laborPricing.some((labor) => !!labor.productivityProfileCode));
+  const wetPricingLine = inferredPricing.lines.find((line) => line.solutionCode === 'PLUMBING_WET_ROOM_PLUS');
+  assert(wetPricingLine);
+  assert(wetPricingLine.laborPricing.some((labor) => labor.tradeCode === 'OFICIO_FONTANERO'));
+  assert(wetPricingLine.laborPricing.some((labor) => labor.productivitySource !== null));
   assert(
     inferredPricing.lines.some(
       (line) =>
@@ -1996,6 +2016,23 @@ async function run() {
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'CEILING_CONTINUOUS_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'ELECTRICAL_ROOM_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'ELECTRICAL_PANEL_BASIC'));
+  assert(
+    canonicalPlanningProjection.activities.some(
+      (activity) =>
+        activity.provenance.solutionCode === 'PARTITION_PLADUR_STD' &&
+        activity.provenance.laborTradeCode === 'OFICIO_PLADUR' &&
+        activity.provenance.crewCode === 'CREW_PARTITIONS_STD' &&
+        activity.provenance.productivitySource === 'PRODUCTIVITY_PROFILE'
+    )
+  );
+  assert(
+    canonicalPlanningProjection.activities.some(
+      (activity) =>
+        activity.provenance.solutionCode === 'PLUMBING_WET_ROOM_PLUS' &&
+        activity.provenance.laborTradeCode === 'OFICIO_FONTANERO' &&
+        activity.durationDays > 0
+    )
+  );
   assert(canonicalPlanningProjection.coverage.recipeCoveragePercent > 0);
   const canonicalProcurementProjection = await buildProcurementProjection({
     executionContext: measuredInput.executionContext,
@@ -2553,6 +2590,12 @@ async function run() {
     ],
   });
   assert.equal(canonicalControlProjection.source, 'CANONICAL_BASELINE');
+  assert((canonicalControlProjection.baselineEstimate.laborCost || 0) > 0);
+  assert(
+    canonicalControlProjection.baselineEstimate.bucketSummaries.some(
+      (bucket) => bucket.bucketCode === 'PARTITIONS' && (bucket.laborCost || 0) > 0
+    )
+  );
   assert(canonicalControlProjection.deviationLines.some((line) => line.type === 'PROCUREMENT'));
   assert(canonicalControlProjection.deviationLines.some((line) => line.type === 'TIME'));
   assert(canonicalControlProjection.deviationLines.some((line) => line.type === 'COST'));

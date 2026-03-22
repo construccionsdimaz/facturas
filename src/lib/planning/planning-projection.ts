@@ -9,6 +9,7 @@ import type {
 import { generatePlanningBlueprint } from '@/lib/automation/planning-generator';
 import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import { deriveActivityDurationFromRecipeLine } from '@/lib/estimate/labor-productivity';
 import type { MeasurementLine, MeasurementResult } from '@/lib/estimate/measurement-types';
 import type { RecipeLine, RecipeResult } from '@/lib/estimate/recipe-types';
 import type { ExecutionContext } from '@/lib/discovery/types';
@@ -62,6 +63,10 @@ export type PlanningProjectionActivity = PlanningActivityNode & {
     solutionCode?: VerticalSolutionCode | null;
     measurementLineId?: string | null;
     recipeLineId?: string | null;
+    laborTradeCode?: string | null;
+    crewCode?: string | null;
+    productivityProfileCode?: string | null;
+    productivitySource?: 'PRODUCTIVITY_PROFILE' | 'LEGACY_TEMPLATE' | null;
     specSourceLevel?: ResolvedSpecSourceLevel | null;
     specSourceRefId?: string | null;
     assumedFields: string[];
@@ -546,6 +551,9 @@ export async function buildPlanningProjection(
       if (generatedFrom === 'HYBRID') current.generatedFrom = 'HYBRID';
     }
 
+    const dominantLabor = recipeLine.labor[0] || null;
+    const productivityDuration = deriveActivityDurationFromRecipeLine(recipeLine);
+
     activities.push({
       key: `act-canonical-${index + 1}`,
       name: activityNameForRecipe(recipeLine, space),
@@ -557,13 +565,22 @@ export async function buildPlanningProjection(
         : measurementLine.sourceRefId
             ? `floor-${measurementLine.sourceRefId}`
             : 'site-root',
-      durationDays: durationDaysForMeasurement(measurementLine),
+      durationDays:
+        productivityDuration.durationDays > 0
+          ? productivityDuration.durationDays
+          : durationDaysForMeasurement(measurementLine),
       responsible:
-        bucketCode === 'KITCHENETTES'
+        dominantLabor?.tradeCode === 'OFICIO_CARPINTERO'
           ? 'Carpinteria'
-          : bucketCode === 'BATHS'
-            ? 'Instalaciones'
-            : 'Produccion',
+          : dominantLabor?.tradeCode === 'OFICIO_FONTANERO'
+            ? 'Fontaneria'
+            : dominantLabor?.tradeCode === 'OFICIO_ELECTRICISTA'
+              ? 'Electricidad'
+              : bucketCode === 'KITCHENETTES'
+                ? 'Carpinteria'
+                : bucketCode === 'BATHS'
+                  ? 'Instalaciones'
+                  : 'Produccion',
       notes: `Actividad canónica derivada de ${recipeLine.recipeCode}${measurementLine.status !== 'MEASURED' ? ` | medicion ${measurementLine.status}` : ''}`,
       standardActivityId: null,
       standardActivityCode: null,
@@ -571,7 +588,7 @@ export async function buildPlanningProjection(
       originTypologyCode: null,
       originActivityTemplateCode: recipeLine.recipeCode,
       originCostItemCode: recipeLine.measurementLineId,
-      productivityRateName: recipeLine.recipeCode,
+      productivityRateName: dominantLabor?.productivityProfileCode || recipeLine.recipeCode,
       generatedFrom,
       provenance: {
         spaceId: recipeLine.spaceId,
@@ -579,12 +596,18 @@ export async function buildPlanningProjection(
         solutionCode: recipeLine.solutionCode,
         measurementLineId: measurementLine.id,
         recipeLineId: recipeLine.id,
+        laborTradeCode: dominantLabor?.tradeCode || null,
+        crewCode: dominantLabor?.crewCode || null,
+        productivityProfileCode: dominantLabor?.productivityProfileCode || null,
+        productivitySource:
+          productivityDuration.durationDays > 0 ? 'PRODUCTIVITY_PROFILE' : 'LEGACY_TEMPLATE',
         specSourceLevel: spec?.sourceLevel || null,
         specSourceRefId: spec?.sourceRefId || null,
         assumedFields: unique([
           ...recipeLine.assumedFields,
           ...measurementLine.assumedFields,
           ...(spec?.assumedFields || []),
+          ...recipeLine.labor.flatMap((labor) => labor.assumptions || []),
         ]),
       },
     });

@@ -280,6 +280,20 @@ export type RecipeLabor = {
   description: string;
   quantity: number;
   unit: 'h' | 'jor';
+  tradeCode?: string | null;
+  crewCode?: string | null;
+  productivityProfileCode?: string | null;
+  productivityUnit?: 'm2' | 'ml' | 'ud' | 'pt' | 'lot' | null;
+  productivitySource?: 'PROFILE' | 'REFERENCE' | 'FALLBACK' | null;
+  baseHoursPerUnit?: number | null;
+  adjustedHoursPerUnit?: number | null;
+  adjustedCrewDays?: number | null;
+  productivityFactors?: Array<{
+    code: string;
+    multiplier: number;
+    reason: string;
+  }>;
+  assumptions?: string[];
 };
 
 export type RecipeLine = {

@@ -1,5 +1,6 @@
 import type { ExecutionContext } from '@/lib/discovery/types';
 import type { VerticalSolutionCode } from '@/lib/discovery/technical-spec-types';
+import { resolveLaborProductivity } from './labor-productivity';
 import type { MeasurementLine, MeasurementResult } from './measurement-types';
 import type {
   RecipeCode,
@@ -868,13 +869,42 @@ function scaleMaterials(template: RecipeTemplate, quantity: number): RecipeMater
   }));
 }
 
-function scaleLabor(template: RecipeTemplate, quantity: number): RecipeLabor[] {
-  return template.labor.map((item) => ({
-    laborCode: item.laborCode,
-    description: item.description,
-    quantity: Number((item.quantityPerUnit * quantity).toFixed(3)),
-    unit: item.unit,
-  }));
+function scaleLabor(
+  template: RecipeTemplate,
+  quantity: number,
+  measurementLine: MeasurementLine,
+  executionContext: ExecutionContext
+): RecipeLabor[] {
+  const space =
+    executionContext.resolvedSpaces.find((item) => item.spaceId === measurementLine.spaceId) ||
+    null;
+  return template.labor.map((item) => {
+    const productivity = resolveLaborProductivity(
+      item.laborCode,
+      measurementLine.solutionCode,
+      quantity,
+      item.quantityPerUnit,
+      executionContext,
+      space
+    );
+
+    return {
+      laborCode: item.laborCode,
+      description: item.description,
+      quantity: Number((productivity.adjustedQuantity * productivity.adjustedHoursPerUnit).toFixed(3)),
+      unit: item.unit,
+      tradeCode: productivity.tradeCode,
+      crewCode: productivity.crewCode,
+      productivityProfileCode: productivity.productivityProfileCode,
+      productivityUnit: productivity.baseUnit,
+      productivitySource: productivity.source,
+      baseHoursPerUnit: productivity.baseHoursPerUnit,
+      adjustedHoursPerUnit: productivity.adjustedHoursPerUnit,
+      adjustedCrewDays: productivity.adjustedCrewDays,
+      productivityFactors: productivity.factors,
+      assumptions: productivity.assumptions,
+    };
+  });
 }
 
 function toRecipeStatus(line: MeasurementLine): RecipeStatus {
@@ -960,7 +990,10 @@ export function buildRecipeResult(
       description: `${template.description}${space ? ` - ${space.label}` : ''}`,
       status,
       materials: status === 'RECIPE_MISSING' ? [] : scaleMaterials(template, measurementLine.quantity),
-      labor: status === 'RECIPE_MISSING' ? [] : scaleLabor(template, measurementLine.quantity),
+      labor:
+        status === 'RECIPE_MISSING'
+          ? []
+          : scaleLabor(template, measurementLine.quantity, measurementLine, executionContext),
       wasteFactor: template.wasteFactor ?? null,
       indirectFactor: template.indirectFactor ?? null,
       sourceLevel: measurementLine.sourceLevel,

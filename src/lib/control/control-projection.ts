@@ -16,10 +16,12 @@ export type ControlProjection = {
   baselineEstimate: {
     source: 'RUNTIME_OUTPUT' | 'PROJECTION' | 'LEGACY';
     internalCost: number | null;
+    laborCost: number | null;
     commercialTotal: number | null;
     bucketSummaries: Array<{
       bucketCode: string;
       internalCost: number | null;
+      laborCost: number | null;
       commercialPrice: number | null;
       commercialLineIds: string[];
       pricingLineIds: string[];
@@ -159,6 +161,7 @@ type ControlProjectionInput = {
 type BucketAggregate = {
   bucketCode: string;
   internalCost: number;
+  laborCost: number;
   commercialPrice: number;
   commercialLineIds: string[];
   pricingLineIds: string[];
@@ -293,6 +296,7 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
       const current = aggregates.get(bucketCode) || {
         bucketCode,
         internalCost: 0,
+        laborCost: 0,
         commercialPrice: 0,
         commercialLineIds: [],
         pricingLineIds: [],
@@ -312,21 +316,33 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
     if (projection) {
       for (const aggregate of aggregates.values()) {
         const spaces = new Set<string>();
+        let laborCost = 0;
         for (const pricingLineId of aggregate.pricingLineIds) {
           const pricingLine = projection.pricingLines.find((line) => line.id === pricingLineId);
           if (pricingLine?.spaceId) spaces.add(pricingLine.spaceId);
+          laborCost += pricingLine?.laborCost || 0;
         }
         aggregate.spaceIds = Array.from(spaces);
+        aggregate.laborCost = laborCost;
       }
     }
 
     return {
       source: 'RUNTIME_OUTPUT' as const,
       internalCost: runtimeOutput.summary.internalCost,
+      laborCost: projection
+        ? round(
+            projection.pricingLines.reduce(
+              (sum, line) => sum + (line.laborCost || 0),
+              0,
+            ),
+          )
+        : null,
       commercialTotal: runtimeOutput.summary.commercialTotal,
       bucketSummaries: Array.from(aggregates.values()).map((item) => ({
         bucketCode: item.bucketCode,
         internalCost: round(item.internalCost),
+        laborCost: round(item.laborCost),
         commercialPrice: round(item.commercialPrice),
         commercialLineIds: unique(item.commercialLineIds),
         pricingLineIds: unique(item.pricingLineIds),
@@ -341,6 +357,9 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
     return {
       source: 'PROJECTION' as const,
       internalCost: projection.summary.internalCost,
+      laborCost: round(
+        projection.pricingLines.reduce((sum, line) => sum + (line.laborCost || 0), 0),
+      ),
       commercialTotal: projection.summary.commercialTotal,
       bucketSummaries: projection.buckets.map((bucket) => {
         const spaces = uniqueStrings(
@@ -348,9 +367,14 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
             .map((id) => projection.pricingLines.find((line) => line.id === id)?.spaceId)
             .filter((value): value is string => typeof value === 'string' && value.length > 0),
         );
+        const laborCost = bucket.pricingLineIds.reduce((sum, id) => {
+          const pricingLine = projection.pricingLines.find((line) => line.id === id);
+          return sum + (pricingLine?.laborCost || 0);
+        }, 0);
         return {
           bucketCode: bucket.bucketCode,
           internalCost: bucket.totalCost,
+          laborCost: round(laborCost),
           commercialPrice: null,
           commercialLineIds: projection.commercialLines
             .filter((line) => line.pricingLineIds.some((id) => bucket.pricingLineIds.includes(id)))
@@ -367,6 +391,7 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
   return {
     source: 'LEGACY' as const,
     internalCost: null,
+    laborCost: null,
     commercialTotal: null,
     bucketSummaries: [],
   };

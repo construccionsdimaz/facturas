@@ -440,6 +440,15 @@ function priceLabor(
       laborCode: labor.laborCode,
       quantity: labor.quantity,
       unit: labor.unit,
+      tradeCode: labor.tradeCode || null,
+      crewCode: labor.crewCode || null,
+      productivityProfileCode: labor.productivityProfileCode || null,
+      productivitySource: labor.productivitySource || null,
+      baseHoursPerUnit: labor.baseHoursPerUnit ?? null,
+      adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
+      adjustedCrewDays: labor.adjustedCrewDays ?? null,
+      productivityFactors: labor.productivityFactors || [],
+      assumptions: labor.assumptions || [],
       unitCost: round(manual.unitCost),
       totalCost: round(labor.quantity * manual.unitCost),
       currency: 'EUR',
@@ -454,6 +463,15 @@ function priceLabor(
       laborCode: labor.laborCode,
       quantity: labor.quantity,
       unit: labor.unit,
+      tradeCode: labor.tradeCode || null,
+      crewCode: labor.crewCode || null,
+      productivityProfileCode: labor.productivityProfileCode || null,
+      productivitySource: labor.productivitySource || null,
+      baseHoursPerUnit: labor.baseHoursPerUnit ?? null,
+      adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
+      adjustedCrewDays: labor.adjustedCrewDays ?? null,
+      productivityFactors: labor.productivityFactors || [],
+      assumptions: labor.assumptions || [],
       unitCost: null,
       totalCost: null,
       currency: 'EUR',
@@ -467,6 +485,15 @@ function priceLabor(
       laborCode: labor.laborCode,
       quantity: labor.quantity,
       unit: labor.unit,
+      tradeCode: labor.tradeCode || null,
+      crewCode: labor.crewCode || null,
+      productivityProfileCode: labor.productivityProfileCode || null,
+      productivitySource: labor.productivitySource || null,
+      baseHoursPerUnit: labor.baseHoursPerUnit ?? null,
+      adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
+      adjustedCrewDays: labor.adjustedCrewDays ?? null,
+      productivityFactors: labor.productivityFactors || [],
+      assumptions: labor.assumptions || [],
       unitCost: round(binding.catalogReferenceUnitCost!),
       totalCost: round(labor.quantity * binding.catalogReferenceUnitCost!),
       currency: 'EUR',
@@ -480,6 +507,15 @@ function priceLabor(
       laborCode: labor.laborCode,
       quantity: labor.quantity,
       unit: labor.unit,
+      tradeCode: labor.tradeCode || null,
+      crewCode: labor.crewCode || null,
+      productivityProfileCode: labor.productivityProfileCode || null,
+      productivitySource: labor.productivitySource || null,
+      baseHoursPerUnit: labor.baseHoursPerUnit ?? null,
+      adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
+      adjustedCrewDays: labor.adjustedCrewDays ?? null,
+      productivityFactors: labor.productivityFactors || [],
+      assumptions: labor.assumptions || [],
       unitCost: round(binding.parametricReferenceUnitCost!),
       totalCost: round(labor.quantity * binding.parametricReferenceUnitCost!),
       currency: 'EUR',
@@ -492,6 +528,15 @@ function priceLabor(
     laborCode: labor.laborCode,
     quantity: labor.quantity,
     unit: labor.unit,
+    tradeCode: labor.tradeCode || null,
+    crewCode: labor.crewCode || null,
+    productivityProfileCode: labor.productivityProfileCode || null,
+    productivitySource: labor.productivitySource || null,
+    baseHoursPerUnit: labor.baseHoursPerUnit ?? null,
+    adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
+    adjustedCrewDays: labor.adjustedCrewDays ?? null,
+    productivityFactors: labor.productivityFactors || [],
+    assumptions: labor.assumptions || [],
     unitCost: null,
     totalCost: null,
     currency: 'EUR',
@@ -618,6 +663,18 @@ export async function buildPricingResult(
       }
       if (priceStatus === 'PRICE_INFERRED') {
         assumptions.push(`Pricing inferido para ${recipeLine.recipeCode} en ${recipeLine.spaceId}.`);
+      }
+      for (const labor of laborPricing) {
+        if (labor.productivitySource === 'FALLBACK') {
+          warnings.push(`Productividad fallback para ${labor.laborCode} en ${recipeLine.spaceId}.`);
+        }
+        if ((labor.productivityFactors || []).length > 0) {
+          assumptions.push(
+            `Labor ${labor.laborCode} ajustada por productividad en ${recipeLine.spaceId}: ${(labor.productivityFactors || [])
+              .map((factor) => factor.code)
+              .join(', ')}.`
+          );
+        }
       }
 
       return {

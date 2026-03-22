@@ -57,6 +57,19 @@ export type PricingLabor = {
   laborCode: RecipeLaborCode;
   quantity: number;
   unit: 'h' | 'jor';
+  tradeCode?: string | null;
+  crewCode?: string | null;
+  productivityProfileCode?: string | null;
+  productivitySource?: 'PROFILE' | 'REFERENCE' | 'FALLBACK' | null;
+  baseHoursPerUnit?: number | null;
+  adjustedHoursPerUnit?: number | null;
+  adjustedCrewDays?: number | null;
+  productivityFactors?: Array<{
+    code: string;
+    multiplier: number;
+    reason: string;
+  }>;
+  assumptions?: string[];
   unitCost?: number | null;
   totalCost?: number | null;
   currency: 'EUR';
