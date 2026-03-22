@@ -281,6 +281,11 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                   <div style={{ marginTop: '4px', fontSize: '13px' }}>
                     Mat {formatCurrency(bucket.materialCost)} | MO {formatCurrency(bucket.laborCost)} | Asoc {formatCurrency(bucket.indirectCost)} | Total {bucket.totalCost == null ? 'Pendiente' : formatCurrency(bucket.totalCost)}
                   </div>
+                  {bucket.source === 'HYBRID' && (
+                    <div style={{ marginTop: '4px', fontSize: '12px', color: '#fcd34d' }}>
+                      Bucket provisional: conserva coste interno estimado, pero sigue pendiente de validacion comercial.
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
@@ -305,6 +310,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                       <div style={{ fontSize: '12px', color: '#fcd34d', marginTop: '6px' }}>
                         {lineEconomicStatus.economicStatus} | {lineEconomicStatus.priceSource} | {lineEconomicStatus.costSource}
                         {lineEconomicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
+                        {lineEconomicStatus.commercialPriceProvisional ? ' | Comercial provisional' : ''}
                         {lineEconomicStatus.bucketCode ? ` | Bucket ${lineEconomicStatus.bucketCode}` : ''}
                       </div>
                     )}
@@ -316,6 +322,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                     </div>
                     <div style={{ fontWeight: 700, marginTop: '4px' }}>
                       Interno {formatCurrency(line.internalCost)} | Comercial {formatCurrency(line.commercialPrice)}
+                      {lineEconomicStatus?.commercialPriceProvisional ? ' (provisional)' : ''}
                     </div>
                   </div>
                 </div>

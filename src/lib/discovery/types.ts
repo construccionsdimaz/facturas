@@ -584,7 +584,7 @@ export type ExecutionContext = {
     accessLevel: AccessLevel;
     conditions: string;
     structuralWorks: boolean;
-    technicalSpecStatus?: TechnicalSpecStatus;
+    technicalSpecStatus: TechnicalSpecStatus;
     complexityProfile?: ComplexityProfile;
   };
   totals: {

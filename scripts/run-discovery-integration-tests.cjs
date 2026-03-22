@@ -334,6 +334,7 @@ async function run() {
   });
   const parametricIntegrated = integratePricingIntoEstimateProposal(parametricProposal);
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.costSource === 'PARAMETRIC_MASTER'));
+  assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.commercialPriceProvisional === false));
 
   const measured = createEmptyDiscoverySessionData('COLIVING');
   measured.modelingStrategy = 'STRUCTURED_REPETITIVE';
@@ -759,6 +760,11 @@ async function run() {
       (line) => line.economicStatus.costSource === 'RECIPE_PRICED'
     )
   );
+  assert(
+    integratedTechnical.lines
+      .filter((line) => line.economicStatus.costSource === 'RECIPE_PRICED')
+      .every((line) => line.economicStatus.commercialPriceProvisional === false)
+  );
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
   assert(
@@ -771,7 +777,9 @@ async function run() {
       (line) =>
         line.economicStatus.bucketCode === 'BATHS' &&
         line.economicStatus.costSource === 'HYBRID' &&
-        line.economicStatus.pendingValidation === true
+        line.economicStatus.pendingValidation === true &&
+        line.economicStatus.commercialPriceProvisional === true &&
+        line.kind === 'PROVISIONAL'
     )
   );
 

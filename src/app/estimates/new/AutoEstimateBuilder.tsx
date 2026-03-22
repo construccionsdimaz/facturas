@@ -384,6 +384,7 @@ export default function AutoEstimateBuilder({
                         <div style={{ marginTop: '6px', fontSize: '12px', color: '#fcd34d' }}>
                           {line.economicStatus.economicStatus} | {line.economicStatus.priceSource} | {line.economicStatus.costSource}
                           {line.economicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
+                          {line.economicStatus.commercialPriceProvisional ? ' | Comercial provisional' : ''}
                         </div>
 	                    </div>
 	                    <div style={{ textAlign: 'right' }}>
@@ -411,6 +412,11 @@ export default function AutoEstimateBuilder({
                     <div style={{ marginTop: '4px', fontSize: '13px' }}>
                       Mat {formatCurrency(bucket.materialCost)} | MO {formatCurrency(bucket.laborCost)} | Asoc {formatCurrency(bucket.indirectCost)} | Total {bucket.totalCost == null ? 'Pendiente' : formatCurrency(bucket.totalCost)}
                     </div>
+                    {bucket.source === 'HYBRID' && (
+                      <div style={{ marginTop: '4px', fontSize: '12px', color: '#fcd34d' }}>
+                        Bucket provisional: el coste interno ya combina capa tecnica y fallback, pero no debe tratarse como cierre comercial normal.
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

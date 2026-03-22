@@ -39,6 +39,7 @@ export type EstimateLineEconomicSnapshot = {
   priceSource: EstimatePriceSource;
   pendingValidation: boolean;
   costSource: InternalCostSource;
+  commercialPriceProvisional?: boolean;
   priceStatus?: 'PRICE_CONFIRMED' | 'PRICE_INFERRED' | 'PRICE_PENDING_VALIDATION';
   recipeCoverage?: number;
   priceCoverage?: number;
@@ -150,6 +151,7 @@ export function buildSprintOneLineEconomicStatus(): EstimateLineEconomicSnapshot
     priceSource: 'PARAMETRIC_REFERENCE',
     pendingValidation: true,
     costSource: 'PARAMETRIC_MASTER',
+    commercialPriceProvisional: false,
     priceStatus: 'PRICE_PENDING_VALIDATION',
     recipeCoverage: 0,
     priceCoverage: 0,
@@ -279,6 +281,7 @@ export function parseLineEconomicStatus(
       economic.costSource === 'RECIPE_PRICED' || economic.costSource === 'HYBRID'
         ? (economic.costSource as InternalCostSource)
         : 'PARAMETRIC_MASTER',
+    commercialPriceProvisional: Boolean(economic.commercialPriceProvisional),
     priceStatus:
       economic.priceStatus === 'PRICE_CONFIRMED' ||
       economic.priceStatus === 'PRICE_INFERRED' ||

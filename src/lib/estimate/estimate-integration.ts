@@ -39,9 +39,9 @@ type IntegratedProposalResult = {
 
 const DEFAULT_BUCKET_LABELS: Record<IntegratedEstimateBucketCode, string> = {
   ROOMS: 'Habitaciones / unidades tipo',
-  BATHS: 'Baños repetitivos',
+  BATHS: 'Banos repetitivos',
   KITCHENETTES: 'Kitchenettes',
-  LEVELING: 'Nivelación y regularización',
+  LEVELING: 'Nivelacion y regularizacion',
   COMMON_AREAS: 'Zonas comunes',
 };
 
@@ -79,7 +79,7 @@ function bucketFromProposalLine(line: GeneratedEstimateLine): IntegratedEstimate
   const text = `${line.chapter} ${line.description}`.toUpperCase();
 
   if (code === 'ACABADOS_HAB' || /HABITACI|UNIDADES|COLIVING/.test(text)) return 'ROOMS';
-  if (code === 'BANOS_REPETITIVOS' || /BA[ÑN]OS|SANITARIOS/.test(text)) return 'BATHS';
+  if (code === 'BANOS_REPETITIVOS' || /BANOS|SANITARIOS/.test(text)) return 'BATHS';
   if (code === 'COCINAS_OFFICE' || /COCINA|KITCHENETTE|OFFICE/.test(text)) return 'KITCHENETTES';
   if (code === 'ZONAS_COMUNES' || /ZONAS COMUNES|PORTAL|PASILLOS|ESCALERAS/.test(text)) return 'COMMON_AREAS';
   if (code === 'PAVIMENTOS' || /NIVELACI|REGULARIZACI|PAVIMENT/.test(text)) return 'LEVELING';
@@ -88,9 +88,7 @@ function bucketFromProposalLine(line: GeneratedEstimateLine): IntegratedEstimate
   return null;
 }
 
-function dominantPriceSource(
-  priceSources: EstimatePriceSource[]
-): EstimatePriceSource {
+function dominantPriceSource(priceSources: EstimatePriceSource[]): EstimatePriceSource {
   const priority: EstimatePriceSource[] = [
     'MANUAL_OVERRIDE',
     'SUPPLIER_OFFER',
@@ -107,7 +105,9 @@ function dominantPriceSource(
   return 'MISSING';
 }
 
-function aggregatePricingBuckets(pricingResult?: PricingResult): Map<IntegratedEstimateBucketCode, IntegratedEstimateCostBucket> {
+function aggregatePricingBuckets(
+  pricingResult?: PricingResult
+): Map<IntegratedEstimateBucketCode, IntegratedEstimateCostBucket> {
   const buckets = new Map<IntegratedEstimateBucketCode, IntegratedEstimateCostBucket>();
   if (!pricingResult) return buckets;
 
@@ -127,7 +127,7 @@ function aggregatePricingBuckets(pricingResult?: PricingResult): Map<IntegratedE
       priceStatus: 'PRICE_CONFIRMED' as IntegratedEstimateCostBucket['priceStatus'],
       recipeCoveragePercent: 100,
       priceCoveragePercent: 100,
-      dominantPriceSource: 'MISSING',
+      dominantPriceSource: 'MISSING' as EstimatePriceSource,
     };
 
     existing.pricingLineIds.push(line.id);
@@ -139,14 +139,15 @@ function aggregatePricingBuckets(pricingResult?: PricingResult): Map<IntegratedE
       existing.totalCost === null || line.totalCost == null
         ? null
         : round((existing.totalCost || 0) + (line.totalCost || 0));
-    existing.priceCoveragePercent =
-      Math.round(((existing.pricingLineIds.length - (line.priceStatus === 'PRICE_PENDING_VALIDATION' ? 1 : 0)) / existing.pricingLineIds.length) * 100);
     existing.recipeCoveragePercent = 100;
 
     if (line.priceStatus === 'PRICE_PENDING_VALIDATION') {
       existing.priceStatus = 'PRICE_PENDING_VALIDATION';
       existing.totalCost = null;
-    } else if (line.priceStatus === 'PRICE_INFERRED' && existing.priceStatus !== 'PRICE_PENDING_VALIDATION') {
+    } else if (
+      line.priceStatus === 'PRICE_INFERRED' &&
+      existing.priceStatus !== 'PRICE_PENDING_VALIDATION'
+    ) {
       existing.priceStatus = 'PRICE_INFERRED';
     }
 
@@ -161,11 +162,12 @@ function aggregatePricingBuckets(pricingResult?: PricingResult): Map<IntegratedE
 
   for (const bucket of buckets.values()) {
     const totalLines = bucket.pricingLineIds.length || 1;
-    const pending = pricingResult?.lines.filter(
-      (line) =>
-        bucket.pricingLineIds.includes(line.id) &&
-        line.priceStatus === 'PRICE_PENDING_VALIDATION'
-    ).length || 0;
+    const pending =
+      pricingResult.lines.filter(
+        (line) =>
+          bucket.pricingLineIds.includes(line.id) &&
+          line.priceStatus === 'PRICE_PENDING_VALIDATION'
+      ).length || 0;
     const covered = totalLines - pending;
     bucket.priceCoveragePercent = Math.round((covered / totalLines) * 100);
   }
@@ -187,6 +189,7 @@ function buildIntegratedEconomicStatus(params: {
     priceSource: params.priceSource,
     pendingValidation: params.bucket.priceStatus === 'PRICE_PENDING_VALIDATION',
     costSource: params.bucket.source,
+    commercialPriceProvisional: params.bucket.source === 'HYBRID',
     priceStatus: params.bucket.priceStatus,
     recipeCoverage: params.bucket.recipeCoveragePercent,
     priceCoverage: params.bucket.priceCoveragePercent,
@@ -220,26 +223,31 @@ function integrateBucketWithParametricLines(
     }
   );
 
-  if (bucket.priceStatus === 'PRICE_PENDING_VALIDATION') {
-    bucket.source = 'HYBRID';
-  } else {
-    bucket.source = 'RECIPE_PRICED';
-  }
+  bucket.source =
+    bucket.priceStatus === 'PRICE_PENDING_VALIDATION' ? 'HYBRID' : 'RECIPE_PRICED';
 
-  const fallbackRatio = bucket.priceStatus === 'PRICE_PENDING_VALIDATION'
-    ? Math.max(0, 1 - bucket.priceCoveragePercent / 100)
-    : 0;
+  const fallbackRatio =
+    bucket.priceStatus === 'PRICE_PENDING_VALIDATION'
+      ? Math.max(0, 1 - bucket.priceCoveragePercent / 100)
+      : 0;
 
-  const materialCost = round(bucket.materialCost + (parametric.materialCost * fallbackRatio));
-  const laborCost = round(bucket.laborCost + (parametric.laborCost * fallbackRatio));
-  const associatedCost = round(bucket.indirectCost + (parametric.associatedCost * fallbackRatio));
+  const materialCost = round(
+    bucket.materialCost + parametric.materialCost * fallbackRatio
+  );
+  const laborCost = round(bucket.laborCost + parametric.laborCost * fallbackRatio);
+  const associatedCost = round(
+    bucket.indirectCost + parametric.associatedCost * fallbackRatio
+  );
   const internalCost = round(materialCost + laborCost + associatedCost);
 
   const parametricCommercialFactor =
     parametric.internalCost > 0
       ? parametric.commercialPrice / parametric.internalCost
       : globalCommercialFactor;
-  const commercialPrice = round(internalCost * (parametricCommercialFactor || globalCommercialFactor || 1.24));
+  const commercialPrice = round(
+    internalCost * (parametricCommercialFactor || globalCommercialFactor || 1.24)
+  );
+  const isHybrid = bucket.source === 'HYBRID';
 
   const inferredSource =
     bucket.priceStatus === 'PRICE_PENDING_VALIDATION'
@@ -249,7 +257,7 @@ function integrateBucketWithParametricLines(
   return {
     chapter: matchedLines[0]?.chapter || DEFAULT_BUCKET_CHAPTERS[bucketCode],
     code: DEFAULT_BUCKET_CODES[bucketCode],
-    description: `${DEFAULT_BUCKET_LABELS[bucketCode]} integradas desde pricing técnico`,
+    description: `${DEFAULT_BUCKET_LABELS[bucketCode]} integradas desde pricing tecnico${isHybrid ? ' (provisional)' : ''}`,
     unit: 'lot',
     quantity: 1,
     commercialPrice,
@@ -258,7 +266,7 @@ function integrateBucketWithParametricLines(
     laborCost,
     materialCost,
     associatedCost,
-    kind: 'DIRECT',
+    kind: isHybrid ? 'PROVISIONAL' : 'DIRECT',
     source: matchedLines[0]?.source || 'MASTER',
     typologyCode: matchedLines[0]?.typologyCode || null,
     standardActivityCode: null,
@@ -272,18 +280,22 @@ function integrateBucketWithParametricLines(
       replacedParametricCodes: matchedLines.map((line) => line.code).filter(Boolean),
     },
     economicStatus: buildIntegratedEconomicStatus({
-        bucket,
-        priceSource: inferredSource,
-      }),
+      bucket,
+      priceSource: inferredSource,
+    }),
   };
 }
 
-function asParametricLine(line: GeneratedEstimateLine, bucketCode?: IntegratedEstimateBucketCode | null): GeneratedEstimateLine {
+function asParametricLine(
+  line: GeneratedEstimateLine,
+  bucketCode?: IntegratedEstimateBucketCode | null
+): GeneratedEstimateLine {
   return {
     ...line,
     economicStatus: {
       ...line.economicStatus,
       costSource: 'PARAMETRIC_MASTER',
+      commercialPriceProvisional: false,
       recipeCoverage: line.economicStatus.recipeCoverage ?? 0,
       priceCoverage: line.economicStatus.priceCoverage ?? 0,
       bucketCode: bucketCode || line.economicStatus.bucketCode || null,
@@ -291,16 +303,27 @@ function asParametricLine(line: GeneratedEstimateLine, bucketCode?: IntegratedEs
   };
 }
 
-function summarizeProposal(lines: GeneratedEstimateLine[], baseSummary: GeneratedEstimateProposal['summary']) {
+function summarizeProposal(
+  lines: GeneratedEstimateLine[],
+  baseSummary: GeneratedEstimateProposal['summary']
+) {
   const materialCost = round(lines.reduce((sum, line) => sum + line.materialCost, 0));
   const laborCost = round(lines.reduce((sum, line) => sum + line.laborCost, 0));
-  const associatedCost = round(lines.reduce((sum, line) => sum + line.associatedCost, 0));
+  const associatedCost = round(
+    lines.reduce((sum, line) => sum + line.associatedCost, 0)
+  );
   const internalCost = round(materialCost + laborCost + associatedCost);
-  const marginRatio = baseSummary.internalCost > 0 ? baseSummary.marginAmount / baseSummary.internalCost : 0.18;
-  const contingencyRatio = baseSummary.internalCost > 0 ? baseSummary.contingencyAmount / baseSummary.internalCost : 0.06;
+  const marginRatio =
+    baseSummary.internalCost > 0 ? baseSummary.marginAmount / baseSummary.internalCost : 0.18;
+  const contingencyRatio =
+    baseSummary.internalCost > 0
+      ? baseSummary.contingencyAmount / baseSummary.internalCost
+      : 0.06;
   const contingencyAmount = round(internalCost * contingencyRatio);
   const marginAmount = round(internalCost * marginRatio);
-  const commercialSubtotal = round(lines.reduce((sum, line) => sum + line.commercialPrice, 0));
+  const commercialSubtotal = round(
+    lines.reduce((sum, line) => sum + line.commercialPrice, 0)
+  );
   const vatAmount = round(commercialSubtotal * 0.21);
 
   return {
@@ -361,7 +384,9 @@ export function integratePricingIntoEstimateProposal(
       continue;
     }
 
-    const matchedLines = matchedIndexes.map((matchedIndex) => proposal.lines[matchedIndex]);
+    const matchedLines = matchedIndexes.map(
+      (matchedIndex) => proposal.lines[matchedIndex]
+    );
     const integratedLine = integrateBucketWithParametricLines(
       bucketCode,
       bucket,
@@ -376,13 +401,15 @@ export function integratePricingIntoEstimateProposal(
   for (const [bucketCode, bucket] of pricingBuckets.entries()) {
     if (integratedBucketKeys.has(bucketCode)) continue;
 
-    const fallbackInternalCost = bucket.totalCost ?? round(bucket.materialCost + bucket.laborCost + bucket.indirectCost);
-    bucket.source = bucket.priceStatus === 'PRICE_PENDING_VALIDATION' ? 'HYBRID' : 'RECIPE_PRICED';
+    const fallbackInternalCost =
+      bucket.totalCost ?? round(bucket.materialCost + bucket.laborCost + bucket.indirectCost);
+    bucket.source =
+      bucket.priceStatus === 'PRICE_PENDING_VALIDATION' ? 'HYBRID' : 'RECIPE_PRICED';
 
     resultLines.push({
       chapter: DEFAULT_BUCKET_CHAPTERS[bucketCode],
       code: DEFAULT_BUCKET_CODES[bucketCode],
-      description: `${DEFAULT_BUCKET_LABELS[bucketCode]} integradas desde pricing técnico`,
+      description: `${DEFAULT_BUCKET_LABELS[bucketCode]} integradas desde pricing tecnico${bucket.source === 'HYBRID' ? ' (provisional)' : ''}`,
       unit: 'lot',
       quantity: 1,
       commercialPrice: round(fallbackInternalCost * globalCommercialFactor),
@@ -391,7 +418,7 @@ export function integratePricingIntoEstimateProposal(
       laborCost: bucket.laborCost,
       materialCost: bucket.materialCost,
       associatedCost: bucket.indirectCost,
-      kind: 'DIRECT',
+      kind: bucket.source === 'HYBRID' ? 'PROVISIONAL' : 'DIRECT',
       source: proposal.source,
       typologyCode: proposal.typologyCode || null,
       standardActivityCode: null,
@@ -406,7 +433,10 @@ export function integratePricingIntoEstimateProposal(
       },
       economicStatus: buildIntegratedEconomicStatus({
         bucket,
-        priceSource: bucket.priceStatus === 'PRICE_PENDING_VALIDATION' ? 'MISSING' : bucket.dominantPriceSource || 'CATALOG_REFERENCE',
+        priceSource:
+          bucket.priceStatus === 'PRICE_PENDING_VALIDATION'
+            ? 'MISSING'
+            : bucket.dominantPriceSource || 'CATALOG_REFERENCE',
       }),
     });
     integratedBuckets.push(bucket);

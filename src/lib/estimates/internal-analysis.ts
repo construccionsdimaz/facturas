@@ -164,6 +164,7 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
           priceSource: 'PARAMETRIC_REFERENCE',
           pendingValidation: true,
           costSource: 'PARAMETRIC_MASTER',
+          commercialPriceProvisional: false,
           priceStatus: 'PRICE_PENDING_VALIDATION',
           recipeCoverage: 0,
           priceCoverage: 0,
