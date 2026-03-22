@@ -175,7 +175,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
 
       const data = await res.json();
       await fetchData();
-      alert(`Suministros automaticos generados: ${data.created}${data.issues?.length ? ` | Avisos: ${data.issues.length}` : ''}`);
+      alert(`Suministros automaticos generados: ${data.created} | Fuente: ${data.source}${data.issues?.length ? ` | Avisos: ${data.issues.length}` : ''}`);
     } catch (error: any) {
       alert(error.message || 'Error generando suministros');
     }

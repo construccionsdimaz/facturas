@@ -63,6 +63,7 @@ async function run() {
     revokeEstimateAcceptance,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
+  const { buildProcurementProjection } = require(path.join(srcRoot, 'lib/procurement/procurement-projection.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
   const { buildPlanningProjection } = require(path.join(srcRoot, 'lib/planning/planning-projection.ts'));
@@ -108,6 +109,19 @@ async function run() {
   const preferredSuppliersOverride = {
     'Suministros Dimaz Base': { id: 'sup-dimaz', name: 'Suministros Dimaz Base' },
     'Acabats Mediterrani': { id: 'sup-acabats', name: 'Acabats Mediterrani' },
+  };
+  const procurementLookupOverride = {
+    ...pricingLookupOverride,
+    'ELE-CAB-325': {
+      id: 'mat-ele-cab',
+      code: 'ELE-CAB-325',
+      name: 'Cable electrico 3x2.5',
+      category: 'INSTALACIONES',
+      baseUnit: 'ml',
+      offers: [
+        { id: 'offer-ele-cab', supplierId: 'sup-electro', unitCost: 1.85, unit: 'ml', leadTimeDays: 2, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
   };
 
   const simple = createEmptyDiscoverySessionData('PISO');
@@ -390,6 +404,53 @@ async function run() {
   });
   assert.equal(legacyPlanningProjection.source, 'LEGACY_TEMPLATE');
   assert(legacyPlanningProjection.activities.every((activity) => activity.generatedFrom === 'LEGACY_TEMPLATE'));
+  const legacyProcurementProjection = await buildProcurementProjection({
+    materialLookupOverride: procurementLookupOverride,
+    projectActivities: [
+      {
+        id: 'legacy-activity-1',
+        name: 'Instalacion general',
+        code: 'INS-GEN',
+        plannedStartDate: '2026-03-30T08:00:00.000Z',
+        plannedEndDate: '2026-04-01T08:00:00.000Z',
+        originCostItemCode: 'INSTALACIONES',
+        standardActivity: {
+          code: 'INS-GEN',
+          materialTemplates: [
+            {
+              materialId: 'mat-ele',
+              unit: 'ml',
+              criticality: 'CRITICA',
+              material: {
+                id: 'mat-ele',
+                code: 'ELE-CAB-325',
+                name: 'Cable electrico 3x2.5',
+                category: 'INSTALACIONES',
+                baseUnit: 'ml',
+                offers: [
+                  {
+                    id: 'offer-elec',
+                    supplierId: 'sup-electro',
+                    unitCost: 1.85,
+                    unit: 'ml',
+                    leadTimeDays: 2,
+                    isPreferred: true,
+                    supplier: { id: 'sup-electro', name: 'Electro BCN' },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      },
+    ],
+  });
+  assert.equal(legacyProcurementProjection.source, 'DISCOVERY_HINTS');
+  assert(
+    legacyProcurementProjection.procurementLines.some(
+      (line) => line.generatedFrom === 'LEGACY_ACTIVITY_FALLBACK'
+    )
+  );
   const parametricProposal = await generateEstimateProposal({
     workType: 'ADECUACION_LOCAL',
     siteType: 'LOCAL',
@@ -925,6 +986,72 @@ async function run() {
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'kit-1'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'LEVELING_LIGHT'));
   assert(canonicalPlanningProjection.coverage.recipeCoveragePercent > 0);
+  const canonicalProcurementProjection = await buildProcurementProjection({
+    executionContext: measuredInput.executionContext,
+    recipeResult: measuredInput.recipeResult,
+    pricingResult: inferredPricing,
+    includeDiscoveryHints: false,
+    materialLookupOverride: procurementLookupOverride,
+    projectActivities: [
+      {
+        id: 'act-bath',
+        name: 'Montaje banos',
+        code: 'BAN-01',
+        locationId: 'loc-bath',
+        wbsId: 'wbs-bath',
+        plannedStartDate: '2026-04-02T08:00:00.000Z',
+        plannedEndDate: '2026-04-04T08:00:00.000Z',
+        originCostItemCode: 'BANOS',
+        standardActivity: null,
+      },
+      {
+        id: 'act-kit',
+        name: 'Montaje cocinas',
+        code: 'KIT-01',
+        locationId: 'loc-kit',
+        wbsId: 'wbs-kit',
+        plannedStartDate: '2026-04-05T08:00:00.000Z',
+        plannedEndDate: '2026-04-06T08:00:00.000Z',
+        originCostItemCode: 'COCINA',
+        standardActivity: null,
+      },
+      {
+        id: 'act-level',
+        name: 'Nivelacion pavimentos',
+        code: 'PAV-01',
+        locationId: 'loc-floor',
+        wbsId: 'wbs-floor',
+        plannedStartDate: '2026-04-01T08:00:00.000Z',
+        plannedEndDate: '2026-04-03T08:00:00.000Z',
+        originCostItemCode: 'PAVIMENTOS',
+        standardActivity: null,
+      },
+    ],
+  });
+  assert(['RECIPE_DRIVEN', 'HYBRID'].includes(canonicalProcurementProjection.source));
+  assert(
+    canonicalProcurementProjection.procurementLines.every(
+      (line) => line.generatedFrom === 'RECIPE'
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) =>
+        line.supportedRecipeLineIds.length > 0 &&
+        line.supportedPricingLineIds.length > 0 &&
+        Boolean(line.supplierId)
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.requiredBySpaceIds.includes('bath-1')
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => Boolean(line.requiredOnSiteDate)
+    )
+  );
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnicalRuntime.source));
   assert(integratedTechnical.integratedCostBuckets.length > 0);
@@ -1029,6 +1156,37 @@ async function run() {
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
   const integratedMixedRuntime = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).runtimeOutput;
+  const hybridProcurementProjection = await buildProcurementProjection({
+    executionContext: structuredInput.executionContext,
+    recipeResult: blockedInput.recipeResult,
+    pricingResult: bathAdaptedPricing,
+    includeDiscoveryHints: true,
+    materialLookupOverride: procurementLookupOverride,
+    projectActivities: [
+      {
+        id: 'act-common',
+        name: 'Acabados zonas comunes',
+        code: 'COM-01',
+        locationId: 'loc-common',
+        wbsId: 'wbs-common',
+        plannedStartDate: '2026-04-08T08:00:00.000Z',
+        plannedEndDate: '2026-04-10T08:00:00.000Z',
+        originCostItemCode: 'ZONAS_COMUNES',
+        standardActivity: null,
+      },
+    ],
+  });
+  assert.equal(hybridProcurementProjection.source, 'HYBRID');
+  assert(
+    hybridProcurementProjection.procurementLines.some(
+      (line) => line.generatedFrom === 'RECIPE'
+    )
+  );
+  assert(
+    hybridProcurementProjection.procurementLines.some(
+      (line) => line.generatedFrom === 'DISCOVERY_HINT'
+    )
+  );
   assert.equal(integratedMixed.commercialEstimateProjection.source, 'HYBRID');
   assert.equal(integratedMixedRuntime.source, 'HYBRID');
   assert(

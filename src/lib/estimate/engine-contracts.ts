@@ -31,6 +31,7 @@ import type {
 import type { PlanningBlueprint } from '@/lib/automation/planning-generator';
 import type { PlanningProjection as RuntimePlanningProjection } from '@/lib/planning/planning-projection';
 import type { DiscoverySupplyHint } from '@/lib/procurement/discovery-context';
+import type { ProcurementProjection as RuntimeProcurementProjection } from '@/lib/procurement/procurement-projection';
 
 /**
  * Canonical engine contracts.
@@ -66,25 +67,6 @@ export type PricingResult = CanonicalPricingResult;
 
 export type CommercialEstimateProjection = RuntimeCommercialEstimateProjection;
 
-export type ProcurementProjection = {
-  source: 'DISCOVERY_HINTS' | 'RECIPE_DRIVEN' | 'HYBRID';
-  executionContext: Pick<ExecutionContext, 'project' | 'resolvedSpaces' | 'resolvedSpecs' | 'inclusions'>;
-  recipeLines: RecipeLine[];
-  pricingLines: PricingLine[];
-  supplyHints: DiscoverySupplyHint[];
-  procurementLines: Array<{
-    id: string;
-    materialCode: string;
-    description: string;
-    quantity: number;
-    unit: string;
-    requiredBySpaceIds: string[];
-    supportedRecipeLineIds: string[];
-    supplierId?: string;
-    supplierOfferId?: string;
-    priceStatus?: string;
-  }>;
-  warnings: string[];
-};
+export type ProcurementProjection = RuntimeProcurementProjection;
 
 export type PlanningProjection = RuntimePlanningProjection;
