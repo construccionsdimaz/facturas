@@ -29,6 +29,7 @@ import type {
   IntegratedEstimateCostBucket,
 } from './commercial-estimate-projection';
 import type { PlanningBlueprint } from '@/lib/automation/planning-generator';
+import type { PlanningProjection as RuntimePlanningProjection } from '@/lib/planning/planning-projection';
 import type { DiscoverySupplyHint } from '@/lib/procurement/discovery-context';
 
 /**
@@ -86,11 +87,4 @@ export type ProcurementProjection = {
   warnings: string[];
 };
 
-export type PlanningProjection = {
-  source: 'CANONICAL_PIPELINE' | 'HYBRID' | 'LEGACY_TEMPLATE';
-  executionContext: Pick<ExecutionContext, 'project' | 'resolvedSpaces' | 'resolvedSpecs'>;
-  measurementLines: MeasurementLine[];
-  recipeLines: RecipeLine[];
-  blueprint: PlanningBlueprint;
-  warnings: string[];
-};
+export type PlanningProjection = RuntimePlanningProjection;

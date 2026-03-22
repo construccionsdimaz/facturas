@@ -76,6 +76,10 @@ export interface PlanningGenerationInput {
       measurementDrivers?: { areaM2?: number | null };
     }>;
   };
+  measurementResult?: unknown;
+  recipeResult?: unknown;
+  commercialEstimateProjection?: unknown;
+  commercialRuntimeOutput?: unknown;
 }
 
 export interface PlanningLocationNode {

@@ -65,6 +65,7 @@ async function run() {
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
+  const { buildPlanningProjection } = require(path.join(srcRoot, 'lib/planning/planning-projection.ts'));
 
   const pricingLookupOverride = {
     'ACA-PORC': {
@@ -262,6 +263,36 @@ async function run() {
   assert(structuredInput.executionContext.resolvedSpaces.length >= 3);
   assert(structuredInput.rooms >= 2);
   assert(structuredInput.executionContext.resolvedSpaces.some((space) => space.features.hasKitchenette));
+  const structuredPlanningProjection = await buildPlanningProjection({
+    name: 'Structured projection test',
+    siteType: structuredInput.siteType,
+    scopeType: structuredInput.scopeType,
+    workType: structuredInput.workType,
+    area: structuredInput.area,
+    works: structuredInput.worksText,
+    accessLevel: structuredInput.accessLevel,
+    bathrooms: structuredInput.bathrooms,
+    kitchens: structuredInput.kitchens,
+    rooms: structuredInput.rooms,
+    units: structuredInput.units,
+    floors: structuredInput.floors,
+    structuralWorks: structuredInput.structuralWorks,
+    hasElevator: Boolean(structuredInput.hasElevator),
+    finishLevel: structuredInput.finishLevel,
+    conditions: structuredInput.conditions,
+    areas: structuredInput.areas,
+    actionsByArea: structuredInput.actionsByArea,
+    discoverySubtypes: structuredInput.discoveryProfile.subtypes,
+    complexityProfile: structuredInput.discoveryProfile.complexityProfile,
+    inclusions: structuredInput.inclusions,
+    currentVsTarget: structuredInput.currentVsTarget,
+    executionConstraints: structuredInput.executionConstraints,
+    certainty: structuredInput.certainty,
+    executionContext: structuredInput.executionContext,
+    measurementResult: structuredInput.measurementResult,
+    recipeResult: structuredInput.recipeResult,
+  });
+  assert(structuredPlanningProjection.locations.length > 0);
   const discoveryHints = buildDiscoverySupplyHints(structuredInput.executionContext);
   assert(discoveryHints.length > 0);
   try {
@@ -339,6 +370,26 @@ async function run() {
   });
   assert.equal(fallbackContext.mode, 'SIMPLE_AREA_BASED');
   assert(fallbackContext.resolvedSpaces.length >= 1);
+  const legacyPlanningProjection = await buildPlanningProjection({
+    name: 'Legacy planning fallback',
+    siteType: 'LOCAL',
+    scopeType: 'ADECUACION',
+    workType: 'ADECUACION_LOCAL',
+    area: 90,
+    works: 'adecuacion, pintura, suelos',
+    accessLevel: 'NORMAL',
+    bathrooms: 1,
+    kitchens: 0,
+    rooms: 2,
+    units: 1,
+    floors: 1,
+    structuralWorks: false,
+    hasElevator: true,
+    finishLevel: 'MEDIO',
+    conditions: 'Fallback legacy',
+  });
+  assert.equal(legacyPlanningProjection.source, 'LEGACY_TEMPLATE');
+  assert(legacyPlanningProjection.activities.every((activity) => activity.generatedFrom === 'LEGACY_TEMPLATE'));
   const parametricProposal = await generateEstimateProposal({
     workType: 'ADECUACION_LOCAL',
     siteType: 'LOCAL',
@@ -688,6 +739,42 @@ async function run() {
         line.totalCost === null
     )
   );
+  const hybridPlanningProjection = await buildPlanningProjection({
+    name: 'Hybrid planning test',
+    siteType: blockedInput.siteType,
+    scopeType: blockedInput.scopeType,
+    workType: blockedInput.workType,
+    area: blockedInput.area,
+    works: blockedInput.worksText,
+    accessLevel: blockedInput.accessLevel,
+    bathrooms: blockedInput.bathrooms,
+    kitchens: blockedInput.kitchens,
+    rooms: blockedInput.rooms,
+    units: blockedInput.units,
+    floors: blockedInput.floors,
+    structuralWorks: blockedInput.structuralWorks,
+    hasElevator: Boolean(blockedInput.hasElevator),
+    finishLevel: blockedInput.finishLevel,
+    conditions: blockedInput.conditions,
+    areas: blockedInput.areas,
+    actionsByArea: blockedInput.actionsByArea,
+    discoverySubtypes: blockedInput.discoveryProfile.subtypes,
+    complexityProfile: blockedInput.discoveryProfile.complexityProfile,
+    inclusions: blockedInput.inclusions,
+    currentVsTarget: blockedInput.currentVsTarget,
+    executionConstraints: blockedInput.executionConstraints,
+    certainty: blockedInput.certainty,
+    executionContext: blockedInput.executionContext,
+    measurementResult: blockedInput.measurementResult,
+    recipeResult: blockedInput.recipeResult,
+  });
+  assert.equal(hybridPlanningProjection.source, 'HYBRID');
+  assert(hybridPlanningProjection.activities.some((activity) => activity.generatedFrom === 'HYBRID'));
+  assert(
+    hybridPlanningProjection.activities.every((activity) =>
+      ['HYBRID', 'LEGACY_TEMPLATE', 'CANONICAL_PIPELINE'].includes(activity.generatedFrom)
+    )
+  );
 
   const noDoubleCountKitchen = measuredInput.measurementResult.lines.filter(
     (line) => line.measurementCode === 'KITCHENETTE_LENGTH'
@@ -801,6 +888,43 @@ async function run() {
   });
   const integratedTechnical = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).proposal;
   const integratedTechnicalRuntime = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).runtimeOutput;
+  const canonicalPlanningProjection = await buildPlanningProjection({
+    name: 'Canonical planning test',
+    siteType: measuredInput.siteType,
+    scopeType: measuredInput.scopeType,
+    workType: measuredInput.workType,
+    area: measuredInput.area,
+    works: measuredInput.worksText,
+    accessLevel: measuredInput.accessLevel,
+    bathrooms: measuredInput.bathrooms,
+    kitchens: measuredInput.kitchens,
+    rooms: measuredInput.rooms,
+    units: measuredInput.units,
+    floors: measuredInput.floors,
+    structuralWorks: measuredInput.structuralWorks,
+    hasElevator: Boolean(measuredInput.hasElevator),
+    finishLevel: measuredInput.finishLevel,
+    conditions: measuredInput.conditions,
+    areas: measuredInput.areas,
+    actionsByArea: measuredInput.actionsByArea,
+    discoverySubtypes: measuredInput.discoveryProfile.subtypes,
+    complexityProfile: measuredInput.discoveryProfile.complexityProfile,
+    inclusions: measuredInput.inclusions,
+    currentVsTarget: measuredInput.currentVsTarget,
+    executionConstraints: measuredInput.executionConstraints,
+    certainty: measuredInput.certainty,
+    executionContext: measuredInput.executionContext,
+    measurementResult: measuredInput.measurementResult,
+    recipeResult: measuredInput.recipeResult,
+    commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
+    commercialRuntimeOutput: integratedTechnicalRuntime,
+  });
+  assert(['CANONICAL_PIPELINE', 'HYBRID'].includes(canonicalPlanningProjection.source));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.generatedFrom === 'CANONICAL_PIPELINE'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'bath-1'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'kit-1'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'LEVELING_LIGHT'));
+  assert(canonicalPlanningProjection.coverage.recipeCoveragePercent > 0);
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnicalRuntime.source));
   assert(integratedTechnical.integratedCostBuckets.length > 0);

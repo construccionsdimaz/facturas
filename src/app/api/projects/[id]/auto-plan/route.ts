@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { generatePlanningBlueprint } from '@/lib/automation/planning-generator';
 import type { DerivedInput } from '@/lib/discovery/types';
+import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
+import { buildPlanningProjection } from '@/lib/planning/planning-projection';
 import {
   getDefaultProjectCalendarData,
   scheduleProjectActivities,
@@ -178,7 +179,17 @@ export async function POST(
       warnings.push('La obra sigue marcada como setup incompleto.');
     }
 
-    const blueprint = await generatePlanningBlueprint({
+    const commercialReadModel = latestEstimate?.internalAnalysis
+      ? readCommercialEstimateReadModel({
+          generationNotes: latestEstimate.internalAnalysis.generationNotes,
+        })
+      : {
+          source: 'LEGACY',
+          commercialRuntimeOutput: null,
+          commercialEstimateProjection: null,
+        };
+
+    const planningProjection = await buildPlanningProjection({
       name: project.name,
       description: project.description,
       projectType: project.projectType,
@@ -206,7 +217,12 @@ export async function POST(
       executionConstraints: discoveryDerivedInput?.executionConstraints as Record<string, unknown> | undefined,
       certainty: discoveryDerivedInput?.certainty,
       executionContext: discoveryDerivedInput?.executionContext as any,
+      measurementResult: discoveryDerivedInput?.measurementResult,
+      recipeResult: discoveryDerivedInput?.recipeResult,
+      commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
+      commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
     });
+    const blueprint = planningProjection.blueprint;
 
     const calendarRecord =
       project.calendar || {
@@ -355,6 +371,22 @@ export async function POST(
               bufferDays: scheduling.calendar.bufferDays,
               issues: scheduling.issues,
             },
+            planningProjection: {
+              source: planningProjection.source,
+              coverage: planningProjection.coverage,
+              warnings: planningProjection.warnings,
+              assumptions: planningProjection.assumptions,
+              workPackages: planningProjection.workPackages,
+              activities: planningProjection.activities.map((activity) => ({
+                key: activity.key,
+                code: activity.code,
+                name: activity.name,
+                locationKey: activity.locationKey || null,
+                wbsKey: activity.wbsKey,
+                generatedFrom: activity.generatedFrom,
+                provenance: activity.provenance,
+              })),
+            },
             activities: blueprint.activityNodes.map((node) => {
               const scheduled = scheduleByKey.get(node.key);
               return {
@@ -396,10 +428,17 @@ export async function POST(
 
     return NextResponse.json({
       ...result,
-      source: blueprint.source,
+      source: planningProjection.source,
       typologyCode: blueprint.typologyCode || null,
       notes: blueprint.notes,
-      warnings,
+      warnings: [...warnings, ...planningProjection.warnings],
+      planningProjection: {
+        source: planningProjection.source,
+        coverage: planningProjection.coverage,
+        locations: planningProjection.locations.length,
+        workPackages: planningProjection.workPackages.length,
+        activities: planningProjection.activities.length,
+      },
       contextSource: discoveryDerivedInput ? 'DISCOVERY' : latestEstimate ? 'ESTIMATE_AND_PROJECT' : 'PROJECT_FALLBACK',
       scheduling: {
         scheduledWith: scheduling.scheduledWith,
