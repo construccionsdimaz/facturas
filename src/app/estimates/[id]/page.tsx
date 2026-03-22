@@ -140,9 +140,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           generationSource: estimate.internalAnalysis.generationSource,
           typologyCode: estimate.internalAnalysis.typologyCode,
           seedVersion: estimate.internalAnalysis.seedVersion,
-          notes: Array.isArray(estimate.internalAnalysis.generationNotes)
-            ? estimate.internalAnalysis.generationNotes.filter((note): note is string => typeof note === 'string')
-            : [],
+          generationNotes: estimate.internalAnalysis.generationNotes,
           summary: {
             materialCostTotal: estimate.internalAnalysis.materialCostTotal,
             laborCostTotal: estimate.internalAnalysis.laborCostTotal,
@@ -171,6 +169,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
             typologyCode: line.typologyCode,
             standardActivityCode: line.standardActivityCode,
             productivityRateName: line.productivityRateName,
+            appliedAssumptions: line.appliedAssumptions,
           })),
         } : null,
       }} />

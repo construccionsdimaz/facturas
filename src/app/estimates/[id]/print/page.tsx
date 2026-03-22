@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import styles from '@/app/invoices/new/pdf.module.css';
+import { parseGenerationNotes } from '@/lib/estimate/estimate-status';
 
 export default function PrintEstimatePage() {
   const params = useParams();
@@ -30,6 +31,7 @@ export default function PrintEstimatePage() {
 
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Cargando presupuesto para imprimir...</div>;
   if (!estimate) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Presupuesto no encontrado.</div>;
+  const parsedGenerationNotes = parseGenerationNotes(estimate.internalAnalysis?.generationNotes);
 
   return (
     <div className="print-root" style={{ background: 'white' }}>
@@ -77,7 +79,8 @@ export default function PrintEstimatePage() {
           logoY: settings?.logoY,
           paymentMethod: settings?.paymentMethod,
           bankAccount: settings?.bankAccount,
-          dataProtection: settings?.dataProtection
+          dataProtection: settings?.dataProtection,
+          estimateStatus: parsedGenerationNotes.estimateStatus || undefined,
         }} />
       </div>
     </div>

@@ -65,6 +65,17 @@ interface DiscoverySessionResponse {
   assumptions?: { code: string; message: string }[] | null;
 }
 
+function estimateModeLabel(mode?: 'PARAMETRIC_PRELIMINARY' | 'MIXED' | 'RECIPE_PRICED') {
+  switch (mode) {
+    case 'RECIPE_PRICED':
+      return 'Receta valorada';
+    case 'MIXED':
+      return 'Mixto';
+    default:
+      return 'Parametrico preliminar';
+  }
+}
+
 export default function NewEstimate() {
   return (
     <Suspense fallback={<div>Cargando editor...</div>}>
@@ -381,6 +392,7 @@ function NewEstimateContent() {
           typologyCode: internalProposal.typologyCode || null,
           seedVersion: internalProposal.seedVersion ?? null,
           notes: internalProposal.notes,
+          estimateStatus: internalProposal.estimateStatus,
           summary: internalProposal.summary,
           lines: internalProposal.lines,
         } : undefined,
@@ -437,7 +449,8 @@ function NewEstimateContent() {
           logoY: settings?.logoY,
           paymentMethod: settings?.paymentMethod,
           bankAccount: settings?.bankAccount,
-          dataProtection: settings?.dataProtection
+          dataProtection: settings?.dataProtection,
+          estimateStatus: internalProposal?.estimateStatus
         }} />
       </div>
 
@@ -485,6 +498,11 @@ function NewEstimateContent() {
                 {discoverySummary?.assumptions?.length ? (
                   <div> Supuestos: {discoverySummary.assumptions.map((assumption) => assumption.message).join(' | ')}</div>
                 ) : null}
+                {internalProposal?.estimateStatus ? (
+                  <div style={{ color: '#fcd34d' }}>
+                    Estado: {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Pendientes {internalProposal.estimateStatus.pendingValidationCount}
+                  </div>
+                ) : null}
                 {discoveryError ? <div style={{ color: '#fca5a5' }}>{discoveryError}</div> : null}
               </div>
             </div>
@@ -504,6 +522,11 @@ function NewEstimateContent() {
                 <div>{meaningfulItems.length > 0 ? '✅ Hay partidas cargadas' : '⚠️ Falta añadir una partida válida'}</div>
                 <div>{invalidItems.length === 0 ? '✅ Partidas consistentes' : `⚠️ Hay ${invalidItems.length} partidas incompletas o inválidas`}</div>
                 <div>{internalProposal ? `✅ Propuesta interna conservada (${internalProposal.source}${internalProposal.typologyCode ? ` | ${internalProposal.typologyCode}` : ''})` : 'ℹ️ Puedes guardar sin propuesta automática, pero no tendrás análisis interno generado'}</div>
+                {internalProposal?.estimateStatus ? (
+                  <div style={{ color: internalProposal.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' ? '#fcd34d' : 'var(--text-secondary)' }}>
+                    {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Cobertura tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Lineas pendientes {internalProposal.estimateStatus.pendingValidationCount}
+                  </div>
+                ) : null}
               </div>
             </div>
           )}

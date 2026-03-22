@@ -1,3 +1,12 @@
+import {
+  mergeLineEconomicStatus,
+  parseGenerationNotes,
+  parseLineEconomicStatus,
+  serializeGenerationNotes,
+  type EstimateLineEconomicSnapshot,
+  type EstimateStatusSnapshot,
+} from '@/lib/estimate/estimate-status';
+
 export type InternalAnalysisLineInput = {
   chapter: string;
   code?: string | null;
@@ -18,6 +27,7 @@ export type InternalAnalysisLineInput = {
   measurementRule?: Record<string, unknown> | null;
   pricingRule?: Record<string, unknown> | null;
   appliedAssumptions?: Record<string, unknown> | null;
+  economicStatus?: EstimateLineEconomicSnapshot | null;
 };
 
 export type InternalAnalysisSummaryInput = {
@@ -37,6 +47,7 @@ export type EstimateInternalAnalysisInput = {
   typologyCode?: string | null;
   seedVersion?: number | null;
   notes?: string[];
+  estimateStatus?: EstimateStatusSnapshot | null;
   summary: InternalAnalysisSummaryInput;
   lines: InternalAnalysisLineInput[];
 };
@@ -71,6 +82,14 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
       measurementRule: line.measurementRule && typeof line.measurementRule === 'object' ? line.measurementRule : null,
       pricingRule: line.pricingRule && typeof line.pricingRule === 'object' ? line.pricingRule : null,
       appliedAssumptions: line.appliedAssumptions && typeof line.appliedAssumptions === 'object' ? line.appliedAssumptions : null,
+      economicStatus:
+        line.economicStatus && typeof line.economicStatus === 'object'
+          ? (line.economicStatus as EstimateLineEconomicSnapshot)
+          : parseLineEconomicStatus(
+              line.appliedAssumptions && typeof line.appliedAssumptions === 'object'
+                ? line.appliedAssumptions
+                : null
+            ),
     }));
 
   if (lines.length === 0) return null;
@@ -87,11 +106,16 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
     commercialTotal: asFiniteNumber(input.summary.commercialTotal, 0),
   };
 
+  const parsedNotes = parseGenerationNotes(input.generationNotes ?? input.notes);
+
   return {
     source: input.source === 'FALLBACK' ? 'FALLBACK' : 'MASTER',
     typologyCode: typeof input.typologyCode === 'string' ? input.typologyCode : null,
     seedVersion: typeof input.seedVersion === 'number' ? input.seedVersion : null,
-    notes: Array.isArray(input.notes) ? input.notes.filter((note: unknown): note is string => typeof note === 'string') : [],
+    notes: parsedNotes.notes,
+    estimateStatus: parsedNotes.estimateStatus ?? (input.estimateStatus && typeof input.estimateStatus === 'object'
+      ? (input.estimateStatus as EstimateStatusSnapshot)
+      : null),
     summary,
     lines,
   };
@@ -111,7 +135,7 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
     commercialSubtotal: input.summary.commercialSubtotal,
     vatAmount: input.summary.vatAmount,
     commercialTotal: input.summary.commercialTotal,
-    generationNotes: input.notes && input.notes.length > 0 ? input.notes : null,
+    generationNotes: serializeGenerationNotes(input.notes, input.estimateStatus),
     lines: {
       create: input.lines.map((line) => ({
         chapter: line.chapter,
@@ -132,7 +156,11 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
         productivityRateName: line.productivityRateName || null,
         measurementRule: line.measurementRule || null,
         pricingRule: line.pricingRule || null,
-        appliedAssumptions: line.appliedAssumptions || null,
+        appliedAssumptions: mergeLineEconomicStatus(line.appliedAssumptions, line.economicStatus || {
+          economicStatus: 'PARAMETRIC_PRELIMINARY',
+          priceSource: 'PARAMETRIC_REFERENCE',
+          pendingValidation: true,
+        }),
       })),
     },
   };

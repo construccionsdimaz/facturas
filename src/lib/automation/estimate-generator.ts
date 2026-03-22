@@ -15,6 +15,12 @@ import {
   loadAutomationTypology,
   matchesInclusionRule,
 } from './masters';
+import {
+  buildSprintOneEstimateStatus,
+  buildSprintOneLineEconomicStatus,
+  type EstimateLineEconomicSnapshot,
+  type EstimateStatusSnapshot,
+} from '@/lib/estimate/estimate-status';
 
 export type { AccessLevel, FinishLevel, ScopeType, SiteType, WorkType };
 export type EstimateGenerationInput = AutomationContext;
@@ -39,6 +45,7 @@ export interface GeneratedEstimateLine {
   measurementRule?: Record<string, unknown> | null;
   pricingRule?: Record<string, unknown> | null;
   appliedAssumptions?: Record<string, unknown> | null;
+  economicStatus: EstimateLineEconomicSnapshot;
 }
 
 export interface GeneratedEstimateSummary {
@@ -61,6 +68,7 @@ export interface GeneratedEstimateProposal {
   typologyCode?: string | null;
   source: 'MASTER' | 'FALLBACK';
   seedVersion?: number | null;
+  estimateStatus: EstimateStatusSnapshot;
 }
 
 function asLineKind(kind?: string | null): GeneratedEstimateLine['kind'] {
@@ -119,6 +127,7 @@ function buildLineFromMaster(item: any, input: EstimateGenerationInput, typology
       scopeType: input.scopeType,
       structuralWorks: input.structuralWorks,
     },
+    economicStatus: buildSprintOneLineEconomicStatus(),
   };
 }
 
@@ -157,6 +166,7 @@ function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimat
           siteType: input.siteType,
           scopeType: input.scopeType,
         },
+        economicStatus: buildSprintOneLineEconomicStatus(),
       },
     ],
     summary: {
@@ -174,6 +184,7 @@ function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimat
     typologyCode: null,
     source: 'FALLBACK',
     seedVersion: AUTOMATION_SEED_VERSION,
+    estimateStatus: buildSprintOneEstimateStatus({ lineCount: 1 }),
   };
 }
 
@@ -217,5 +228,6 @@ export async function generateEstimateProposal(input: EstimateGenerationInput): 
     typologyCode: typology.code,
     source: 'MASTER',
     seedVersion: AUTOMATION_SEED_VERSION,
+    estimateStatus: buildSprintOneEstimateStatus({ lineCount: lines.length }),
   };
 }

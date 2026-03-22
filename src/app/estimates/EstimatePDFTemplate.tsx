@@ -29,6 +29,13 @@ interface EstimateData {
   paymentMethod?: string;
   bankAccount?: string;
   dataProtection?: string;
+  estimateStatus?: {
+    estimateMode: 'PARAMETRIC_PRELIMINARY' | 'MIXED' | 'RECIPE_PRICED';
+    technicalCoveragePercent: number;
+    recipeCoveragePercent: number;
+    priceCoveragePercent: number;
+    pendingValidationCount: number;
+  };
 }
 
 export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
@@ -107,6 +114,32 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           </div>
         </div>
       </div>
+
+      {data.estimateStatus && (
+        <div
+          style={{
+            marginBottom: '16px',
+            padding: '12px 14px',
+            borderRadius: '10px',
+            border: '1px solid #f59e0b',
+            background: '#fff7ed',
+            color: '#9a3412',
+            fontSize: '12px',
+          }}
+        >
+          <div style={{ fontWeight: 700, marginBottom: '4px' }}>
+            Estado tecnico del estimate: {data.estimateStatus.estimateMode}
+          </div>
+          <div>
+            Cobertura tecnica {data.estimateStatus.technicalCoveragePercent}% | Receta {data.estimateStatus.recipeCoveragePercent}% | Precio {data.estimateStatus.priceCoveragePercent}% | Lineas pendientes {data.estimateStatus.pendingValidationCount}
+          </div>
+          {data.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' && (
+            <div style={{ marginTop: '6px', fontWeight: 600 }}>
+              Documento preliminar parametrico. No debe tratarse como presupuesto tecnico final cerrado.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Structured Items Table */}
       <div className={styles.itemsSection}>

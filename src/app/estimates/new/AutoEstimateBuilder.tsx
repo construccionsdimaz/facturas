@@ -2,6 +2,10 @@
 
 import { useMemo, useState } from 'react';
 import { formatCurrency } from '@/lib/format';
+import type {
+  EstimateLineEconomicSnapshot,
+  EstimateStatusSnapshot,
+} from '@/lib/estimate/estimate-status';
 
 export type ProposalLine = {
   chapter: string;
@@ -23,6 +27,7 @@ export type ProposalLine = {
   measurementRule?: Record<string, unknown> | null;
   pricingRule?: Record<string, unknown> | null;
   appliedAssumptions?: Record<string, unknown> | null;
+  economicStatus: EstimateLineEconomicSnapshot;
 };
 
 export type Proposal = {
@@ -43,6 +48,7 @@ export type Proposal = {
   typologyCode?: string | null;
   source: 'MASTER' | 'FALLBACK';
   seedVersion?: number | null;
+  estimateStatus: EstimateStatusSnapshot;
 };
 
 export type EstimateItem = {
@@ -99,6 +105,17 @@ export default function AutoEstimateBuilder({
   const [isGenerating, setIsGenerating] = useState(false);
 
   const canApply = useMemo(() => !!proposal?.lines.length, [proposal]);
+
+  const estimateModeLabel = (mode: Proposal['estimateStatus']['estimateMode']) => {
+    switch (mode) {
+      case 'RECIPE_PRICED':
+        return 'Receta valorada';
+      case 'MIXED':
+        return 'Mixto';
+      default:
+        return 'Parametrico preliminar';
+    }
+  };
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -295,8 +312,35 @@ export default function AutoEstimateBuilder({
 
 	      {proposal && (
 	        <div style={{ marginTop: '20px', display: 'grid', gap: '16px' }}>
-	          <div className="glass-panel" style={{ padding: '14px', borderColor: proposal.source === 'FALLBACK' ? '#f59e0b' : 'rgba(255,255,255,0.08)' }}>
-	            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Fuente aplicada</div>
+	          <div
+              className="glass-panel"
+              style={{
+                padding: '14px',
+                borderColor:
+                  proposal.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY'
+                    ? '#f59e0b'
+                    : proposal.estimateStatus.estimateMode === 'MIXED'
+                      ? '#60a5fa'
+                      : '#10b981',
+                background:
+                  proposal.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY'
+                    ? 'rgba(245, 158, 11, 0.08)'
+                    : 'rgba(255,255,255,0.03)',
+              }}
+            >
+	            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado del estimate</div>
+	            <div style={{ fontWeight: 700 }}>
+	              {estimateModeLabel(proposal.estimateStatus.estimateMode)}
+	            </div>
+              <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Cobertura tecnica {proposal.estimateStatus.technicalCoveragePercent}% | Receta {proposal.estimateStatus.recipeCoveragePercent}% | Precio {proposal.estimateStatus.priceCoveragePercent}% | Lineas pendientes {proposal.estimateStatus.pendingValidationCount}
+              </div>
+              {proposal.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' && (
+                <div style={{ marginTop: '8px', fontSize: '13px', color: '#fcd34d', fontWeight: 600 }}>
+                  Esta propuesta no debe presentarse como presupuesto final cerrado. Falta especificacion tecnica o precio real suficiente.
+                </div>
+              )}
+              <div style={{ marginTop: '10px', fontSize: '12px', color: 'var(--text-secondary)' }}>Fuente aplicada</div>
 	            <div style={{ fontWeight: 700 }}>
 	              {proposal.source || 'MASTER'}{proposal.typologyCode ? ` | ${proposal.typologyCode}` : ''}
 	            </div>
@@ -329,15 +373,19 @@ export default function AutoEstimateBuilder({
           <div>
             <h4 style={{ marginBottom: '8px' }}>Desglose automatico</h4>
             <div style={{ display: 'grid', gap: '8px' }}>
-              {proposal.lines.map((line) => (
-                <div key={`${line.chapter}-${line.description}`} className="glass-panel" style={{ padding: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
-                    <div>
-                      <div style={{ fontWeight: 600 }}>{line.chapter}</div>
-                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{line.description}</div>
-                    </div>
-                    <div style={{ textAlign: 'right' }}>
-                      <div>{line.quantity.toFixed(2)} {line.unit}</div>
+	              {proposal.lines.map((line) => (
+	                <div key={`${line.chapter}-${line.description}`} className="glass-panel" style={{ padding: '12px' }}>
+	                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
+	                    <div>
+	                      <div style={{ fontWeight: 600 }}>{line.chapter}</div>
+	                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{line.description}</div>
+                        <div style={{ marginTop: '6px', fontSize: '12px', color: '#fcd34d' }}>
+                          {line.economicStatus.economicStatus} | {line.economicStatus.priceSource}
+                          {line.economicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
+                        </div>
+	                    </div>
+	                    <div style={{ textAlign: 'right' }}>
+	                      <div>{line.quantity.toFixed(2)} {line.unit}</div>
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                         MO {formatCurrency(line.laborCost)} | Mat {formatCurrency(line.materialCost)} | Asoc {formatCurrency(line.associatedCost)}
                       </div>

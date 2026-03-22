@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { formatCurrency } from '@/lib/format';
+import { parseGenerationNotes, parseLineEconomicStatus } from '@/lib/estimate/estimate-status';
 
 interface EstimateData {
   id: string;
@@ -34,7 +35,7 @@ interface EstimateData {
     generationSource: string;
     typologyCode?: string | null;
     seedVersion?: number | null;
-    notes: string[];
+    generationNotes?: unknown;
     summary: {
       materialCostTotal: number;
       laborCostTotal: number;
@@ -63,6 +64,7 @@ interface EstimateData {
       typologyCode?: string | null;
       standardActivityCode?: string | null;
       productivityRateName?: string | null;
+      appliedAssumptions?: Record<string, unknown> | null;
     }>;
   } | null;
 }
@@ -107,6 +109,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     chaptersMap[ch].push(item);
   });
   const chapterNames = Object.keys(chaptersMap).sort();
+  const parsedInternalNotes = estimate.internalAnalysis
+    ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
+    : { notes: [], estimateStatus: null };
 
   return (
     <div>
@@ -198,6 +203,25 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
       {estimate.internalAnalysis && (
         <div className={`glass-panel`} style={{ padding: '24px', marginBottom: '40px' }}>
           <h3 style={{ marginBottom: '20px', color: 'var(--accent-primary)' }}>Analisis interno persistido</h3>
+          {parsedInternalNotes.estimateStatus && (
+            <div
+              style={{
+                marginBottom: '20px',
+                padding: '14px',
+                borderRadius: '10px',
+                border: '1px solid rgba(245, 158, 11, 0.35)',
+                background: 'rgba(245, 158, 11, 0.08)',
+                color: '#fcd34d',
+              }}
+            >
+              <div style={{ fontWeight: 700, marginBottom: '6px' }}>
+                Estado del estimate: {parsedInternalNotes.estimateStatus.estimateMode}
+              </div>
+              <div style={{ fontSize: '13px' }}>
+                Cobertura tecnica {parsedInternalNotes.estimateStatus.technicalCoveragePercent}% | Receta {parsedInternalNotes.estimateStatus.recipeCoveragePercent}% | Precio {parsedInternalNotes.estimateStatus.priceCoveragePercent}% | Lineas pendientes {parsedInternalNotes.estimateStatus.pendingValidationCount}
+              </div>
+            </div>
+          )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>
             <div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Fuente</div>
@@ -240,14 +264,16 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             </div>
           </div>
 
-          {estimate.internalAnalysis.notes.length > 0 && (
+          {parsedInternalNotes.notes.length > 0 && (
             <div style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '13px' }}>
-              {estimate.internalAnalysis.notes.join(' | ')}
+              {parsedInternalNotes.notes.join(' | ')}
             </div>
           )}
 
           <div style={{ display: 'grid', gap: '8px' }}>
-            {estimate.internalAnalysis.lines.map((line, index) => (
+            {estimate.internalAnalysis.lines.map((line, index) => {
+              const lineEconomicStatus = parseLineEconomicStatus(line.appliedAssumptions);
+              return (
               <div key={`${line.chapter}-${line.code || index}`} className="glass-panel" style={{ padding: '12px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
                   <div>
@@ -259,6 +285,12 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                       {line.standardActivityCode ? ` | ${line.standardActivityCode}` : ''}
                       {line.productivityRateName ? ` | ${line.productivityRateName}` : ''}
                     </div>
+                    {lineEconomicStatus && (
+                      <div style={{ fontSize: '12px', color: '#fcd34d', marginTop: '6px' }}>
+                        {lineEconomicStatus.economicStatus} | {lineEconomicStatus.priceSource}
+                        {lineEconomicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
+                      </div>
+                    )}
                   </div>
                   <div style={{ textAlign: 'right', minWidth: '220px' }}>
                     <div>{line.quantity} {line.unit}</div>
@@ -271,7 +303,8 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
