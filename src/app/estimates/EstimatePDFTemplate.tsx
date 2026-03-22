@@ -2,6 +2,7 @@ import styles from '../invoices/new/pdf.module.css';
 import { translations, Language } from '@/lib/translations';
 import { formatCurrency } from '@/lib/format';
 import React from 'react';
+import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
 
 interface EstimateData {
   number: string;
@@ -29,6 +30,7 @@ interface EstimateData {
   paymentMethod?: string;
   bankAccount?: string;
   dataProtection?: string;
+  commercialRuntimeOutput?: CommercialEstimateRuntimeOutput;
   estimateStatus?: {
     estimateMode: 'PARAMETRIC_PRELIMINARY' | 'MIXED' | 'RECIPE_PRICED';
     technicalCoveragePercent: number;
@@ -67,9 +69,18 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
   const t = translations[lang] || translations.ES;
   const locale = lang === 'EN' ? 'en-US' : lang === 'CA' ? 'ca-ES' : 'es-ES';
 
+  const runtimeItems = data.commercialRuntimeOutput?.lines.map((line) => ({
+    description: line.description,
+    quantity: line.quantity,
+    price: (line.commercialPrice ?? 0) / Math.max(line.quantity, 0.0001),
+    unit: line.unit,
+    chapter: line.chapter,
+  }));
+  const effectiveItems = runtimeItems?.length ? runtimeItems : data.items;
+
   // Group items by chapter
   const chaptersMap: { [key: string]: typeof data.items } = {};
-  data.items.forEach(item => {
+  effectiveItems.forEach(item => {
     const ch = item.chapter || '01 GENERAL';
     if (!chaptersMap[ch]) chaptersMap[ch] = [];
     chaptersMap[ch].push(item);
@@ -243,6 +254,11 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
               {` ${data.estimateStatus.acceptance.acceptedBy || 'Usuario actual'}`}
               {data.estimateStatus.acceptance.acceptedAt ? ` el ${data.estimateStatus.acceptance.acceptedAt}` : ''}
               {data.estimateStatus.acceptance.acceptanceReason ? ` | Motivo: ${data.estimateStatus.acceptance.acceptanceReason}` : ''}
+            </div>
+          )}
+          {data.commercialRuntimeOutput && (
+            <div style={{ marginTop: '6px' }}>
+              Fuente comercial runtime: {data.commercialRuntimeOutput.source}
             </div>
           )}
         </div>

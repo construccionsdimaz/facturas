@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/format';
 import { parseGenerationNotes, parseLineEconomicStatus } from '@/lib/estimate/estimate-status';
 import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import type { CommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 
 interface EstimateData {
   id: string;
@@ -33,6 +34,7 @@ interface EstimateData {
   paymentMethod: string;
   bankAccount: string;
   dataProtection: string;
+  commercialReadModel?: CommercialEstimateReadModel | null;
   internalAnalysis: {
     generationSource: string;
     typologyCode?: string | null;
@@ -314,8 +316,12 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   const parsedInternalNotes = estimate.internalAnalysis
     ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
     : { notes: [], estimateStatus: null };
-  const commercialRuntimeOutput = (parsedInternalNotes.commercialRuntimeOutput || null) as CommercialEstimateRuntimeOutput | null;
-  const commercialProjection = (parsedInternalNotes.commercialEstimateProjection || null) as CommercialEstimateProjection | null;
+  const commercialRuntimeOutput =
+    estimate.commercialReadModel?.commercialRuntimeOutput ||
+    ((parsedInternalNotes.commercialRuntimeOutput || null) as CommercialEstimateRuntimeOutput | null);
+  const commercialProjection =
+    estimate.commercialReadModel?.commercialEstimateProjection ||
+    ((parsedInternalNotes.commercialEstimateProjection || null) as CommercialEstimateProjection | null);
   const activeProjection = commercialRuntimeOutput?.projection || commercialProjection;
   const commercialCapabilities =
     parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;

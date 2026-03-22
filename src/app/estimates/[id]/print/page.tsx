@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import styles from '@/app/invoices/new/pdf.module.css';
 import { parseGenerationNotes } from '@/lib/estimate/estimate-status';
+import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 
 export default function PrintEstimatePage() {
   const params = useParams();
@@ -32,6 +33,11 @@ export default function PrintEstimatePage() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Cargando presupuesto para imprimir...</div>;
   if (!estimate) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Presupuesto no encontrado.</div>;
   const parsedGenerationNotes = parseGenerationNotes(estimate.internalAnalysis?.generationNotes);
+  const commercialReadModel = readCommercialEstimateReadModel({
+    generationNotes: estimate.internalAnalysis?.generationNotes,
+    commercialRuntimeOutput: estimate.commercialRuntimeOutput,
+    commercialEstimateProjection: estimate.commercialEstimateProjection,
+  });
   const readinessLabel =
     parsedGenerationNotes.estimateStatus?.readiness === 'TECHNICALLY_CLOSED'
       ? 'Presupuesto tecnicamente cerrado'
@@ -112,6 +118,7 @@ export default function PrintEstimatePage() {
           paymentMethod: settings?.paymentMethod,
           bankAccount: settings?.bankAccount,
           dataProtection: settings?.dataProtection,
+          commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput || undefined,
           estimateStatus: parsedGenerationNotes.estimateStatus || undefined,
         }} />
       </div>

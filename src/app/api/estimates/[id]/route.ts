@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } from '@/lib/estimates/internal-analysis';
+import {
+  normalizeInternalAnalysis,
+  readCommercialEstimateReadModel,
+  toEstimateInternalAnalysisCreate,
+} from '@/lib/estimates/internal-analysis';
 
 export async function GET(
   request: Request,
@@ -25,7 +29,22 @@ export async function GET(
       return NextResponse.json({ error: 'Estimate not found' }, { status: 404 });
     }
 
-    return NextResponse.json(estimate);
+    const commercialReadModel = estimate.internalAnalysis
+      ? readCommercialEstimateReadModel({
+          generationNotes: estimate.internalAnalysis.generationNotes,
+        })
+      : {
+          source: 'LEGACY',
+          commercialRuntimeOutput: null,
+          commercialEstimateProjection: null,
+        };
+
+    return NextResponse.json({
+      ...estimate,
+      commercialReadModel,
+      commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
+      commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
+    });
   } catch (error) {
     console.error('Error fetching estimate:', error);
     return NextResponse.json({ error: 'Failed to fetch estimate' }, { status: 500 });

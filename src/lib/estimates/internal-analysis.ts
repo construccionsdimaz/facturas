@@ -60,8 +60,72 @@ export type EstimateInternalAnalysisInput = {
   lines: InternalAnalysisLineInput[];
 };
 
+export type CommercialEstimateReadModel = {
+  source: 'RUNTIME_OUTPUT' | 'PROJECTION' | 'LEGACY';
+  commercialRuntimeOutput: CommercialEstimateRuntimeOutput | null;
+  commercialEstimateProjection: CommercialEstimateProjection | null;
+};
+
 function asFiniteNumber(value: unknown, fallback = 0) {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+export function parseCommercialRuntimeOutputSnapshot(
+  value: unknown
+): CommercialEstimateRuntimeOutput | null {
+  return value && typeof value === 'object'
+    ? (value as CommercialEstimateRuntimeOutput)
+    : null;
+}
+
+export function parseCommercialEstimateProjectionSnapshot(
+  value: unknown
+): CommercialEstimateProjection | null {
+  return value && typeof value === 'object'
+    ? (value as CommercialEstimateProjection)
+    : null;
+}
+
+export function readCommercialEstimateReadModel(
+  input:
+    | {
+        generationNotes?: unknown;
+        commercialRuntimeOutput?: unknown;
+        commercialEstimateProjection?: unknown;
+      }
+    | null
+    | undefined
+): CommercialEstimateReadModel {
+  const parsedNotes = parseGenerationNotes(input?.generationNotes);
+  const commercialRuntimeOutput =
+    parseCommercialRuntimeOutputSnapshot(parsedNotes.commercialRuntimeOutput) ||
+    parseCommercialRuntimeOutputSnapshot(input?.commercialRuntimeOutput);
+  const commercialEstimateProjection =
+    parseCommercialEstimateProjectionSnapshot(parsedNotes.commercialEstimateProjection) ||
+    parseCommercialEstimateProjectionSnapshot(input?.commercialEstimateProjection);
+
+  if (commercialRuntimeOutput) {
+    return {
+      source: 'RUNTIME_OUTPUT',
+      commercialRuntimeOutput,
+      commercialEstimateProjection:
+        commercialRuntimeOutput.projection || commercialEstimateProjection || null,
+    };
+  }
+
+  if (commercialEstimateProjection) {
+    return {
+      source: 'PROJECTION',
+      commercialRuntimeOutput: null,
+      commercialEstimateProjection,
+    };
+  }
+
+  return {
+    source: 'LEGACY',
+    commercialRuntimeOutput: null,
+    commercialEstimateProjection: null,
+  };
 }
 
 export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisInput | null {
@@ -115,6 +179,11 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
   };
 
   const parsedNotes = parseGenerationNotes(input.generationNotes ?? input.notes);
+  const readModel = readCommercialEstimateReadModel({
+    generationNotes: input.generationNotes ?? input.notes,
+    commercialRuntimeOutput: input.commercialRuntimeOutput,
+    commercialEstimateProjection: input.commercialEstimateProjection,
+  });
 
   return {
     source: input.source === 'FALLBACK' ? 'FALLBACK' : 'MASTER',
@@ -125,18 +194,8 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
       ? (input.estimateStatus as EstimateStatusSnapshot)
       : null),
     integratedCostBuckets: parsedNotes.integratedCostBuckets,
-    commercialEstimateProjection:
-      parsedNotes.commercialEstimateProjection && typeof parsedNotes.commercialEstimateProjection === 'object'
-        ? (parsedNotes.commercialEstimateProjection as CommercialEstimateProjection)
-        : input.commercialEstimateProjection && typeof input.commercialEstimateProjection === 'object'
-          ? (input.commercialEstimateProjection as CommercialEstimateProjection)
-          : null,
-    commercialRuntimeOutput:
-      parsedNotes.commercialRuntimeOutput && typeof parsedNotes.commercialRuntimeOutput === 'object'
-        ? (parsedNotes.commercialRuntimeOutput as CommercialEstimateRuntimeOutput)
-        : input.commercialRuntimeOutput && typeof input.commercialRuntimeOutput === 'object'
-          ? (input.commercialRuntimeOutput as CommercialEstimateRuntimeOutput)
-          : null,
+    commercialEstimateProjection: readModel.commercialEstimateProjection,
+    commercialRuntimeOutput: readModel.commercialRuntimeOutput,
     summary,
     lines,
   };

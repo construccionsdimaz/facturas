@@ -4,6 +4,7 @@ import styles from "../../invoices/[id]/page.module.css";
 import Link from "next/link";
 import EstimateDetailClient from "@/app/estimates/[id]/EstimateDetailClient";
 import { parseGenerationNotes } from "@/lib/estimate/estimate-status";
+import { readCommercialEstimateReadModel } from "@/lib/estimates/internal-analysis";
 
 export const dynamic = 'force-dynamic';
 
@@ -29,6 +30,15 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
   const parsedGenerationNotes = estimate.internalAnalysis
     ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
     : { notes: [], estimateStatus: null, integratedCostBuckets: [] };
+  const commercialReadModel = estimate.internalAnalysis
+    ? readCommercialEstimateReadModel({
+        generationNotes: estimate.internalAnalysis.generationNotes,
+      })
+    : {
+        source: 'LEGACY' as const,
+        commercialRuntimeOutput: null,
+        commercialEstimateProjection: null,
+      };
   const commercialStatus = parsedGenerationNotes.estimateStatus?.commercialStatus;
 
   const statusLabels: Record<string, string> = {
@@ -152,6 +162,7 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
         paymentMethod: estimate.user?.paymentMethod || '',
         bankAccount: estimate.user?.bankAccount || '',
         dataProtection: estimate.user?.dataProtection || '',
+        commercialReadModel,
         internalAnalysis: estimate.internalAnalysis ? {
           generationSource: estimate.internalAnalysis.generationSource,
           typologyCode: estimate.internalAnalysis.typologyCode,

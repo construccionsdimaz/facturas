@@ -38,7 +38,11 @@ async function run() {
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
   const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
-  const { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } = require(path.join(srcRoot, 'lib/estimates/internal-analysis.ts'));
+  const {
+    normalizeInternalAnalysis,
+    readCommercialEstimateReadModel,
+    toEstimateInternalAnalysisCreate,
+  } = require(path.join(srcRoot, 'lib/estimates/internal-analysis.ts'));
   const {
     acceptEstimate,
     applyEstimateReadinessOverride,
@@ -1002,6 +1006,30 @@ async function run() {
   const createPayload = toEstimateInternalAnalysisCreate(normalizedInternalAnalysis);
   assert(createPayload.generationNotes.commercialEstimateProjection);
   assert(createPayload.generationNotes.commercialRuntimeOutput);
+  const runtimeFirstReadModel = readCommercialEstimateReadModel({
+    generationNotes: createPayload.generationNotes,
+  });
+  assert.equal(runtimeFirstReadModel.source, 'RUNTIME_OUTPUT');
+  assert.equal(
+    runtimeFirstReadModel.commercialRuntimeOutput.source,
+    integratedTechnicalRuntime.source
+  );
+  const projectionFallbackReadModel = readCommercialEstimateReadModel({
+    generationNotes: {
+      commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
+    },
+  });
+  assert.equal(projectionFallbackReadModel.source, 'PROJECTION');
+  assert.equal(
+    projectionFallbackReadModel.commercialEstimateProjection.source,
+    integratedTechnical.commercialEstimateProjection.source
+  );
+  const legacyReadModel = readCommercialEstimateReadModel({
+    generationNotes: { notes: ['legacy only'] },
+  });
+  assert.equal(legacyReadModel.source, 'LEGACY');
+  assert.equal(legacyReadModel.commercialRuntimeOutput, null);
+  assert.equal(legacyReadModel.commercialEstimateProjection, null);
 
   const convertedLocked = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',
