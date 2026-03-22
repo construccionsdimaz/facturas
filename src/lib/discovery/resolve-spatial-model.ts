@@ -1,4 +1,5 @@
 import { ACTION_TO_WORK_CODES } from './catalogs';
+import { resolveTechnicalSpecToExecutionContext } from './resolve-technical-spec';
 import type {
   AccessLevel,
   FinishLevel,
@@ -583,8 +584,7 @@ export function resolveSpatialModelToExecutionContext(
     ...sessionData.macroScope.workCodes,
     ...resolvedSpaces.flatMap((space) => space.derivedWorkCodes),
   ]);
-
-  return {
+  const baseContext: ExecutionContext = {
     mode,
     project: {
       workType: input.workType,
@@ -600,6 +600,14 @@ export function resolveSpatialModelToExecutionContext(
     workCodes,
     subtypes: input.subtypes || [],
     resolvedSpaces,
+    resolvedSpecs: {
+      bySpaceId: {},
+      completeness: {
+        level: 'LOW',
+        specifiedScopePercent: 0,
+        missingScopes: [],
+      },
+    },
     inclusions: sessionData.inclusions,
     currentVsTarget: sessionData.currentVsTarget as unknown as Record<string, unknown>,
     executionConstraints: sessionData.executionConstraints as unknown as Record<string, unknown>,
@@ -609,6 +617,11 @@ export function resolveSpatialModelToExecutionContext(
     },
     warnings: input.warnings || [],
     assumptions: input.assumptions || [],
+  };
+
+  return {
+    ...baseContext,
+    resolvedSpecs: resolveTechnicalSpecToExecutionContext(sessionData, baseContext),
   };
 }
 

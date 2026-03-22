@@ -6,6 +6,7 @@ import type {
   WorkType,
 } from '@/lib/automation/types';
 import type { TechnicalSpecModel } from './technical-spec-types';
+import type { ResolvedTechnicalSpecSummary } from './technical-spec-types';
 
 export type DiscoverySessionStatus =
   | 'DRAFT'
@@ -592,6 +593,7 @@ export type ExecutionContext = {
   workCodes: WorkCode[];
   subtypes: DiscoverySubtypeCode[];
   resolvedSpaces: ResolvedSpace[];
+  resolvedSpecs: ResolvedTechnicalSpecSummary;
   inclusions: Record<InclusionFamily, InclusionMode>;
   currentVsTarget?: Record<string, unknown>;
   executionConstraints?: Record<string, unknown>;

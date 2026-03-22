@@ -87,6 +87,29 @@ export type TechnicalSpecModel = {
   subspaceSpecs: Record<string, TechnicalSpecPatch>;
 };
 
+export type ResolvedSpec = {
+  selections: TechnicalSpecSelection;
+  dimensions: NonNullable<TechnicalSpecPatch['dimensions']>;
+  counts: NonNullable<TechnicalSpecPatch['counts']>;
+  options: NonNullable<TechnicalSpecPatch['options']>;
+  sourceLevel: ResolvedSpecSourceLevel;
+  sourceRefId?: string;
+  assumedFields: string[];
+  trace: Array<{
+    level: ResolvedSpecSourceLevel;
+    refId?: string;
+  }>;
+};
+
+export type ResolvedTechnicalSpecSummary = {
+  bySpaceId: Record<string, ResolvedSpec>;
+  completeness: {
+    level: 'LOW' | 'MEDIUM' | 'HIGH';
+    specifiedScopePercent: number;
+    missingScopes: string[];
+  };
+};
+
 export const ROOM_SOLUTION_CODES: RoomSolutionCode[] = [
   'ROOM_STD_COLIVING_BASIC',
   'ROOM_STD_COLIVING_PLUS',
