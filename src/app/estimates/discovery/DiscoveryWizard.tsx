@@ -408,7 +408,12 @@ export default function DiscoveryWizard() {
                 </div>
               </div>
               <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)' }}>
-                Instancias modeladas: {sessionData.spatialModel.instances.length}. Las diferencias entre grupo e instancia se resuelven antes de entrar en estimate, planning y procurement.
+                <div style={{ fontWeight: 700, marginBottom: '6px' }}>Captura tecnica por sistemas</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '13px', display: 'grid', gap: '4px' }}>
+                  <div>Instancias modeladas: {sessionData.spatialModel.instances.length}. La captura ya se organiza por proyecto, planta, grupo e instancia.</div>
+                  <div>Scope especificado: {derivedPreview.executionContext.resolvedSpecs.completeness.specifiedScopePercent}%.</div>
+                  <div>Lo que quede PARTIAL o BLOCKED aqui impactara directamente en measurement, recipe y pricing.</div>
+                </div>
               </div>
               <TechnicalSpecEditor data={sessionData} onChange={updateSession} />
             </div>

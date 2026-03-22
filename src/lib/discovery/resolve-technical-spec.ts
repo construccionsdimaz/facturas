@@ -531,6 +531,10 @@ function isScopeSatisfied(space: ResolvedSpace, spec: ResolvedSpec) {
   };
 }
 
+export function inspectResolvedSpecCoverage(space: ResolvedSpace, spec: ResolvedSpec) {
+  return isScopeSatisfied(space, spec);
+}
+
 export function resolveTechnicalSpecToExecutionContext(
   sessionData: DiscoverySessionData,
   executionContext: ExecutionContext
