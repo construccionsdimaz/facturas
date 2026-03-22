@@ -39,6 +39,7 @@ export async function GET(
           },
         },
         expenses: true,
+        productionLogs: true,
       },
     });
 
@@ -94,6 +95,7 @@ export async function GET(
       activities: project.activities,
       supplies: project.supplies,
       expenses: project.expenses,
+      productionLogs: project.productionLogs,
     });
 
     return NextResponse.json({

@@ -25,6 +25,7 @@ export async function GET(
       baselines,
       changes,
       expenses,
+      productionLogs,
       latestEstimate,
     ] = await Promise.all([
       (db as any).projectActivity.findMany({ where: { projectId: id } }),
@@ -37,6 +38,7 @@ export async function GET(
       (db as any).projectBaseline.findMany({ where: { projectId: id }, orderBy: { createdAt: 'desc' }, take: 1 }),
       (db as any).projectChangeRequest.findMany({ where: { projectId: id } }),
       (db as any).projectExpense.findMany({ where: { projectId: id } }),
+      (db as any).projectProductionLog.findMany({ where: { projectId: id } }),
       (db as any).estimate.findFirst({
         where: { projectId: id },
         orderBy: { createdAt: 'desc' },
@@ -150,6 +152,7 @@ export async function GET(
       activities,
       supplies,
       expenses,
+      productionLogs,
     });
     let baselineDeviations = 0;
     if (currentBaseline && currentBaseline.snapshotData) {

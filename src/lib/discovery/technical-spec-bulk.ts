@@ -40,6 +40,21 @@ export function applyGroupPatchToAllGroups(
   };
 }
 
+export function copyGroupPatchToTargetGroup(
+  model: TechnicalSpecModel,
+  sourceGroupId: string,
+  targetGroupId: string
+) {
+  const source = clonePatch(model.groupSpecs[sourceGroupId] || createEmptyTechnicalSpecPatch());
+  return {
+    ...model,
+    groupSpecs: {
+      ...model.groupSpecs,
+      [targetGroupId]: source,
+    },
+  };
+}
+
 export function applyFloorPatchToAllFloors(
   model: TechnicalSpecModel,
   sourceFloorId: string,
@@ -53,6 +68,21 @@ export function applyFloorPatchToAllFloors(
   return {
     ...model,
     floorSpecs: nextFloorSpecs,
+  };
+}
+
+export function copyFloorPatchToTargetFloor(
+  model: TechnicalSpecModel,
+  sourceFloorId: string,
+  targetFloorId: string
+) {
+  const source = clonePatch(model.floorSpecs[sourceFloorId] || createEmptyTechnicalSpecPatch());
+  return {
+    ...model,
+    floorSpecs: {
+      ...model.floorSpecs,
+      [targetFloorId]: source,
+    },
   };
 }
 

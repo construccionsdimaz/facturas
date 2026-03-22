@@ -2,14 +2,19 @@ import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-est
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
 import type { PlanningProjection } from '@/lib/planning/planning-projection';
 import type { ProcurementProjection } from '@/lib/procurement/procurement-projection';
+// import type { ProjectProductionLog } from '@prisma/client';
+type ProjectProductionLog = any;
+import { summarizeProductionLogs, ProductionActualsSummary } from '@/lib/estimate/production-actuals';
+
 
 export type ControlProjectionSource =
   | 'CANONICAL_BASELINE'
   | 'HYBRID'
   | 'LEGACY_CONTROL';
 
-export type ControlDeviationType = 'COST' | 'TIME' | 'PROCUREMENT' | 'MIXED';
+export type ControlDeviationType = 'COST' | 'TIME' | 'PROCUREMENT' | 'LABOR' | 'MIXED';
 export type ControlDeviationSeverity = 'INFO' | 'MEDIA' | 'ALTA' | 'CRITICA';
+
 
 export type ControlProjection = {
   source: ControlProjectionSource;
@@ -68,7 +73,10 @@ export type ControlProjection = {
     completedActivities: number;
     delayedActivities: number;
     averageRealProgress: number;
+    actualLaborHours: number;
+    totalProductionLogs: number;
   };
+
   commitments: {
     expectedSupplyCost: number;
     committedSupplyCost: number;
@@ -156,7 +164,9 @@ type ControlProjectionInput = {
     date?: Date | string | null;
     category?: string | null;
   }>;
+  productionLogs?: ProjectProductionLog[] | null;
 };
+
 
 type BucketAggregate = {
   bucketCode: string;
@@ -764,9 +774,11 @@ function buildDeviationLines(params: {
   baselineProcurement: ReturnType<typeof buildBaselineProcurement>;
   activityObserved: ReturnType<typeof buildObservedActivitySummary>;
   supplyObserved: ReturnType<typeof buildObservedSupplySummary>;
+  productionActuals: ProductionActualsSummary;
   expensesTotal: number;
 }) {
   const lines: ControlProjection['deviationLines'] = [];
+  const productionActuals = params.productionActuals;
 
   const estimateByBucket = new Map(
     params.baselineEstimate.bucketSummaries.map((item) => [item.bucketCode, item]),
@@ -877,6 +889,36 @@ function buildDeviationLines(params: {
             : ['Se usa retraso observado como proxy temporal por falta de duracion real cerrada.'],
       });
     }
+
+    if (estimate?.laborCost != null || productionActuals.byFamily[bucketCode]?.actualHours) {
+      const baselineValue = estimate?.laborCost ?? null;
+      const observedValue = productionActuals.byFamily[bucketCode]?.actualHours ?? 0;
+      const deltaAbsolute =
+        baselineValue != null ? round(observedValue - baselineValue) : null;
+      const deltaPercent = toPercent(baselineValue, observedValue);
+      lines.push({
+        id: `control:labor:${bucketCode}`,
+        type: 'LABOR',
+        severity: severityForDelta(deltaPercent),
+        bucketCode,
+        baselineValue,
+        observedValue,
+        deltaAbsolute,
+        deltaPercent,
+        commercialLineIds: estimate?.commercialLineIds || [],
+        recipeLineIds: estimate?.recipeLineIds || [],
+        pricingLineIds: estimate?.pricingLineIds || [],
+        spaceIds: estimate?.spaceIds || [],
+        locationIds: [],
+        activityIds: [],
+        supplyIds: [],
+        warnings:
+          baselineValue == null
+            ? ['No existe baseline de labor estructurada para esta familia.']
+            : [],
+        assumptions: [],
+      });
+    }
   }
 
   if (params.baselineEstimate.internalCost != null || params.expensesTotal > 0) {
@@ -924,6 +966,10 @@ export function buildControlProjection(input: ControlProjectionInput): ControlPr
   const baselineProcurement = buildBaselineProcurement(input);
   const activityObserved = buildObservedActivitySummary(input.activities || []);
   const supplyObserved = buildObservedSupplySummary(input.supplies || []);
+  const productionActuals = summarizeProductionLogs(
+    '', // dummy projectId, logic doesn't strictly need it if we pass the project logs
+    input.productionLogs || [],
+  );
   const expensesTotal = round(
     (input.expenses || []).reduce((sum, expense) => sum + asFiniteNumber(expense.amount, 0), 0),
   );
@@ -934,8 +980,10 @@ export function buildControlProjection(input: ControlProjectionInput): ControlPr
     baselineProcurement,
     activityObserved,
     supplyObserved,
+    productionActuals,
     expensesTotal,
   });
+
 
   const hasCanonicalEstimate = baselineEstimate.source !== 'LEGACY';
   const hasCanonicalPlanning = baselinePlanning.source === 'PLANNING_PROJECTION';
@@ -982,7 +1030,12 @@ export function buildControlProjection(input: ControlProjectionInput): ControlPr
       totalActivities: activityObserved.totalActivities,
       completedActivities: activityObserved.completedActivities,
       delayedActivities: activityObserved.delayedActivities,
-      averageRealProgress: activityObserved.averageRealProgress,
+      averageRealProgress: Math.max(
+        activityObserved.averageRealProgress,
+        productionActuals.averageProgressPercent
+      ),
+      actualLaborHours: productionActuals.totalActualHours,
+      totalProductionLogs: (input.productionLogs || []).length,
     },
     commitments: {
       expectedSupplyCost: baselineProcurement.expectedCostTotal || 0,

@@ -18,6 +18,12 @@ import type {
   VerticalSolutionCode,
 } from '@/lib/discovery/technical-spec-types';
 import type { ProjectProductivityPolicy } from '@/lib/estimate/project-productivity-policy';
+// import type { ProjectProductionLog } from '@prisma/client';
+type ProjectProductionLog = any;
+import { summarizeProductionLogs } from '@/lib/estimate/production-actuals';
+import type { ExecutionContext } from '@/lib/discovery/types';
+
+
 
 export type PlanningProjectionSource =
   | 'CANONICAL_PIPELINE'
@@ -71,7 +77,10 @@ export type PlanningProjectionActivity = PlanningActivityNode & {
     specSourceRefId?: string | null;
     assumedFields: string[];
   };
+  observedProgress?: number;
+  actualHours?: number;
 };
+
 
 export type PlanningProjection = {
   source: PlanningProjectionSource;
@@ -102,7 +111,9 @@ type CanonicalPlanningInput = PlanningGenerationInput & {
   commercialEstimateProjection?: CommercialEstimateProjection | null;
   commercialRuntimeOutput?: CommercialEstimateRuntimeOutput | null;
   projectProductivityPolicy?: ProjectProductivityPolicy | null;
+  productionLogs?: ProjectProductionLog[] | null;
 };
+
 
 const CANONICAL_WBS: Array<{
   key: string;
@@ -708,7 +719,20 @@ export async function buildPlanningProjection(
     (activity) => activity.generatedFrom === 'CANONICAL_PIPELINE'
   ).length;
 
+  // Enrichment with Field Actuals
+  if (input.productionLogs && input.productionLogs.length > 0) {
+    const summary = summarizeProductionLogs('', input.productionLogs);
+    for (const activity of allActivities) {
+      const activitySummary = summary.byActivity[activity.key];
+      if (activitySummary) {
+        activity.observedProgress = activitySummary.progressPercent;
+        activity.actualHours = activitySummary.actualHours;
+      }
+    }
+  }
+
   return {
+
     source,
     executionContext: {
       project: executionContext.project,

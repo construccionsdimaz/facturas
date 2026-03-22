@@ -24,6 +24,7 @@ import ProjectBaselineTab from './tabs/ProjectBaselineTab';
 import ProjectDashboardsTab from './tabs/ProjectDashboardsTab';
 import ProjectLearningTab from './tabs/ProjectLearningTab';
 import ProjectProductivityTab from './tabs/ProjectProductivityTab';
+import ProjectProductionTab from './tabs/ProjectProductionTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -59,7 +60,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'dashboards' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'dashboards' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'produccion'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'dashboards'
   );
   
@@ -1058,6 +1059,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             🎯 Seguimiento Real
           </button>
           <button
+            onClick={() => setActiveTab('produccion')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'produccion' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'produccion' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            🏗️ Producción/Actuals
+          </button>
+          <button
             onClick={() => setActiveTab('restrictions')}
             style={{
               padding: '16px 24px',
@@ -1167,6 +1181,12 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'dashboards' && (
             <ProjectDashboardsTab projectId={project.id} />
+          )}
+          {activeTab === 'produccion' && (
+            <ProjectProductionTab 
+              projectId={project.id} 
+              activities={project.activities} 
+            />
           )}
 
           {activeTab === 'budget' ? (

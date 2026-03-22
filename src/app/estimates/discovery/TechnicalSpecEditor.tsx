@@ -19,12 +19,28 @@ import {
 } from '@/lib/discovery/technical-spec-types';
 import { createEmptyTechnicalSpecPatch, ensureTechnicalSpecModel, ensureTechnicalSpecPatch } from '@/lib/discovery/technical-spec-defaults';
 import { deriveInputFromSession } from '@/lib/discovery/derive-input';
-import { applyFloorPatchToAllFloors, applyGroupPatchToAllGroups, applyInstancePatchToSimilarInstances, resetFloorPatchInheritance, resetGroupPatchInheritance, resetInstancePatchInheritance } from '@/lib/discovery/technical-spec-bulk';
-import { buildScopeIssues, buildTechnicalSystemCards, describePatchState } from '@/lib/discovery/technical-spec-ui';
+import {
+  applyFloorPatchToAllFloors,
+  applyGroupPatchToAllGroups,
+  applyInstancePatchToSimilarInstances,
+  copyFloorPatchToTargetFloor,
+  copyGroupPatchToTargetGroup,
+  resetFloorPatchInheritance,
+  resetGroupPatchInheritance,
+  resetInstancePatchInheritance,
+} from '@/lib/discovery/technical-spec-bulk';
+import {
+  buildScopeIssues,
+  buildTechnicalHierarchyRows,
+  buildTechnicalReviewSummary,
+  buildTechnicalSystemCards,
+  describePatchState,
+  type TechnicalSystemKey,
+} from '@/lib/discovery/technical-spec-ui';
 import type { DiscoverySessionData, SpaceGroup, SpaceInstance } from '@/lib/discovery/types';
 
 type Props = { data: DiscoverySessionData; onChange: (updater: (current: DiscoverySessionData) => DiscoverySessionData) => void };
-type EditorSection = 'overview' | 'systems' | 'groups' | 'floors' | 'instances';
+type EditorSection = 'overview' | 'systems' | 'groups' | 'floors' | 'instances' | 'review';
 
 function computeTechnicalSpecStatus(data: DiscoverySessionData) {
   const derived = deriveInputFromSession(data, 'TECNICO_AFINADO', 'AFINADO', [], [], 'MEDIA');
@@ -63,17 +79,23 @@ function TechnicalScopeCard({ title, subtitle, status, actions, children }: { ti
 }
 
 function ScopeTabs({ value, onChange }: { value: EditorSection; onChange: (next: EditorSection) => void }) {
-  const tabs: Array<{ key: EditorSection; label: string }> = [{ key: 'overview', label: 'Cobertura' }, { key: 'systems', label: 'Sistemas' }, { key: 'groups', label: 'Grupos' }, { key: 'floors', label: 'Plantas' }, { key: 'instances', label: 'Instancias' }];
+  const tabs: Array<{ key: EditorSection; label: string }> = [{ key: 'overview', label: 'Cobertura' }, { key: 'systems', label: 'Sistemas' }, { key: 'groups', label: 'Grupos' }, { key: 'floors', label: 'Plantas' }, { key: 'instances', label: 'Instancias' }, { key: 'review', label: 'Review' }];
   return <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>{tabs.map((tab) => <button key={tab.key} type="button" onClick={() => onChange(tab.key)} style={{ border: value === tab.key ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.08)', background: value === tab.key ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)', borderRadius: '999px', color: 'white', padding: '8px 14px', cursor: 'pointer' }}>{tab.label}</button>)}</div>;
 }
 
 export default function TechnicalSpecEditor({ data, onChange }: Props) {
   const [activeSection, setActiveSection] = useState<EditorSection>('overview');
+  const [systemFocus, setSystemFocus] = useState<TechnicalSystemKey>('bathrooms');
+  const [groupCopyTargets, setGroupCopyTargets] = useState<Record<string, string>>({});
+  const [floorCopyTargets, setFloorCopyTargets] = useState<Record<string, string>>({});
   const model = ensureTechnicalSpecModel(data.technicalSpecModel);
   const projectPatch = ensureTechnicalSpecPatch(model.projectSpecs);
   const derived = useMemo(() => deriveInputFromSession(data, 'TECNICO_AFINADO', 'AFINADO', [], [], 'MEDIA'), [data]);
   const resolvedSummary = derived.executionContext.resolvedSpecs;
   const systemCards = useMemo(() => buildTechnicalSystemCards({ executionContext: derived.executionContext, resolvedSummary, measurementResult: derived.measurementResult, pricingResult: derived.pricingResult }), [derived.executionContext, resolvedSummary, derived.measurementResult, derived.pricingResult]);
+  const reviewSummary = useMemo(() => buildTechnicalReviewSummary(systemCards), [systemCards]);
+  const hierarchyRows = useMemo(() => buildTechnicalHierarchyRows({ data, resolvedSummary, measurementResult: derived.measurementResult, pricingResult: derived.pricingResult }), [data, derived.measurementResult, derived.pricingResult, resolvedSummary]);
+  const focusedSystemCard = systemCards.find((card) => card.key === systemFocus) || systemCards[0];
   const selectedFloors = data.spatialModel.floors.filter((floor) => floor.selected);
   const orderedInstances = useMemo(() => { const roots = data.spatialModel.instances.filter((instance) => !instance.parentInstanceId); const all: SpaceInstance[] = []; for (const root of roots) { all.push(root); all.push(...data.spatialModel.instances.filter((instance) => instance.parentInstanceId === root.instanceId)); } return all; }, [data.spatialModel.instances]);
 
@@ -95,6 +117,18 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
 
       {activeSection === 'overview' && <div className="glass-panel" style={{ padding: '16px' }}>
         {sectionTitle('Cobertura / completitud', 'READY, PARTIAL y BLOCKED salen del motor; no de un wizard opaco.')}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Sistemas READY</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.readySystems}</div></div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Sistemas PARTIAL</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.partialSystems}</div></div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Drivers faltantes</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.missingDriverCount}</div></div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Riesgo provisionalidad</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.provisionalRisk}</div></div>
+        </div>
+        <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)', marginBottom: '16px' }}>
+          <div style={{ fontWeight: 700, marginBottom: '8px' }}>Jerarquía / herencia</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '8px' }}>
+            {hierarchyRows.slice(0, 12).map((row) => <button key={row.key} type="button" onClick={() => setActiveSection(row.level === 'INSTANCE' ? 'instances' : row.level === 'GROUP' ? 'groups' : row.level === 'FLOOR' ? 'floors' : 'systems')} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '10px', padding: '8px 10px', borderRadius: '10px', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.06)', color: 'white', textAlign: 'left', cursor: 'pointer' }}><div><div style={{ fontWeight: 600 }}>{row.label}</div><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{row.level}{row.inheritedFrom ? ` · hereda de ${row.inheritedFrom}` : ''}</div></div><StatusPill value={row.status} /></button>)}
+          </div>
+        </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
           {systemCards.map((card) => <div key={card.key} style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', marginBottom: '8px' }}><div><div style={{ fontWeight: 700 }}>{card.label}</div><div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{card.description}</div></div><StatusPill value={card.status} /></div><div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{card.satisfiedCount}/{card.applicableCount} scopes · {card.blockedMeasurementCount} bloqueos measurement · {card.pendingPricingCount} pricing pendientes</div>{card.missingScopes.length > 0 ? <div style={{ marginTop: '10px', color: 'var(--text-secondary)', fontSize: '12px' }}>{card.missingScopes.slice(0, 3).map((issue) => <div key={issue}>• {issue}</div>)}</div> : null}</div>)}
         </div>
@@ -102,6 +136,21 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
 
       {activeSection === 'systems' && <div className="glass-panel" style={{ padding: '16px' }}>
         {sectionTitle('Sistemas activos', 'Defaults de proyecto por familias reales del motor.')}
+        <div style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gap: '8px' }}>
+            {systemCards.map((card) => <button key={card.key} type="button" onClick={() => setSystemFocus(card.key)} style={{ padding: '12px', borderRadius: '12px', border: systemFocus === card.key ? '1px solid var(--accent-primary)' : '1px solid rgba(255,255,255,0.08)', background: systemFocus === card.key ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.02)', color: 'white', textAlign: 'left', cursor: 'pointer' }}><div style={{ display: 'flex', justifyContent: 'space-between', gap: '10px' }}><div><div style={{ fontWeight: 700 }}>{card.label}</div><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{card.description}</div></div><StatusPill value={card.status} /></div></button>)}
+          </div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', marginBottom: '8px', flexWrap: 'wrap' }}><div><div style={{ fontWeight: 700 }}>{focusedSystemCard.label}</div><div style={{ color: 'var(--text-secondary)', fontSize: '13px' }}>{focusedSystemCard.description}</div></div><StatusPill value={focusedSystemCard.status} /></div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', display: 'grid', gap: '4px' }}>
+              <div>Scopes cubiertos: {focusedSystemCard.satisfiedCount}/{focusedSystemCard.applicableCount}</div>
+              <div>Measurement bloqueada/parcial: {focusedSystemCard.blockedMeasurementCount}</div>
+              <div>Pricing pendiente: {focusedSystemCard.pendingPricingCount}</div>
+              <div>Pricing inferido: {focusedSystemCard.inferredPricingCount}</div>
+            </div>
+            {(focusedSystemCard.driverIssues.length > 0 || focusedSystemCard.measurementIssues.length > 0 || focusedSystemCard.pricingIssues.length > 0) ? <div style={{ marginTop: '12px', fontSize: '12px', color: 'var(--text-secondary)', display: 'grid', gap: '4px' }}>{[...focusedSystemCard.driverIssues, ...focusedSystemCard.measurementIssues, ...focusedSystemCard.pricingIssues].slice(0, 8).map((issue) => <div key={issue}>• {issue}</div>)}</div> : null}
+          </div>
+        </div>
         <div style={{ display: 'grid', gap: '14px' }}>
           <TechnicalScopeCard title="Revestimientos verticales / húmedos" subtitle="Wall finishes, pintura e impermeabilización ligera" status={systemCards.find((item) => item.key === 'wallFinishes')?.status || 'BLOCKED'}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
@@ -184,6 +233,32 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
             </div>
             {issues.length > 0 ? <div style={{ marginTop: '12px', color: 'var(--text-secondary)', fontSize: '12px' }}>{issues.slice(0, 4).map((issue) => <div key={issue}>• {issue}</div>)}</div> : null}
           </TechnicalScopeCard></div>})}
+        </div>
+      </div>}
+      {activeSection === 'review' && <div className="glass-panel" style={{ padding: '16px' }}>
+        {sectionTitle('Review técnica antes de generar', 'Resumen serio de cobertura, huecos y riesgo de provisionalidad.')}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>READY</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.readySystems}</div></div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>PARTIAL</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.partialSystems}</div></div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>BLOCKED</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.blockedSystems}</div></div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}><div style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Riesgo</div><div style={{ fontSize: '24px', fontWeight: 800 }}>{reviewSummary.provisionalRisk}</div></div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+            <div style={{ fontWeight: 700, marginBottom: '8px' }}>Impacto técnico real</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '13px', display: 'grid', gap: '6px' }}>
+              <div>Drivers faltantes: {reviewSummary.missingDriverCount}</div>
+              <div>Measurement bloqueada/parcial: {reviewSummary.measurementBlockedCount}</div>
+              <div>Pricing pendiente: {reviewSummary.pricingPendingCount}</div>
+              <div>Pricing inferido: {reviewSummary.pricingInferredCount}</div>
+            </div>
+          </div>
+          <div style={{ padding: '14px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+            <div style={{ fontWeight: 700, marginBottom: '8px' }}>Avisos principales</div>
+            <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'grid', gap: '4px' }}>
+              {reviewSummary.blockers.length > 0 ? reviewSummary.blockers.map((issue) => <div key={issue}>• {issue}</div>) : <div>Sin blockers relevantes en este momento.</div>}
+            </div>
+          </div>
         </div>
       </div>}
     </div>

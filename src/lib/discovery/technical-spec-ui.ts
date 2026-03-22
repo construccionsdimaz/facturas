@@ -4,6 +4,7 @@ import type { MeasurementResult } from '@/lib/estimate/measurement-types';
 import type { PricingResult } from '@/lib/estimate/pricing-types';
 import type { ResolvedTechnicalSpecSummary, ResolvedSpec, TechnicalSpecPatch } from './technical-spec-types';
 import { createEmptyTechnicalSpecPatch, ensureTechnicalSpecPatch } from './technical-spec-defaults';
+import type { DiscoverySessionData, SpaceGroup, SpaceInstance } from './types';
 
 export type TechnicalSystemKey =
   | 'rooms'
@@ -29,6 +30,31 @@ export type TechnicalSystemCard = {
   pendingPricingCount: number;
   inferredPricingCount: number;
   missingScopes: string[];
+  driverIssues: string[];
+  measurementIssues: string[];
+  pricingIssues: string[];
+};
+
+export type TechnicalHierarchyRow = {
+  key: string;
+  label: string;
+  level: 'PROJECT' | 'FLOOR' | 'GROUP' | 'INSTANCE';
+  status: 'READY' | 'PARTIAL' | 'BLOCKED' | 'INHERITED' | 'OVERRIDDEN';
+  inheritedFrom: string | null;
+  issueCount: number;
+  highlightedSystems: TechnicalSystemKey[];
+};
+
+export type TechnicalReviewSummary = {
+  readySystems: number;
+  partialSystems: number;
+  blockedSystems: number;
+  missingDriverCount: number;
+  measurementBlockedCount: number;
+  pricingPendingCount: number;
+  pricingInferredCount: number;
+  provisionalRisk: 'LOW' | 'MEDIUM' | 'HIGH';
+  blockers: string[];
 };
 
 const SYSTEM_META: Record<TechnicalSystemKey, { label: string; description: string }> = {
@@ -111,6 +137,9 @@ export function buildTechnicalSystemCards(params: {
       pendingPricingCount: 0,
       inferredPricingCount: 0,
       missingScopes: [],
+      driverIssues: [],
+      measurementIssues: [],
+      pricingIssues: [],
     });
   });
 
@@ -124,7 +153,11 @@ export function buildTechnicalSystemCards(params: {
       const card = cards.get(systemKey)!;
       card.applicableCount += 1;
       if (!scopeCheck.missing.includes(scope)) card.satisfiedCount += 1;
-      else card.missingScopes.push(`${space.label}: ${scope}`);
+      else {
+        const issue = `${space.label}: falta driver/spec para ${scope}`;
+        card.missingScopes.push(issue);
+        card.driverIssues.push(issue);
+      }
     }
   }
 
@@ -132,15 +165,24 @@ export function buildTechnicalSystemCards(params: {
     const systemKey = systemFromSolutionCode(line.solutionCode);
     if (!systemKey) continue;
     const card = cards.get(systemKey)!;
-    if (line.status === 'BLOCKED' || line.status === 'PARTIAL') card.blockedMeasurementCount += 1;
+    if (line.status === 'BLOCKED' || line.status === 'PARTIAL') {
+      card.blockedMeasurementCount += 1;
+      card.measurementIssues.push(`${line.solutionCode}: measurement ${line.status} en ${line.measurementCode}`);
+    }
   }
 
   for (const line of pricingLines) {
     const systemKey = systemFromSolutionCode(line.solutionCode);
     if (!systemKey) continue;
     const card = cards.get(systemKey)!;
-    if (line.priceStatus === 'PRICE_PENDING_VALIDATION') card.pendingPricingCount += 1;
-    if (line.priceStatus === 'PRICE_INFERRED') card.inferredPricingCount += 1;
+    if (line.priceStatus === 'PRICE_PENDING_VALIDATION') {
+      card.pendingPricingCount += 1;
+      card.pricingIssues.push(`${line.solutionCode}: pricing pendiente de validacion`);
+    }
+    if (line.priceStatus === 'PRICE_INFERRED') {
+      card.inferredPricingCount += 1;
+      card.pricingIssues.push(`${line.solutionCode}: pricing inferido`);
+    }
   }
 
   for (const card of cards.values()) {
@@ -203,11 +245,124 @@ export function buildScopeIssues(params: {
   }
 
   for (const line of params.pricingResult?.lines || []) {
-    const recipeMatchesSpace = line.recipeLineId.startsWith(`${params.space.spaceId}:`);
-    if (!recipeMatchesSpace) continue;
+    if (line.spaceId !== params.space.spaceId) continue;
     if (line.priceStatus === 'PRICE_PENDING_VALIDATION') issues.push(`Pricing pendiente en ${line.solutionCode}`);
     if (line.priceStatus === 'PRICE_INFERRED') issues.push(`Pricing inferido en ${line.solutionCode}`);
   }
 
   return Array.from(new Set(issues));
+}
+
+function inferSystemsForGroup(group: SpaceGroup): TechnicalSystemKey[] {
+  const systems: TechnicalSystemKey[] = [];
+  if (group.template.areaType === 'HABITACION') systems.push('rooms');
+  if (group.template.features.hasBathroom) systems.push('bathrooms');
+  if (group.template.features.hasKitchenette) systems.push('kitchenettes');
+  if (group.template.features.requiresLeveling) systems.push('leveling');
+  return systems;
+}
+
+function inferSystemsForInstance(instance: SpaceInstance): TechnicalSystemKey[] {
+  const systems: TechnicalSystemKey[] = [];
+  if (instance.areaType === 'HABITACION') systems.push('rooms');
+  if (instance.areaType === 'BANO' || instance.subspaceKind === 'BANO_ASOCIADO') systems.push('bathrooms');
+  if (instance.areaType === 'COCINA' || instance.subspaceKind === 'KITCHENETTE') systems.push('kitchenettes');
+  if (['PASILLO', 'PORTAL', 'ESCALERA', 'ZONA_COMUN'].includes(instance.areaType)) systems.push('commonAreas');
+  return systems;
+}
+
+export function buildTechnicalHierarchyRows(params: {
+  data: DiscoverySessionData;
+  resolvedSummary: ResolvedTechnicalSpecSummary;
+  measurementResult?: MeasurementResult | null;
+  pricingResult?: PricingResult | null;
+}) {
+  const rows: TechnicalHierarchyRow[] = [];
+
+  rows.push({
+    key: 'project',
+    label: 'Proyecto',
+    level: 'PROJECT',
+    status: params.resolvedSummary.completeness.specifiedScopePercent >= 80 ? 'READY' : 'PARTIAL',
+    inheritedFrom: null,
+    issueCount: params.resolvedSummary.completeness.missingScopes.length,
+    highlightedSystems: [],
+  });
+
+  for (const floor of params.data.spatialModel.floors.filter((item) => item.selected)) {
+    const patch = ensureTechnicalSpecPatch(params.data.technicalSpecModel.floorSpecs[floor.floorId]);
+    rows.push({
+      key: `floor:${floor.floorId}`,
+      label: floor.label,
+      level: 'FLOOR',
+      status: describePatchState({ patch, expectedLevel: 'FLOOR' }),
+      inheritedFrom: patch ? 'Proyecto' : null,
+      issueCount: 0,
+      highlightedSystems: ['leveling'],
+    });
+  }
+
+  for (const group of params.data.spatialModel.groups) {
+    const patch = ensureTechnicalSpecPatch(params.data.technicalSpecModel.groupSpecs[group.groupId]);
+    const sampleInstance = params.data.spatialModel.instances.find((instance) => instance.groupId === group.groupId);
+    const resolvedSpec = sampleInstance ? params.resolvedSummary.bySpaceId[sampleInstance.instanceId] : null;
+    rows.push({
+      key: `group:${group.groupId}`,
+      label: group.label,
+      level: 'GROUP',
+      status: describePatchState({ patch, resolvedSpec, expectedLevel: 'GROUP' }),
+      inheritedFrom: 'Proyecto/Planta',
+      issueCount: 0,
+      highlightedSystems: inferSystemsForGroup(group),
+    });
+  }
+
+  for (const instance of params.data.spatialModel.instances) {
+    const patch = ensureTechnicalSpecPatch(params.data.technicalSpecModel.instanceSpecs[instance.instanceId]);
+    const resolvedSpec = params.resolvedSummary.bySpaceId[instance.instanceId];
+    rows.push({
+      key: `instance:${instance.instanceId}`,
+      label: instance.label,
+      level: 'INSTANCE',
+      status: describePatchState({ patch, resolvedSpec, expectedLevel: 'INSTANCE' }),
+      inheritedFrom: instance.parentInstanceId ? 'Grupo/Instancia padre' : 'Grupo/Planta',
+      issueCount: 0,
+      highlightedSystems: inferSystemsForInstance(instance),
+    });
+  }
+
+  return rows;
+}
+
+export function buildTechnicalReviewSummary(cards: TechnicalSystemCard[]): TechnicalReviewSummary {
+  const readySystems = cards.filter((card) => card.status === 'READY').length;
+  const partialSystems = cards.filter((card) => card.status === 'PARTIAL').length;
+  const blockedSystems = cards.filter((card) => card.status === 'BLOCKED').length;
+  const missingDriverCount = cards.reduce((sum, card) => sum + card.driverIssues.length, 0);
+  const measurementBlockedCount = cards.reduce((sum, card) => sum + card.blockedMeasurementCount, 0);
+  const pricingPendingCount = cards.reduce((sum, card) => sum + card.pendingPricingCount, 0);
+  const pricingInferredCount = cards.reduce((sum, card) => sum + card.inferredPricingCount, 0);
+  const blockers = cards
+    .filter((card) => card.status !== 'READY')
+    .flatMap((card) => [...card.driverIssues, ...card.measurementIssues, ...card.pricingIssues])
+    .slice(0, 12);
+
+  const provisionalRisk =
+    blockedSystems > 0 || pricingPendingCount > 0
+      ? 'HIGH'
+      : partialSystems > 0 || pricingInferredCount > 0
+        ? 'MEDIUM'
+        : 'LOW';
+
+  return {
+    readySystems,
+    partialSystems,
+    blockedSystems,
+    missingDriverCount,
+    measurementBlockedCount,
+    pricingPendingCount,
+    pricingInferredCount,
+    provisionalRisk,
+    blockers,
+  };
 }
