@@ -73,6 +73,8 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   const [isConverting, setIsConverting] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
   const [isApplyingOverride, setIsApplyingOverride] = useState(false);
+  const [isIssuing, setIsIssuing] = useState(false);
+  const [isRevoking, setIsRevoking] = useState(false);
   const router = useRouter();
 
   const readinessLabel = (readiness?: string) => {
@@ -142,6 +144,67 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     }
   };
 
+  const handleIssue = async (mode: 'PROVISIONAL' | 'FINAL') => {
+    if (!parsedInternalNotes.estimateStatus) return;
+    const issuanceCapabilities = parsedInternalNotes.estimateStatus.issuanceCapabilities;
+    const requiresOverride =
+      mode === 'PROVISIONAL'
+        ? issuanceCapabilities.requiresOverrideForProvisional
+        : issuanceCapabilities.requiresOverrideForFinal;
+
+    let reason = '';
+    if (requiresOverride) {
+      reason =
+        window.prompt(`Motivo obligatorio para emitir en modo ${mode === 'FINAL' ? 'final' : 'provisional'}:`)?.trim() || '';
+      if (!reason) return;
+    }
+
+    setIsIssuing(true);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/issue`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mode,
+          useOverride: requiresOverride,
+          reason,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo emitir el presupuesto.');
+      }
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || 'No se pudo emitir el presupuesto.');
+    } finally {
+      setIsIssuing(false);
+    }
+  };
+
+  const handleRevokeIssuance = async () => {
+    const reason = window.prompt('Motivo obligatorio para revocar la emision:')?.trim() || '';
+    if (!reason) return;
+
+    setIsRevoking(true);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/revoke-issuance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo revocar la emision.');
+      }
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || 'No se pudo revocar la emision.');
+    } finally {
+      setIsRevoking(false);
+    }
+  };
+
   // Group items by chapter
   const chaptersMap: { [key: string]: typeof estimate.items } = {};
   estimate.items.forEach(item => {
@@ -189,6 +252,39 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               {isApplyingOverride ? 'Registrando override...' : 'Emitir igualmente'}
             </button>
           )}
+
+        {estimate.status !== 'CONVERTED' && parsedInternalNotes.estimateStatus?.issuanceCapabilities.canIssueProvisional && (
+          <button
+            className="btn-secondary"
+            onClick={() => handleIssue('PROVISIONAL')}
+            disabled={isIssuing}
+            style={{ padding: '8px 20px' }}
+          >
+            {isIssuing ? 'Emitiendo...' : 'Emitir como provisional'}
+          </button>
+        )}
+
+        {estimate.status !== 'CONVERTED' && parsedInternalNotes.estimateStatus?.issuanceCapabilities.canIssueFinal && (
+          <button
+            className="btn-secondary"
+            onClick={() => handleIssue('FINAL')}
+            disabled={isIssuing}
+            style={{ padding: '8px 20px' }}
+          >
+            {isIssuing ? 'Emitiendo...' : 'Emitir como final'}
+          </button>
+        )}
+
+        {estimate.status !== 'CONVERTED' && parsedInternalNotes.estimateStatus?.issuanceCapabilities.canRevokeIssuance && (
+          <button
+            className="btn-secondary"
+            onClick={handleRevokeIssuance}
+            disabled={isRevoking}
+            style={{ padding: '8px 20px' }}
+          >
+            {isRevoking ? 'Revocando...' : 'Revocar emision'}
+          </button>
+        )}
       </div>
 
       <div className={`glass-panel`} style={{ padding: '24px', marginBottom: '40px' }}>
@@ -283,6 +379,16 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               {parsedInternalNotes.estimateStatus.manualOverride?.applied && (
                 <div style={{ fontSize: '13px', marginTop: '6px', fontWeight: 600 }}>
                   Override manual: {parsedInternalNotes.estimateStatus.manualOverride.reason}
+                </div>
+              )}
+              <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                Emision: {parsedInternalNotes.estimateStatus.issuance.status}
+                {parsedInternalNotes.estimateStatus.issuance.issuedBy ? ` | Por ${parsedInternalNotes.estimateStatus.issuance.issuedBy}` : ''}
+                {parsedInternalNotes.estimateStatus.issuance.issuedAt ? ` | ${parsedInternalNotes.estimateStatus.issuance.issuedAt}` : ''}
+              </div>
+              {parsedInternalNotes.estimateStatus.issuance.issuanceReason && (
+                <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                  Motivo de emision: {parsedInternalNotes.estimateStatus.issuance.issuanceReason}
                 </div>
               )}
             </div>

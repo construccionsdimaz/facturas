@@ -42,6 +42,12 @@ export default function PrintEstimatePage() {
           : parsedGenerationNotes.estimateStatus?.readiness === 'PARAMETRIC_PRELIMINARY'
             ? 'Presupuesto preliminar'
             : 'Presupuesto';
+  const issuanceLabel =
+    parsedGenerationNotes.estimateStatus?.issuance.status === 'ISSUED_FINAL'
+      ? 'emitido final'
+      : parsedGenerationNotes.estimateStatus?.issuance.status === 'ISSUED_PROVISIONAL'
+        ? 'emitido provisional'
+        : 'no emitido';
 
   return (
     <div className="print-root" style={{ background: 'white' }}>
@@ -60,7 +66,7 @@ export default function PrintEstimatePage() {
           className="btn-primary"
           style={{ padding: '12px 32px', fontSize: '16px' }}
         >
-          🖨️ Imprimir: {readinessLabel}
+          🖨️ Imprimir: {readinessLabel} | {issuanceLabel}
         </button>
       </div>
       <div className={styles.printWrapper}>

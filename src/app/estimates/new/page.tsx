@@ -556,6 +556,11 @@ function NewEstimateContent() {
                     Readiness: {readinessLabel(internalProposal.estimateStatus.readiness)} | Estado tecnico: {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Pendientes {internalProposal.estimateStatus.pendingValidationCount}
                   </div>
                 ) : null}
+                {internalProposal?.estimateStatus ? (
+                  <div style={{ color: 'var(--text-secondary)' }}>
+                    Emision potencial: {internalProposal.estimateStatus.issuanceCapabilities.canIssueFinal ? 'final' : internalProposal.estimateStatus.issuanceCapabilities.canIssueProvisional ? 'solo provisional' : 'no emitible'}{internalProposal.estimateStatus.issuanceCapabilities.requiresOverrideForFinal || internalProposal.estimateStatus.issuanceCapabilities.requiresOverrideForProvisional ? ' | requiere override segun el caso' : ''}
+                  </div>
+                ) : null}
                 {internalProposal?.estimateStatus?.readinessReasons?.length ? (
                   <div style={{ color: '#fcd34d' }}>
                     {internalProposal.estimateStatus.readinessReasons.join(' | ')}

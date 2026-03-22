@@ -38,7 +38,12 @@ async function run() {
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
   const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
-  const { applyEstimateReadinessOverride, buildEstimateStatusFromPipeline } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
+  const {
+    applyEstimateReadinessOverride,
+    buildEstimateStatusFromPipeline,
+    issueEstimate,
+    revokeEstimateIssuance,
+  } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
@@ -345,6 +350,9 @@ async function run() {
     hasHybridBuckets: false,
   });
   assert.equal(parametricReadiness.readiness, 'PARAMETRIC_PRELIMINARY');
+  assert.equal(parametricReadiness.issuanceCapabilities.canIssueFinal, false);
+  assert.equal(parametricReadiness.issuanceCapabilities.canIssueProvisional, true);
+  assert.equal(parametricReadiness.issuanceCapabilities.requiresOverrideForProvisional, true);
 
   const measured = createEmptyDiscoverySessionData('COLIVING');
   measured.modelingStrategy = 'STRUCTURED_REPETITIVE';
@@ -784,6 +792,13 @@ async function run() {
     hasHybridBuckets: false,
   });
   assert.equal(commercialReadyStatus.readiness, 'COMMERCIAL_READY');
+  const issuedCommercialReady = issueEstimate(commercialReadyStatus, {
+    mode: 'FINAL',
+    actor: 'Admin',
+    timestamp: '2026-03-22T12:00:00.000Z',
+  });
+  assert.equal(issuedCommercialReady.issuance.status, 'ISSUED_FINAL');
+  assert.equal(issuedCommercialReady.issuance.manualOverrideUsed, false);
   const technicallyClosedStatus = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',
     technicalCoveragePercent: 100,
@@ -793,6 +808,12 @@ async function run() {
     hasHybridBuckets: false,
   });
   assert.equal(technicallyClosedStatus.readiness, 'TECHNICALLY_CLOSED');
+  const issuedClosed = issueEstimate(technicallyClosedStatus, {
+    mode: 'FINAL',
+    actor: 'Admin',
+    timestamp: '2026-03-22T12:05:00.000Z',
+  });
+  assert.equal(issuedClosed.issuance.status, 'ISSUED_FINAL');
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
   assert(
@@ -819,6 +840,31 @@ async function run() {
     hasHybridBuckets: true,
   });
   assert.equal(provisionalStatus.readiness, 'PROVISIONAL_REVIEW_REQUIRED');
+  assert.equal(provisionalStatus.issuanceCapabilities.canIssueProvisional, true);
+  assert.equal(provisionalStatus.issuanceCapabilities.canIssueFinal, true);
+  assert.equal(provisionalStatus.issuanceCapabilities.requiresOverrideForFinal, true);
+  const issuedProvisional = issueEstimate(provisionalStatus, {
+    mode: 'PROVISIONAL',
+    actor: 'Admin',
+    timestamp: '2026-03-22T10:10:00.000Z',
+  });
+  assert.equal(issuedProvisional.issuance.status, 'ISSUED_PROVISIONAL');
+  const issuedWithOverride = issueEstimate(provisionalStatus, {
+    mode: 'FINAL',
+    actor: 'Admin',
+    useOverride: true,
+    reason: 'Validado manualmente para cierre comercial',
+    timestamp: '2026-03-22T10:15:00.000Z',
+  });
+  assert.equal(issuedWithOverride.issuance.status, 'ISSUED_FINAL');
+  assert.equal(issuedWithOverride.issuance.manualOverrideUsed, true);
+  const revoked = revokeEstimateIssuance(issuedWithOverride, {
+    actor: 'Admin',
+    reason: 'Se detecto un cambio pendiente',
+    timestamp: '2026-03-22T10:20:00.000Z',
+  });
+  assert.equal(revoked.issuance.status, 'NOT_ISSUED');
+  assert.equal(revoked.issuanceHistory[revoked.issuanceHistory.length - 1].action, 'REVOKED');
   const overriddenStatus = applyEstimateReadinessOverride(provisionalStatus, {
     reason: 'Validado manualmente para envio al cliente',
     actor: 'Admin',

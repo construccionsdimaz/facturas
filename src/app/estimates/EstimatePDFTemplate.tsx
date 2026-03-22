@@ -43,6 +43,13 @@ interface EstimateData {
       actor: string;
       timestamp: string;
     } | null;
+    issuance: {
+      status: 'NOT_ISSUED' | 'ISSUED_PROVISIONAL' | 'ISSUED_FINAL';
+      issuedAt?: string | null;
+      issuedBy?: string | null;
+      issuanceReason?: string | null;
+      manualOverrideUsed?: boolean;
+    };
   };
 }
 
@@ -69,6 +76,12 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           : data.estimateStatus?.readiness === 'PARAMETRIC_PRELIMINARY'
             ? 'Preliminar parametrico'
             : 'Borrador';
+  const issuanceLabel =
+    data.estimateStatus?.issuance.status === 'ISSUED_FINAL'
+      ? 'Emitido final'
+      : data.estimateStatus?.issuance.status === 'ISSUED_PROVISIONAL'
+        ? 'Emitido provisional'
+        : 'No emitido';
 
   return (
     <div className={styles.pdfContainer} id="pdf-estimate-template">
@@ -146,7 +159,7 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: '4px' }}>
-            Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
+            Emision: {issuanceLabel} | Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
           </div>
           <div>
             Cobertura tecnica {data.estimateStatus.technicalCoveragePercent}% | Receta {data.estimateStatus.recipeCoveragePercent}% | Precio {data.estimateStatus.priceCoveragePercent}% | Lineas pendientes {data.estimateStatus.pendingValidationCount}
@@ -164,6 +177,19 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           {data.estimateStatus.manualOverride?.applied && (
             <div style={{ marginTop: '6px', fontWeight: 600 }}>
               Override manual registrado: {data.estimateStatus.manualOverride.reason}
+            </div>
+          )}
+          {data.estimateStatus.issuance.status === 'ISSUED_PROVISIONAL' && (
+            <div style={{ marginTop: '6px', fontWeight: 700 }}>
+              Documento emitido como provisional. No debe tratarse como cierre final.
+            </div>
+          )}
+          {data.estimateStatus.issuance.status !== 'NOT_ISSUED' && (
+            <div style={{ marginTop: '6px' }}>
+              Emitido por {data.estimateStatus.issuance.issuedBy || 'Usuario actual'}
+              {data.estimateStatus.issuance.issuedAt ? ` el ${data.estimateStatus.issuance.issuedAt}` : ''}
+              {data.estimateStatus.issuance.issuanceReason ? ` | Motivo: ${data.estimateStatus.issuance.issuanceReason}` : ''}
+              {data.estimateStatus.issuance.manualOverrideUsed ? ' | Con override' : ''}
             </div>
           )}
         </div>

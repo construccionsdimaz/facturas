@@ -14,6 +14,11 @@ export type EstimateReadiness =
   | 'COMMERCIAL_READY'
   | 'TECHNICALLY_CLOSED';
 
+export type EstimateIssuanceStatus =
+  | 'NOT_ISSUED'
+  | 'ISSUED_PROVISIONAL'
+  | 'ISSUED_FINAL';
+
 export type EstimateLineEconomicStatus =
   | 'PARAMETRIC_PRELIMINARY'
   | 'PRICE_PENDING_VALIDATION'
@@ -49,6 +54,37 @@ export type EstimateReadinessCapabilities = {
   isTechnicallyClosed: boolean;
 };
 
+export type EstimateIssuanceCapabilities = {
+  canIssueProvisional: boolean;
+  canIssueFinal: boolean;
+  requiresOverrideForProvisional: boolean;
+  requiresOverrideForFinal: boolean;
+  canRevokeIssuance: boolean;
+};
+
+export type EstimateIssuanceRecord = {
+  status: EstimateIssuanceStatus;
+  issuedAt?: string | null;
+  issuedBy?: string | null;
+  issuanceReason?: string | null;
+  readinessAtIssuance?: EstimateReadiness | null;
+  estimateModeAtIssuance?: EstimateMode | null;
+  warningsAtIssuance?: string[];
+  manualOverrideUsed?: boolean;
+};
+
+export type EstimateIssuanceHistoryEntry = {
+  action: 'ISSUED' | 'REVOKED';
+  status: EstimateIssuanceStatus;
+  timestamp: string;
+  actor: string;
+  reason: string;
+  readinessAtAction: EstimateReadiness;
+  estimateModeAtAction: EstimateMode;
+  warningsAtAction: string[];
+  manualOverrideUsed: boolean;
+};
+
 export type EstimateStatusSnapshot = {
   technicalSpecStatus: TechnicalSpecStatus;
   estimateMode: EstimateMode;
@@ -61,6 +97,9 @@ export type EstimateStatusSnapshot = {
   readinessReasons: string[];
   capabilities: EstimateReadinessCapabilities;
   manualOverride: EstimateReadinessOverride | null;
+  issuance: EstimateIssuanceRecord;
+  issuanceHistory: EstimateIssuanceHistoryEntry[];
+  issuanceCapabilities: EstimateIssuanceCapabilities;
 };
 
 export type EstimateLineEconomicSnapshot = {
@@ -93,6 +132,29 @@ function defaultCapabilities(): EstimateReadinessCapabilities {
     canPrintAsPreliminary: true,
     requiresManualReview: true,
     isTechnicallyClosed: false,
+  };
+}
+
+function defaultIssuance(): EstimateIssuanceRecord {
+  return {
+    status: 'NOT_ISSUED',
+    issuedAt: null,
+    issuedBy: null,
+    issuanceReason: null,
+    readinessAtIssuance: null,
+    estimateModeAtIssuance: null,
+    warningsAtIssuance: [],
+    manualOverrideUsed: false,
+  };
+}
+
+function defaultIssuanceCapabilities(): EstimateIssuanceCapabilities {
+  return {
+    canIssueProvisional: false,
+    canIssueFinal: false,
+    requiresOverrideForProvisional: false,
+    requiresOverrideForFinal: false,
+    canRevokeIssuance: false,
   };
 }
 
@@ -236,6 +298,50 @@ export function deriveEstimateReadiness(params: {
   return { readiness, reasons, capabilities };
 }
 
+export function deriveEstimateIssuanceCapabilities(params: {
+  readiness: EstimateReadiness;
+  issuanceStatus: EstimateIssuanceStatus;
+  manualOverride: EstimateReadinessOverride | null;
+}): EstimateIssuanceCapabilities {
+  const hasOverride = Boolean(params.manualOverride?.applied);
+
+  const capabilities: EstimateIssuanceCapabilities = {
+    canIssueProvisional: false,
+    canIssueFinal: false,
+    requiresOverrideForProvisional: false,
+    requiresOverrideForFinal: false,
+    canRevokeIssuance: params.issuanceStatus !== 'NOT_ISSUED',
+  };
+
+  switch (params.readiness) {
+    case 'DRAFT':
+      break;
+    case 'PARAMETRIC_PRELIMINARY':
+      capabilities.canIssueProvisional = true;
+      capabilities.requiresOverrideForProvisional = true;
+      break;
+    case 'PROVISIONAL_REVIEW_REQUIRED':
+      capabilities.canIssueProvisional = true;
+      capabilities.canIssueFinal = true;
+      capabilities.requiresOverrideForFinal = true;
+      break;
+    case 'COMMERCIAL_READY':
+      capabilities.canIssueProvisional = true;
+      capabilities.canIssueFinal = true;
+      break;
+    case 'TECHNICALLY_CLOSED':
+      capabilities.canIssueProvisional = true;
+      capabilities.canIssueFinal = true;
+      break;
+  }
+
+  if (hasOverride && params.readiness !== 'PARAMETRIC_PRELIMINARY') {
+    capabilities.requiresOverrideForFinal = false;
+  }
+
+  return capabilities;
+}
+
 export function buildEstimateStatusFromPipeline(params: {
   technicalSpecStatus: TechnicalSpecStatus;
   technicalCoveragePercent: number;
@@ -244,6 +350,8 @@ export function buildEstimateStatusFromPipeline(params: {
   pendingValidationCount: number;
   hasHybridBuckets?: boolean;
   manualOverride?: EstimateReadinessOverride | null;
+  issuance?: EstimateIssuanceRecord | null;
+  issuanceHistory?: EstimateIssuanceHistoryEntry[] | null;
 }): EstimateStatusSnapshot {
   const snapshot: EstimateStatusSnapshot = {
     technicalSpecStatus: params.technicalSpecStatus,
@@ -257,6 +365,9 @@ export function buildEstimateStatusFromPipeline(params: {
     readinessReasons: [],
     capabilities: defaultCapabilities(),
     manualOverride: params.manualOverride ?? null,
+    issuance: params.issuance ?? defaultIssuance(),
+    issuanceHistory: Array.isArray(params.issuanceHistory) ? params.issuanceHistory : [],
+    issuanceCapabilities: defaultIssuanceCapabilities(),
   };
 
   snapshot.estimateMode = deriveEstimateModeFromPricing(snapshot);
@@ -264,6 +375,11 @@ export function buildEstimateStatusFromPipeline(params: {
   snapshot.readiness = readiness.readiness;
   snapshot.readinessReasons = readiness.reasons;
   snapshot.capabilities = readiness.capabilities;
+  snapshot.issuanceCapabilities = deriveEstimateIssuanceCapabilities({
+    readiness: snapshot.readiness,
+    issuanceStatus: snapshot.issuance.status,
+    manualOverride: snapshot.manualOverride,
+  });
   return snapshot;
 }
 
@@ -280,6 +396,8 @@ export function buildSprintOneEstimateStatus(params: {
     pendingValidationCount: Math.max(0, params.lineCount),
     hasHybridBuckets: false,
     manualOverride: null,
+    issuance: defaultIssuance(),
+    issuanceHistory: [],
   });
 }
 
@@ -303,6 +421,8 @@ export function applyEstimateReadinessOverride(
     priceCoveragePercent: snapshot.priceCoveragePercent,
     pendingValidationCount: snapshot.pendingValidationCount,
     hasHybridBuckets: snapshot.hasHybridBuckets,
+    issuance: snapshot.issuance,
+    issuanceHistory: snapshot.issuanceHistory,
     manualOverride: {
       applied: true,
       reason,
@@ -311,6 +431,128 @@ export function applyEstimateReadinessOverride(
       warningsAtOverride: snapshot.readinessReasons,
       previousReadiness: snapshot.readiness,
     },
+  });
+}
+
+export function issueEstimate(
+  snapshot: EstimateStatusSnapshot,
+  params: {
+    mode: 'PROVISIONAL' | 'FINAL';
+    actor: string;
+    reason?: string;
+    useOverride?: boolean;
+    timestamp?: string;
+  }
+): EstimateStatusSnapshot {
+  const timestamp = params.timestamp || new Date().toISOString();
+  const reason = params.reason?.trim() || '';
+  const useOverride = Boolean(params.useOverride);
+  const capabilities = snapshot.issuanceCapabilities;
+
+  if (params.mode === 'PROVISIONAL') {
+    if (!capabilities.canIssueProvisional) {
+      throw new Error('Este estimate no puede emitirse como provisional.');
+    }
+    if (capabilities.requiresOverrideForProvisional && !useOverride) {
+      throw new Error('La emision provisional requiere override explicito.');
+    }
+  }
+
+  if (params.mode === 'FINAL') {
+    if (!capabilities.canIssueFinal) {
+      throw new Error('Este estimate no puede emitirse como final.');
+    }
+    if (capabilities.requiresOverrideForFinal && !useOverride) {
+      throw new Error('La emision final requiere override explicito.');
+    }
+  }
+
+  if (useOverride && !reason) {
+    throw new Error('El motivo del override de emision es obligatorio.');
+  }
+
+  const nextIssuance: EstimateIssuanceRecord = {
+    status: params.mode === 'FINAL' ? 'ISSUED_FINAL' : 'ISSUED_PROVISIONAL',
+    issuedAt: timestamp,
+    issuedBy: params.actor,
+    issuanceReason: reason || null,
+    readinessAtIssuance: snapshot.readiness,
+    estimateModeAtIssuance: snapshot.estimateMode,
+    warningsAtIssuance: snapshot.readinessReasons,
+    manualOverrideUsed: useOverride,
+  };
+
+  const nextHistory: EstimateIssuanceHistoryEntry[] = [
+    ...snapshot.issuanceHistory,
+    {
+      action: 'ISSUED',
+      status: nextIssuance.status,
+      timestamp,
+      actor: params.actor,
+      reason: reason || `Emision ${params.mode === 'FINAL' ? 'final' : 'provisional'}`,
+      readinessAtAction: snapshot.readiness,
+      estimateModeAtAction: snapshot.estimateMode,
+      warningsAtAction: snapshot.readinessReasons,
+      manualOverrideUsed: useOverride,
+    },
+  ];
+
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: snapshot.technicalSpecStatus,
+    technicalCoveragePercent: snapshot.technicalCoveragePercent,
+    recipeCoveragePercent: snapshot.recipeCoveragePercent,
+    priceCoveragePercent: snapshot.priceCoveragePercent,
+    pendingValidationCount: snapshot.pendingValidationCount,
+    hasHybridBuckets: snapshot.hasHybridBuckets,
+    manualOverride: snapshot.manualOverride,
+    issuance: nextIssuance,
+    issuanceHistory: nextHistory,
+  });
+}
+
+export function revokeEstimateIssuance(
+  snapshot: EstimateStatusSnapshot,
+  params: {
+    actor: string;
+    reason: string;
+    timestamp?: string;
+  }
+): EstimateStatusSnapshot {
+  if (snapshot.issuance.status === 'NOT_ISSUED') {
+    throw new Error('El estimate no esta emitido.');
+  }
+
+  const reason = params.reason.trim();
+  if (!reason) {
+    throw new Error('El motivo de revocacion es obligatorio.');
+  }
+
+  const timestamp = params.timestamp || new Date().toISOString();
+  const nextHistory: EstimateIssuanceHistoryEntry[] = [
+    ...snapshot.issuanceHistory,
+    {
+      action: 'REVOKED',
+      status: snapshot.issuance.status,
+      timestamp,
+      actor: params.actor,
+      reason,
+      readinessAtAction: snapshot.readiness,
+      estimateModeAtAction: snapshot.estimateMode,
+      warningsAtAction: snapshot.readinessReasons,
+      manualOverrideUsed: Boolean(snapshot.issuance.manualOverrideUsed),
+    },
+  ];
+
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: snapshot.technicalSpecStatus,
+    technicalCoveragePercent: snapshot.technicalCoveragePercent,
+    recipeCoveragePercent: snapshot.recipeCoveragePercent,
+    priceCoveragePercent: snapshot.priceCoveragePercent,
+    pendingValidationCount: snapshot.pendingValidationCount,
+    hasHybridBuckets: snapshot.hasHybridBuckets,
+    manualOverride: snapshot.manualOverride,
+    issuance: defaultIssuance(),
+    issuanceHistory: nextHistory,
   });
 }
 
@@ -354,6 +596,17 @@ function coerceReadiness(value: unknown): EstimateReadiness {
       return value;
     default:
       return 'DRAFT';
+  }
+}
+
+function coerceIssuanceStatus(value: unknown): EstimateIssuanceStatus {
+  switch (value) {
+    case 'ISSUED_PROVISIONAL':
+    case 'ISSUED_FINAL':
+    case 'NOT_ISSUED':
+      return value;
+    default:
+      return 'NOT_ISSUED';
   }
 }
 
@@ -406,6 +659,71 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
           }
         : null;
 
+      const issuanceRecord =
+        statusRecord.issuance && typeof statusRecord.issuance === 'object'
+          ? (statusRecord.issuance as Record<string, unknown>)
+          : null;
+      const issuance: EstimateIssuanceRecord = issuanceRecord
+        ? {
+            status: coerceIssuanceStatus(issuanceRecord.status),
+            issuedAt:
+              typeof issuanceRecord.issuedAt === 'string'
+                ? issuanceRecord.issuedAt
+                : null,
+            issuedBy:
+              typeof issuanceRecord.issuedBy === 'string'
+                ? issuanceRecord.issuedBy
+                : null,
+            issuanceReason:
+              typeof issuanceRecord.issuanceReason === 'string'
+                ? issuanceRecord.issuanceReason
+                : null,
+            readinessAtIssuance: coerceReadiness(
+              issuanceRecord.readinessAtIssuance
+            ),
+            estimateModeAtIssuance:
+              issuanceRecord.estimateModeAtIssuance === 'RECIPE_PRICED'
+                ? 'RECIPE_PRICED'
+                : issuanceRecord.estimateModeAtIssuance === 'MIXED'
+                  ? 'MIXED'
+                  : issuanceRecord.estimateModeAtIssuance === 'PARAMETRIC_PRELIMINARY'
+                    ? 'PARAMETRIC_PRELIMINARY'
+                    : null,
+            warningsAtIssuance: Array.isArray(issuanceRecord.warningsAtIssuance)
+              ? issuanceRecord.warningsAtIssuance.filter(
+                  (item): item is string => typeof item === 'string'
+                )
+              : [],
+            manualOverrideUsed: Boolean(issuanceRecord.manualOverrideUsed),
+          }
+        : defaultIssuance();
+
+      const issuanceHistory = Array.isArray(statusRecord.issuanceHistory)
+        ? statusRecord.issuanceHistory
+            .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object')
+            .map((entry): EstimateIssuanceHistoryEntry => ({
+              action: entry.action === 'REVOKED' ? 'REVOKED' : 'ISSUED',
+              status: coerceIssuanceStatus(entry.status),
+              timestamp:
+                typeof entry.timestamp === 'string' ? entry.timestamp : new Date(0).toISOString(),
+              actor: typeof entry.actor === 'string' ? entry.actor : 'Usuario actual',
+              reason: typeof entry.reason === 'string' ? entry.reason : '',
+              readinessAtAction: coerceReadiness(entry.readinessAtAction),
+              estimateModeAtAction:
+                entry.estimateModeAtAction === 'RECIPE_PRICED'
+                  ? 'RECIPE_PRICED'
+                  : entry.estimateModeAtAction === 'MIXED'
+                    ? 'MIXED'
+                    : 'PARAMETRIC_PRELIMINARY',
+              warningsAtAction: Array.isArray(entry.warningsAtAction)
+                ? entry.warningsAtAction.filter(
+                    (item): item is string => typeof item === 'string'
+                  )
+                : [],
+              manualOverrideUsed: Boolean(entry.manualOverrideUsed),
+            }))
+        : [];
+
       const snapshot = buildEstimateStatusFromPipeline({
         technicalSpecStatus:
           statusRecord.technicalSpecStatus === 'READY_FOR_MEASUREMENT'
@@ -429,6 +747,8 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
             ? statusRecord.hasHybridBuckets
             : integratedCostBuckets.some((bucket) => bucket.source === 'HYBRID'),
         manualOverride,
+        issuance,
+        issuanceHistory,
       });
 
       snapshot.estimateMode =

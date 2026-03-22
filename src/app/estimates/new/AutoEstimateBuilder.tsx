@@ -357,6 +357,9 @@ export default function AutoEstimateBuilder({
                   {proposal.estimateStatus.readinessReasons.join(' | ')}
                 </div>
               )}
+              <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                Emision posible: {proposal.estimateStatus.issuanceCapabilities.canIssueFinal ? 'final' : proposal.estimateStatus.issuanceCapabilities.canIssueProvisional ? 'solo provisional' : 'no emitible'}{proposal.estimateStatus.issuanceCapabilities.requiresOverrideForFinal || proposal.estimateStatus.issuanceCapabilities.requiresOverrideForProvisional ? ' | requiere override segun el caso' : ''}
+              </div>
               {proposal.estimateStatus.manualOverride?.applied && (
                 <div style={{ marginTop: '6px', fontSize: '13px', color: '#fca5a5', fontWeight: 600 }}>
                   Override manual: {proposal.estimateStatus.manualOverride.reason}
