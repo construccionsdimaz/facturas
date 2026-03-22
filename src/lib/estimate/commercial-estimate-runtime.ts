@@ -12,6 +12,8 @@ import type {
   EstimateStatusSnapshot,
   InternalCostSource,
 } from './estimate-status';
+import type { PricingCoverageMetrics } from './pricing-types';
+import { buildPricingCoverageMetrics } from './pricing-coverage';
 
 export type CommercialEstimateRuntimeLine = {
   id: string;
@@ -56,6 +58,7 @@ export type CommercialEstimateRuntimeOutput = {
     vatAmount: number;
     commercialTotal: number | null;
   };
+  economicCoverage: PricingCoverageMetrics;
   warnings: string[];
   assumptions: string[];
   legacyAdapter: {
@@ -157,6 +160,7 @@ export function buildCommercialEstimateRuntimeOutput(params: {
       vatAmount,
       commercialTotal,
     },
+    economicCoverage: buildPricingCoverageMetrics(projection.pricingLines),
     warnings: projection.warnings,
     assumptions: projection.assumptions,
     legacyAdapter: {

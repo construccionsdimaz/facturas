@@ -1,7 +1,9 @@
 import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import type { PricingCoverageMetrics } from '@/lib/estimate/pricing-types';
 import type { PlanningProjection } from '@/lib/planning/planning-projection';
 import type { ProcurementProjection } from '@/lib/procurement/procurement-projection';
+import { buildPricingCoverageMetrics } from '@/lib/estimate/pricing-coverage';
 // import type { ProjectProductionLog } from '@prisma/client';
 type ProjectProductionLog = any;
 import { summarizeProductionLogs, ProductionActualsSummary } from '@/lib/estimate/production-actuals';
@@ -23,6 +25,7 @@ export type ControlProjection = {
     internalCost: number | null;
     laborCost: number | null;
     commercialTotal: number | null;
+    pricingCoverage: PricingCoverageMetrics | null;
     bucketSummaries: Array<{
       bucketCode: string;
       internalCost: number | null;
@@ -349,6 +352,7 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
           )
         : null,
       commercialTotal: runtimeOutput.summary.commercialTotal,
+      pricingCoverage: runtimeOutput.economicCoverage || buildPricingCoverageMetrics(runtimeOutput.projection.pricingLines),
       bucketSummaries: Array.from(aggregates.values()).map((item) => ({
         bucketCode: item.bucketCode,
         internalCost: round(item.internalCost),
@@ -371,6 +375,7 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
         projection.pricingLines.reduce((sum, line) => sum + (line.laborCost || 0), 0),
       ),
       commercialTotal: projection.summary.commercialTotal,
+      pricingCoverage: buildPricingCoverageMetrics(projection.pricingLines),
       bucketSummaries: projection.buckets.map((bucket) => {
         const spaces = uniqueStrings(
           bucket.pricingLineIds
@@ -403,6 +408,7 @@ function buildBaselineEstimate(input: ControlProjectionInput) {
     internalCost: null,
     laborCost: null,
     commercialTotal: null,
+    pricingCoverage: null,
     bucketSummaries: [],
   };
 }
@@ -1008,6 +1014,14 @@ export function buildControlProjection(input: ControlProjectionInput): ControlPr
   }
   if (!hasCanonicalProcurement) {
     warnings.push('La baseline procurement no esta completamente soportada por ProcurementProjection persistida.');
+  }
+  if (baselineEstimate.pricingCoverage?.weakFamilies.length) {
+    warnings.push(
+      `La baseline economica mantiene familias debiles de pricing: ${baselineEstimate.pricingCoverage.weakFamilies
+        .slice(0, 4)
+        .map((family) => family.label)
+        .join(', ')}.`
+    );
   }
   if ((input.expenses || []).length === 0) {
     assumptions.push('No hay gastos reales imputados; el control de coste total sigue parcial.');

@@ -6,6 +6,10 @@ import {
   createDefaultProjectSourcingPolicy,
   mergeProjectSourcingPolicy,
 } from '@/lib/procurement/sourcing-policy';
+import {
+  buildPricingCoverageMetrics,
+  buildPricingLineCoverage,
+} from './pricing-coverage';
 import type { RecipeLine, RecipeLaborCode, RecipeMaterialCode, RecipeResult } from './recipe-types';
 import type {
   PricingEngineOptions,
@@ -29,6 +33,11 @@ type LaborBinding = {
   unit: 'h' | 'jor';
   catalogReferenceUnitCost?: number;
   parametricReferenceUnitCost?: number;
+};
+
+type LaborRateProfile = {
+  hourlyRate: number;
+  detail: string;
 };
 
 const MATERIAL_BINDINGS: Record<RecipeMaterialCode, MaterialBinding> = {
@@ -90,20 +99,20 @@ const MATERIAL_BINDINGS: Record<RecipeMaterialCode, MaterialBinding> = {
   MAT_COMMON_PAINT_INTENSIVE: { procurementMaterialCode: 'PIN-PLA' },
   MAT_COMMON_LIGHTING_INTENSIVE: { procurementMaterialCode: 'ELE-MEC' },
   MAT_COMMON_PROTECTION_INTENSIVE: { parametricReferenceUnitCost: 18 },
-  MAT_PARTITION_PLADUR_STD_FRAME: { catalogReferenceUnitCost: 8.4 },
-  MAT_PARTITION_PLADUR_STD_BOARD: { catalogReferenceUnitCost: 5.8 },
+  MAT_PARTITION_PLADUR_STD_FRAME: { procurementMaterialCode: 'PER-48', catalogReferenceUnitCost: 8.4 },
+  MAT_PARTITION_PLADUR_STD_BOARD: { procurementMaterialCode: 'PLA-STD-13', catalogReferenceUnitCost: 5.8 },
   MAT_PARTITION_PLADUR_STD_FILL: { catalogReferenceUnitCost: 3.6 },
-  MAT_PARTITION_PLADUR_AC_FRAME: { catalogReferenceUnitCost: 9.2 },
-  MAT_PARTITION_PLADUR_AC_BOARD: { catalogReferenceUnitCost: 7.6 },
+  MAT_PARTITION_PLADUR_AC_FRAME: { procurementMaterialCode: 'PER-48', catalogReferenceUnitCost: 9.2 },
+  MAT_PARTITION_PLADUR_AC_BOARD: { procurementMaterialCode: 'PLA-STD-13', catalogReferenceUnitCost: 7.6 },
   MAT_PARTITION_PLADUR_AC_FILL: { catalogReferenceUnitCost: 5.4 },
   MAT_PARTITION_BRICK_STD_BLOCK: { catalogReferenceUnitCost: 12.5 },
   MAT_PARTITION_BRICK_STD_MORTAR: { parametricReferenceUnitCost: 10.8 },
   MAT_PARTITION_BLOCK_STD_BLOCK: { catalogReferenceUnitCost: 15.4 },
   MAT_PARTITION_BLOCK_STD_MORTAR: { parametricReferenceUnitCost: 11.6 },
-  MAT_CEILING_CONT_STD_FRAME: { catalogReferenceUnitCost: 6.2 },
-  MAT_CEILING_CONT_STD_BOARD: { catalogReferenceUnitCost: 5.4 },
-  MAT_CEILING_CONT_INS_FRAME: { catalogReferenceUnitCost: 6.8 },
-  MAT_CEILING_CONT_INS_BOARD: { catalogReferenceUnitCost: 5.9 },
+  MAT_CEILING_CONT_STD_FRAME: { procurementMaterialCode: 'PER-48', catalogReferenceUnitCost: 6.2 },
+  MAT_CEILING_CONT_STD_BOARD: { procurementMaterialCode: 'PLA-STD-13', catalogReferenceUnitCost: 5.4 },
+  MAT_CEILING_CONT_INS_FRAME: { procurementMaterialCode: 'PER-48', catalogReferenceUnitCost: 6.8 },
+  MAT_CEILING_CONT_INS_BOARD: { procurementMaterialCode: 'PLA-STD-13', catalogReferenceUnitCost: 5.9 },
   MAT_CEILING_CONT_INS_FILL: { catalogReferenceUnitCost: 4.1 },
   MAT_CEILING_GRID_MAIN: { catalogReferenceUnitCost: 8.9 },
   MAT_CEILING_GRID_TILE: { catalogReferenceUnitCost: 6.7 },
@@ -112,7 +121,7 @@ const MATERIAL_BINDINGS: Record<RecipeMaterialCode, MaterialBinding> = {
   MAT_FLOOR_LAMINATE_STD: { catalogReferenceUnitCost: 19.8 },
   MAT_FLOOR_VINYL_STD: { catalogReferenceUnitCost: 21.2 },
   MAT_SKIRTING_STD: { catalogReferenceUnitCost: 4.8 },
-  MAT_DOOR_INTERIOR_STD_SET: { catalogReferenceUnitCost: 145 },
+  MAT_DOOR_INTERIOR_STD_SET: { procurementMaterialCode: 'CAR-PUE-L', catalogReferenceUnitCost: 145 },
   MAT_DOOR_INTERIOR_PLUS_SET: { catalogReferenceUnitCost: 228 },
   MAT_WINDOW_STD_SET: { catalogReferenceUnitCost: 310 },
   MAT_WINDOW_IMPROVED_SET: { catalogReferenceUnitCost: 445 },
@@ -131,11 +140,11 @@ const MATERIAL_BINDINGS: Record<RecipeMaterialCode, MaterialBinding> = {
   MAT_PAINT_CEILING_STD: { procurementMaterialCode: 'PIN-PLA', catalogReferenceUnitCost: 3.9 },
   MAT_WATERPROOFING_STD: { procurementMaterialCode: 'IMP-LIQ-STD', catalogReferenceUnitCost: 7.6 },
   MAT_WATERPROOFING_PLUS: { procurementMaterialCode: 'IMP-LIQ-PLUS', catalogReferenceUnitCost: 10.8 },
-  MAT_PARTITION_LINING_FRAME: { procurementMaterialCode: 'PLADUR-FRAME-STD', catalogReferenceUnitCost: 7.8 },
-  MAT_PARTITION_LINING_BOARD: { procurementMaterialCode: 'PLADUR-BOARD-STD', catalogReferenceUnitCost: 5.6 },
+  MAT_PARTITION_LINING_FRAME: { procurementMaterialCode: 'PER-48', catalogReferenceUnitCost: 7.8 },
+  MAT_PARTITION_LINING_BOARD: { procurementMaterialCode: 'PLA-STD-13', catalogReferenceUnitCost: 5.6 },
   MAT_PARTITION_LINING_FILL: { procurementMaterialCode: 'PLADUR-FILL-STD', catalogReferenceUnitCost: 3.8 },
-  MAT_CEILING_CONT_PLUS_FRAME: { procurementMaterialCode: 'CEIL-FRAME-PLUS', catalogReferenceUnitCost: 7.2 },
-  MAT_CEILING_CONT_PLUS_BOARD: { procurementMaterialCode: 'CEIL-BOARD-PLUS', catalogReferenceUnitCost: 6.4 },
+  MAT_CEILING_CONT_PLUS_FRAME: { procurementMaterialCode: 'PER-48', catalogReferenceUnitCost: 7.2 },
+  MAT_CEILING_CONT_PLUS_BOARD: { procurementMaterialCode: 'PLA-STD-13', catalogReferenceUnitCost: 6.4 },
   MAT_CEILING_CONT_PLUS_FILL: { procurementMaterialCode: 'CEIL-FILL-PLUS', catalogReferenceUnitCost: 4.3 },
   MAT_DOOR_SLIDING_STD_SET: { procurementMaterialCode: 'CARP-DOOR-SLI', catalogReferenceUnitCost: 285 },
   MAT_DOOR_RF_BASIC_SET: { procurementMaterialCode: 'CARP-DOOR-RF', catalogReferenceUnitCost: 365 },
@@ -214,6 +223,30 @@ const LABOR_BINDINGS: Record<RecipeLaborCode, LaborBinding> = {
   LAB_DRAINAGE_WET_ROOM_STD: { unit: 'h', parametricReferenceUnitCost: 30 },
   LAB_PLUMBING_WET_ROOM_PLUS: { unit: 'h', parametricReferenceUnitCost: 33 },
   LAB_DRAINAGE_WET_ROOM_PLUS: { unit: 'h', parametricReferenceUnitCost: 32 },
+};
+
+const LABOR_RATE_BY_TRADE: Partial<Record<NonNullable<PricingLabor['tradeCode']>, LaborRateProfile>> = {
+  OFICIO_ALBANIL: { hourlyRate: 29.5, detail: 'Referencia de albanileria interior' },
+  OFICIO_PLADUR: { hourlyRate: 28.8, detail: 'Referencia de sistemas de yeso laminado' },
+  OFICIO_PINTOR: { hourlyRate: 24.8, detail: 'Referencia de pintura interior' },
+  OFICIO_ELECTRICISTA: { hourlyRate: 31.5, detail: 'Referencia de electricidad basica' },
+  OFICIO_FONTANERO: { hourlyRate: 32.2, detail: 'Referencia de fontaneria y saneamiento interior' },
+  OFICIO_CARPINTERO: { hourlyRate: 30.4, detail: 'Referencia de carpinteria interior y montaje' },
+  OFICIO_SOLADOR: { hourlyRate: 29.9, detail: 'Referencia de colocacion de pavimento y revestimiento' },
+  OFICIO_TECNICO_MULTI: { hourlyRate: 28.4, detail: 'Referencia de operario multi-interiores' },
+};
+
+const LABOR_CREW_RATE_ADJUSTMENTS: Partial<Record<NonNullable<PricingLabor['crewCode']>, number>> = {
+  CREW_PARTITIONS_STD: 1.02,
+  CREW_CEILINGS_STD: 1.01,
+  CREW_FLOORING_STD: 1.02,
+  CREW_TILING_WET_STD: 1.04,
+  CREW_PAINT_STD: 0.99,
+  CREW_CARPENTRY_STD: 1.03,
+  CREW_ELECTRICAL_BASIC: 1.02,
+  CREW_PLUMBING_WET: 1.04,
+  CREW_KITCHENETTE_INSTALL: 1.05,
+  CREW_GENERAL_INTERIORS: 1,
 };
 
 type OfferRecord = {
@@ -316,6 +349,21 @@ async function loadPreferredSuppliers() {
 
 function round(value: number) {
   return Number(value.toFixed(2));
+}
+
+function resolveLaborReferenceRate(labor: RecipeLine['labor'][number]) {
+  if (!labor.tradeCode || labor.productivitySource === 'FALLBACK') return null;
+  const tradeProfile = LABOR_RATE_BY_TRADE[labor.tradeCode];
+  if (!tradeProfile) return null;
+  const crewFactor = labor.crewCode ? LABOR_CREW_RATE_ADJUSTMENTS[labor.crewCode] || 1 : 1;
+  const hourlyRate = round(tradeProfile.hourlyRate * crewFactor);
+  return {
+    unit: 'h' as const,
+    unitCost: hourlyRate,
+    detail: labor.crewCode
+      ? `${tradeProfile.detail}; crew ${labor.crewCode} aplicada`
+      : tradeProfile.detail,
+  };
 }
 
 async function priceMaterial(
@@ -484,6 +532,32 @@ function priceLabor(
     };
   }
 
+  const laborReferenceRate = resolveLaborReferenceRate(labor);
+  if (laborReferenceRate && isValidCost(laborReferenceRate.unitCost)) {
+    return {
+      laborCode: labor.laborCode,
+      quantity: labor.quantity,
+      unit: labor.unit,
+      tradeCode: labor.tradeCode || null,
+      crewCode: labor.crewCode || null,
+      productivityProfileCode: labor.productivityProfileCode || null,
+      productivitySource: labor.productivitySource || null,
+      baseHoursPerUnit: labor.baseHoursPerUnit ?? null,
+      adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
+      adjustedCrewDays: labor.adjustedCrewDays ?? null,
+      productivityFactors: labor.productivityFactors || [],
+      assumptions: [...(labor.assumptions || []), laborReferenceRate.detail],
+      policySource: labor.policySource || null,
+      policyFamilyCode: labor.policyFamilyCode || null,
+      appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
+      unitCost: laborReferenceRate.unitCost,
+      totalCost: round(labor.quantity * laborReferenceRate.unitCost),
+      currency: 'EUR',
+      priceStatus: 'PRICE_INFERRED',
+      priceSource: 'CATALOG_REFERENCE',
+    };
+  }
+
   if (isValidCost(binding.catalogReferenceUnitCost)) {
     return {
       laborCode: labor.laborCode,
@@ -602,6 +676,27 @@ export async function buildPricingResult(
         parametricReferenceLines: 0,
         missingLines: 0,
       },
+      metrics: {
+        totalLines: 0,
+        confirmedLines: 0,
+        inferredLines: 0,
+        pendingLines: 0,
+        provisionalLines: 0,
+        supplierOfferLines: 0,
+        preferredSupplierLines: 0,
+        catalogReferenceLines: 0,
+        parametricReferenceLines: 0,
+        missingLines: 0,
+        materialCostTotal: 0,
+        laborCostTotal: 0,
+        indirectCostTotal: 0,
+        totalCostKnown: 0,
+        realOfferCoveragePercent: 0,
+        inferredCoveragePercent: 0,
+        pendingCoveragePercent: 0,
+        familyMetrics: [],
+        weakFamilies: [],
+      },
       estimateMode: deriveEstimateModeFromPricing({
         technicalSpecStatus: 'INCOMPLETE',
         recipeCoveragePercent: 0,
@@ -703,6 +798,20 @@ export async function buildPricingResult(
         totalCost,
         priceStatus,
         assumedFields: recipeLine.assumedFields,
+        coverage: buildPricingLineCoverage({
+          id: `${recipeLine.id}:pricing`,
+          spaceId: recipeLine.spaceId,
+          solutionCode: recipeLine.solutionCode,
+          recipeLineId: recipeLine.id,
+          materialPricing,
+          laborPricing,
+          materialCost,
+          laborCost,
+          indirectCost,
+          totalCost,
+          priceStatus,
+          assumedFields: recipeLine.assumedFields,
+        }),
       };
     })
   );
@@ -720,6 +829,12 @@ export async function buildPricingResult(
       : pendingLines > 0
         ? 'PARTIAL'
         : 'READY';
+  const metrics = buildPricingCoverageMetrics(lines);
+  for (const weakFamily of metrics.weakFamilies.slice(0, 6)) {
+    warnings.push(
+      `Cobertura economica debil en ${weakFamily.label}: ${weakFamily.weakness}, ${weakFamily.inferredCoveragePercent}% inferido y ${weakFamily.pendingCoveragePercent}% pendiente.`
+    );
+  }
 
   return {
     status,
@@ -737,6 +852,7 @@ export async function buildPricingResult(
       parametricReferenceLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'PARAMETRIC_REFERENCE')).length,
       missingLines: allMaterialPricing.filter((item) => item.priceSource === 'MISSING').length,
     },
+    metrics,
     estimateMode: deriveEstimateModeFromPricing({
       technicalSpecStatus: executionContext.project.technicalSpecStatus || 'INCOMPLETE',
       recipeCoveragePercent: recipeResult.coverage.recipeCoveragePercent,

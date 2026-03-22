@@ -25,6 +25,88 @@ export type PriceSource =
   | 'MANUAL_OVERRIDE'
   | 'MISSING';
 
+export type PricingCoverageFamilyCode =
+  | 'ROOMS'
+  | 'BATHS'
+  | 'KITCHENETTES'
+  | 'LEVELING'
+  | 'COMMON_AREAS'
+  | 'WALL_FINISHES'
+  | 'PARTITIONS'
+  | 'CEILINGS'
+  | 'FLOORING'
+  | 'CARPENTRY'
+  | 'BASIC_MEP'
+  | 'GENERAL';
+
+export type PricingWeakness = 'NONE' | 'MATERIAL' | 'LABOR' | 'MIXED';
+
+export type PricingLineCoverage = {
+  familyCode: PricingCoverageFamilyCode;
+  dominantMaterialSource: PriceSource;
+  dominantLaborSource: PriceSource;
+  materialStatus: PriceStatus;
+  laborStatus: PriceStatus;
+  weakness: PricingWeakness;
+  provisionalReasons: string[];
+};
+
+export type PricingFamilyCoverage = {
+  familyCode: PricingCoverageFamilyCode;
+  label: string;
+  lineCount: number;
+  confirmedLines: number;
+  inferredLines: number;
+  pendingLines: number;
+  provisionalLines: number;
+  supplierOfferLines: number;
+  preferredSupplierLines: number;
+  catalogReferenceLines: number;
+  parametricReferenceLines: number;
+  missingLines: number;
+  materialWeakLines: number;
+  laborWeakLines: number;
+  mixedWeakLines: number;
+  materialCostTotal: number;
+  laborCostTotal: number;
+  indirectCostTotal: number;
+  totalCostKnown: number;
+  realOfferCoveragePercent: number;
+  inferredCoveragePercent: number;
+  pendingCoveragePercent: number;
+  materialSharePercent: number;
+  laborSharePercent: number;
+  weakness: PricingWeakness;
+};
+
+export type PricingCoverageMetrics = {
+  totalLines: number;
+  confirmedLines: number;
+  inferredLines: number;
+  pendingLines: number;
+  provisionalLines: number;
+  supplierOfferLines: number;
+  preferredSupplierLines: number;
+  catalogReferenceLines: number;
+  parametricReferenceLines: number;
+  missingLines: number;
+  materialCostTotal: number;
+  laborCostTotal: number;
+  indirectCostTotal: number;
+  totalCostKnown: number;
+  realOfferCoveragePercent: number;
+  inferredCoveragePercent: number;
+  pendingCoveragePercent: number;
+  familyMetrics: PricingFamilyCoverage[];
+  weakFamilies: Array<{
+    familyCode: PricingCoverageFamilyCode;
+    label: string;
+    weakness: PricingWeakness;
+    inferredCoveragePercent: number;
+    pendingCoveragePercent: number;
+  }>;
+};
+
 export type PricingMaterial = {
   materialCode: RecipeMaterialCode;
   quantity: number;
@@ -93,6 +175,7 @@ export type PricingLine = {
   totalCost?: number | null;
   priceStatus: PriceStatus;
   assumedFields: string[];
+  coverage: PricingLineCoverage;
 };
 
 export type PricingResult = {
@@ -111,6 +194,7 @@ export type PricingResult = {
     parametricReferenceLines: number;
     missingLines: number;
   };
+  metrics: PricingCoverageMetrics;
   estimateMode: 'PARAMETRIC_PRELIMINARY' | 'RECIPE_PRICED' | 'MIXED';
   warnings: string[];
   assumptions: string[];

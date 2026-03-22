@@ -5,6 +5,7 @@ import type {
   PricingLine,
   PriceSource,
   PriceStatus,
+  PricingWeakness,
 } from '@/lib/estimate/pricing-types';
 import { MATERIAL_BINDINGS } from '@/lib/estimate/pricing-engine';
 import { ensureProcurementCatalog } from './catalog';
@@ -81,6 +82,7 @@ export type ProcurementProjectionLine = {
   supportedRecipeLineIds: string[];
   supportedPricingLineIds: string[];
   supportedSolutionCodes: string[];
+  pricingWeakness?: PricingWeakness | null;
   supplierId?: string;
   supplierName?: string | null;
   supplierOfferId?: string;
@@ -501,6 +503,7 @@ export async function buildProcurementProjection(
         supportedRecipeLineIds: [recipeLine.id],
         supportedPricingLineIds: pricingLine ? [pricingLine.id] : [],
         supportedSolutionCodes: [recipeLine.solutionCode],
+        pricingWeakness: pricingLine?.coverage?.weakness || null,
         supplierId: pricingMaterial?.supplierId || fallbackSuggestion.offer?.supplier?.id,
         supplierName: pricingMaterial?.supplierName || fallbackSuggestion.offer?.supplier?.name || null,
         supplierOfferId: pricingMaterial?.supplierOfferId || fallbackSuggestion.offer?.id,
@@ -586,6 +589,7 @@ export async function buildProcurementProjection(
       supportedRecipeLineIds: [],
       supportedPricingLineIds: [],
       supportedSolutionCodes: [],
+      pricingWeakness: null,
       supplierId: suggestion.offer?.supplier?.id,
       supplierName: suggestion.offer?.supplier?.name || null,
       supplierOfferId: suggestion.offer?.id,

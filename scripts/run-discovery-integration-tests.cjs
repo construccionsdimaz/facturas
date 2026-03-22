@@ -124,11 +124,32 @@ async function run() {
         { id: 'offer-fon-1', supplierId: 'sup-electro', unitCost: 3.2, unit: 'ml', leadTimeDays: 3, isPreferred: false, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
       ],
     },
+    'PLA-STD-13': {
+      id: 'mat-pla-std',
+      code: 'PLA-STD-13',
+      offers: [
+        { id: 'offer-pla-1', supplierId: 'sup-dimaz', unitCost: 6.7, unit: 'm2', leadTimeDays: 4, isPreferred: true, supplier: { id: 'sup-dimaz', name: 'Suministros Dimaz Base' } },
+      ],
+    },
+    'PER-48': {
+      id: 'mat-per-48',
+      code: 'PER-48',
+      offers: [
+        { id: 'offer-per-1', supplierId: 'sup-dimaz', unitCost: 2.3, unit: 'ml', leadTimeDays: 4, isPreferred: true, supplier: { id: 'sup-dimaz', name: 'Suministros Dimaz Base' } },
+      ],
+    },
     'INS-SAN-STD': {
       id: 'mat-san',
       code: 'INS-SAN-STD',
       offers: [
         { id: 'offer-san-1', supplierId: 'sup-puertas', unitCost: 142, unit: 'ud', leadTimeDays: 6, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+    'CAR-PUE-L': {
+      id: 'mat-car-pue-l',
+      code: 'CAR-PUE-L',
+      offers: [
+        { id: 'offer-door-std-1', supplierId: 'sup-puertas', unitCost: 145, unit: 'ud', leadTimeDays: 12, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
       ],
     },
     'ACA-WALL-STD': {
@@ -1227,6 +1248,9 @@ async function run() {
   assert(partitionPricingLine.laborPricing.some((labor) => labor.crewCode === 'CREW_PARTITIONS_STD'));
   assert(partitionPricingLine.laborPricing.some((labor) => (labor.adjustedCrewDays || 0) > 0));
   assert(partitionPricingLine.laborPricing.some((labor) => !!labor.productivityProfileCode));
+  assert(partitionPricingLine.laborPricing.some((labor) => labor.priceSource === 'CATALOG_REFERENCE'));
+  assert(partitionPricingLine.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER'));
+  assert(['MATERIAL', 'MIXED'].includes(partitionPricingLine.coverage.weakness));
   const wetPricingLine = inferredPricing.lines.find((line) => line.solutionCode === 'PLUMBING_WET_ROOM_PLUS');
   assert(wetPricingLine);
   assert(wetPricingLine.laborPricing.some((labor) => labor.tradeCode === 'OFICIO_FONTANERO'));
@@ -1236,7 +1260,9 @@ async function run() {
       (line) =>
         line.solutionCode === 'ROOM_STD_COLIVING_BASIC' &&
         line.priceStatus === 'PRICE_INFERRED' &&
-        line.laborPricing.some((labor) => labor.priceSource === 'PARAMETRIC_REFERENCE')
+        line.laborPricing.some((labor) =>
+          ['PARAMETRIC_REFERENCE', 'CATALOG_REFERENCE'].includes(labor.priceSource)
+        )
     )
   );
   assert(
@@ -1407,6 +1433,18 @@ async function run() {
         line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
     )
   );
+  const partitionFamilyMetrics = inferredPricing.metrics.familyMetrics.find((family) => family.familyCode === 'PARTITIONS');
+  const wallFinishesFamilyMetrics = inferredPricing.metrics.familyMetrics.find((family) => family.familyCode === 'WALL_FINISHES');
+  const kitchenettesFamilyMetrics = inferredPricing.metrics.familyMetrics.find((family) => family.familyCode === 'KITCHENETTES');
+  assert(partitionFamilyMetrics);
+  assert(wallFinishesFamilyMetrics);
+  assert(kitchenettesFamilyMetrics);
+  assert(partitionFamilyMetrics.realOfferCoveragePercent > 0);
+  assert(wallFinishesFamilyMetrics.realOfferCoveragePercent > 0);
+  assert(kitchenettesFamilyMetrics.realOfferCoveragePercent > 0);
+  assert(inferredPricing.metrics.materialCostTotal > 0);
+  assert(inferredPricing.metrics.laborCostTotal > 0);
+  assert(inferredPricing.metrics.weakFamilies.length > 0);
 
   const multiOfferCeramicLookup = {
     ...pricingLookupOverride,
@@ -2619,6 +2657,12 @@ async function run() {
   });
   assert.equal(canonicalControlProjection.source, 'CANONICAL_BASELINE');
   assert((canonicalControlProjection.baselineEstimate.laborCost || 0) > 0);
+  assert(canonicalControlProjection.baselineEstimate.pricingCoverage);
+  assert(
+    canonicalControlProjection.baselineEstimate.pricingCoverage.familyMetrics.some(
+      (family) => family.familyCode === 'WALL_FINISHES'
+    )
+  );
   assert(
     canonicalControlProjection.baselineEstimate.bucketSummaries.some(
       (bucket) => bucket.bucketCode === 'PARTITIONS' && (bucket.laborCost || 0) > 0
@@ -3216,6 +3260,30 @@ async function run() {
           parametricReferenceLines: inferredPricing.coverage.parametricReferenceLines,
           focusFamilySupplierOfferLines: sourcingFocusSupplierOfferLines,
           focusFamilyInferredOnlyLines: sourcingFocusInferredOnlyLines,
+        },
+        pricingRealismStats: {
+          totalLines: inferredPricing.metrics.totalLines,
+          provisionalLines: inferredPricing.metrics.provisionalLines,
+          realOfferCoveragePercent: inferredPricing.metrics.realOfferCoveragePercent,
+          inferredCoveragePercent: inferredPricing.metrics.inferredCoveragePercent,
+          pendingCoveragePercent: inferredPricing.metrics.pendingCoveragePercent,
+          materialCostTotal: inferredPricing.metrics.materialCostTotal,
+          laborCostTotal: inferredPricing.metrics.laborCostTotal,
+          familySnapshots: inferredPricing.metrics.familyMetrics
+            .filter((family) =>
+              ['PARTITIONS', 'WALL_FINISHES', 'KITCHENETTES', 'BASIC_MEP', 'FLOORING', 'CARPENTRY'].includes(
+                family.familyCode
+              )
+            )
+            .map((family) => ({
+              familyCode: family.familyCode,
+              realOfferCoveragePercent: family.realOfferCoveragePercent,
+              inferredCoveragePercent: family.inferredCoveragePercent,
+              pendingCoveragePercent: family.pendingCoveragePercent,
+              weakness: family.weakness,
+              materialSharePercent: family.materialSharePercent,
+              laborSharePercent: family.laborSharePercent,
+            })),
         },
         offerReviewOpsStats: {
           reviewQueueBeforeResolution: catalogMetricsBeforeResolution.reviewQueueCount,

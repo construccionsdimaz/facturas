@@ -7,6 +7,7 @@ import { formatCurrency } from '@/lib/format';
 import { parseGenerationNotes, parseLineEconomicStatus } from '@/lib/estimate/estimate-status';
 import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import { buildPricingCoverageMetrics } from '@/lib/estimate/pricing-coverage';
 import type { CommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 
 interface EstimateData {
@@ -327,6 +328,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     estimate.commercialReadModel?.commercialEstimateProjection ||
     ((parsedInternalNotes.commercialEstimateProjection || null) as CommercialEstimateProjection | null);
   const activeProjection = commercialRuntimeOutput?.projection || commercialProjection;
+  const economicCoverage =
+    commercialRuntimeOutput?.economicCoverage ||
+    (activeProjection ? buildPricingCoverageMetrics(activeProjection.pricingLines) : null);
   const commercialCapabilities =
     parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;
   const acceptanceCapabilities =
@@ -627,6 +631,64 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               <strong>{formatCurrency(estimate.internalAnalysis.summary.marginAmount)}</strong>
             </div>
           </div>
+
+          {economicCoverage && (
+            <div style={{ display: 'grid', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Cobertura oferta real</div>
+                  <strong>{economicCoverage.realOfferCoveragePercent}%</strong>
+                </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Cobertura inferida</div>
+                  <strong>{economicCoverage.inferredCoveragePercent}%</strong>
+                </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Lineas provisionales</div>
+                  <strong>{economicCoverage.provisionalLines}</strong>
+                </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Supplier offer</div>
+                  <strong>{economicCoverage.supplierOfferLines}</strong>
+                </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Preferred supplier</div>
+                  <strong>{economicCoverage.preferredSupplierLines}</strong>
+                </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Catalog/parametrico</div>
+                  <strong>{economicCoverage.catalogReferenceLines + economicCoverage.parametricReferenceLines}</strong>
+                </div>
+              </div>
+
+              <div className="glass-panel" style={{ padding: '12px' }}>
+                <div style={{ fontWeight: 700, marginBottom: '8px' }}>Fortaleza economica por familia</div>
+                <div style={{ display: 'grid', gap: '8px' }}>
+                  {economicCoverage.familyMetrics.slice(0, 8).map((family) => (
+                    <div key={family.familyCode} style={{ padding: '10px', borderRadius: '10px', border: '1px solid rgba(255,255,255,0.08)', background: 'rgba(255,255,255,0.02)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                        <div style={{ fontWeight: 700 }}>{family.label}</div>
+                        <div style={{ fontSize: '12px', color: family.weakness === 'NONE' ? '#86efac' : family.weakness === 'LABOR' ? '#fcd34d' : '#fca5a5' }}>
+                          {family.weakness === 'NONE' ? 'Fuerte' : `Debil ${family.weakness.toLowerCase()}`}
+                        </div>
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Oferta real {family.realOfferCoveragePercent}% | Inferido {family.inferredCoveragePercent}% | Pendiente {family.pendingCoveragePercent}%
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        Mat {formatCurrency(family.materialCostTotal)} ({family.materialSharePercent}%) | MO {formatCurrency(family.laborCostTotal)} ({family.laborSharePercent}%)
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                {economicCoverage.weakFamilies.length > 0 && (
+                  <div style={{ marginTop: '10px', fontSize: '12px', color: '#fcd34d' }}>
+                    Familias mas debiles: {economicCoverage.weakFamilies.slice(0, 5).map((family) => family.label).join(' | ')}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
           {parsedInternalNotes.notes.length > 0 && (
             <div style={{ marginBottom: '16px', color: 'var(--text-secondary)', fontSize: '13px' }}>
