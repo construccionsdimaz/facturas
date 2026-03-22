@@ -594,6 +594,7 @@ export function resolveSpatialModelToExecutionContext(
       accessLevel: input.accessLevel,
       conditions: input.conditions,
       structuralWorks: input.structuralWorks,
+      technicalSpecStatus: sessionData.technicalSpecModel?.status || 'INCOMPLETE',
       complexityProfile: input.complexityProfile,
     },
     totals,

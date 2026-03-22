@@ -36,9 +36,53 @@ async function run() {
   const { createEmptyDiscoverySessionData, createDefaultTemplate } = require(path.join(srcRoot, 'lib/discovery/defaults.ts'));
   const { deriveInputFromSession } = require(path.join(srcRoot, 'lib/discovery/derive-input.ts'));
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
+  const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
+
+  const pricingLookupOverride = {
+    'ACA-PORC': {
+      id: 'mat-porc',
+      code: 'ACA-PORC',
+      offers: [
+        { id: 'offer-porc-1', supplierId: 'sup-acabats', unitCost: 16.9, unit: 'm2', leadTimeDays: 8, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'PIN-PLA': {
+      id: 'mat-pint',
+      code: 'PIN-PLA',
+      offers: [
+        { id: 'offer-pint-1', supplierId: 'sup-acabats', unitCost: 3.9, unit: 'm2', leadTimeDays: 2, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'ELE-MEC': {
+      id: 'mat-ele',
+      code: 'ELE-MEC',
+      offers: [
+        { id: 'offer-ele-1', supplierId: 'sup-electro', unitCost: 7.8, unit: 'ud', leadTimeDays: 2, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'FON-TUB-PPR': {
+      id: 'mat-fon',
+      code: 'FON-TUB-PPR',
+      offers: [
+        { id: 'offer-fon-1', supplierId: 'sup-electro', unitCost: 3.2, unit: 'ml', leadTimeDays: 3, isPreferred: false, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'INS-SAN-STD': {
+      id: 'mat-san',
+      code: 'INS-SAN-STD',
+      offers: [
+        { id: 'offer-san-1', supplierId: 'sup-puertas', unitCost: 142, unit: 'ud', leadTimeDays: 6, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+  };
+
+  const preferredSuppliersOverride = {
+    'Suministros Dimaz Base': { id: 'sup-dimaz', name: 'Suministros Dimaz Base' },
+    'Acabats Mediterrani': { id: 'sup-acabats', name: 'Acabats Mediterrani' },
+  };
 
   const simple = createEmptyDiscoverySessionData('PISO');
   simple.classification.interventionType = 'REFORMA';
@@ -403,6 +447,72 @@ async function run() {
     1
   );
 
+  const inferredPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+    }
+  );
+  assert.equal(inferredPricing.status, 'READY');
+  assert.equal(inferredPricing.estimateMode, 'RECIPE_PRICED');
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'ROOM_STD_COLIVING_BASIC' &&
+        line.priceStatus === 'PRICE_INFERRED' &&
+        line.laborPricing.some((labor) => labor.priceSource === 'PARAMETRIC_REFERENCE')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_120_BASIC' &&
+        line.materialPricing.some((material) => material.priceSource === 'PREFERRED_SUPPLIER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'ROOM_STD_COLIVING_BASIC' &&
+        line.materialPricing.some((material) => material.priceSource === 'CATALOG_REFERENCE')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'LEVELING_LIGHT' &&
+        line.materialPricing.some((material) => material.priceSource === 'PARAMETRIC_REFERENCE')
+    )
+  );
+
+  const confirmedPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+      manualOverrides: {
+        labor: {
+          LAB_COMMON_BASIC: { unitCost: 33 },
+        },
+      },
+    }
+  );
+  const confirmedCommonLine = confirmedPricing.lines.find(
+    (line) => line.solutionCode === 'COMMON_AREA_BASIC'
+  );
+  assert(confirmedCommonLine);
+  assert.equal(confirmedCommonLine.priceStatus, 'PRICE_CONFIRMED');
+  assert(
+    confirmedCommonLine.laborPricing.some(
+      (labor) => labor.priceStatus === 'PRICE_CONFIRMED' && labor.priceSource === 'MANUAL_OVERRIDE'
+    )
+  );
+  assert(typeof confirmedCommonLine.totalCost === 'number');
+  assert(typeof confirmedCommonLine.indirectCost === 'number');
+
   const partial = JSON.parse(JSON.stringify(measured));
   partial.technicalSpecModel.groupSpecs['room-group'].dimensions.kitchenetteLinearMeters = null;
   partial.spatialModel.instances.find((instance) => instance.instanceId === 'kit-1').measurementDrivers.linearMeters = null;
@@ -418,6 +528,22 @@ async function run() {
     partialInput.recipeResult.lines.some(
       (line) =>
         line.recipeCode === 'RECIPE_KITCHENETTE_120_BASIC_ML' && line.status === 'RECIPE_MISSING'
+    )
+  );
+  const partialPricing = await buildPricingResult(
+    partialInput.recipeResult,
+    partialInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+    }
+  );
+  assert.equal(partialPricing.status, 'PARTIAL');
+  assert(
+    partialPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_120_BASIC' &&
+        line.priceStatus === 'PRICE_PENDING_VALIDATION'
     )
   );
 
@@ -436,6 +562,20 @@ async function run() {
     assumedInput.recipeResult.lines.some(
       (line) =>
         line.recipeCode === 'RECIPE_LEVELING_LIGHT_M2' && line.status === 'RECIPE_PARTIAL'
+    )
+  );
+  const assumedPricing = await buildPricingResult(
+    assumedInput.recipeResult,
+    assumedInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+    }
+  );
+  assert(
+    assumedPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'LEVELING_LIGHT' && line.priceStatus === 'PRICE_INFERRED'
     )
   );
 
@@ -458,6 +598,22 @@ async function run() {
     blockedInput.recipeResult.lines.some(
       (line) =>
         line.recipeCode === 'RECIPE_ROOM_STD_COLIVING_BASIC_M2' && line.status === 'RECIPE_MISSING'
+    )
+  );
+  const blockedPricing = await buildPricingResult(
+    blockedInput.recipeResult,
+    blockedInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+    }
+  );
+  assert(
+    blockedPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'ROOM_STD_COLIVING_BASIC' &&
+        line.priceStatus === 'PRICE_PENDING_VALIDATION' &&
+        line.totalCost === null
     )
   );
 
@@ -492,6 +648,21 @@ async function run() {
       (line) => line.recipeCode === 'RECIPE_BATH_ADAPTED_M2'
     )
   );
+  const bathAdaptedPricing = await buildPricingResult(
+    bathAdaptedInput.recipeResult,
+    bathAdaptedInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+    }
+  );
+  assert(
+    bathAdaptedPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'BATH_ADAPTED' &&
+        line.priceStatus === 'PRICE_PENDING_VALIDATION'
+    )
+  );
 
   const kitchenetteComplete = JSON.parse(JSON.stringify(measured));
   kitchenetteComplete.technicalSpecModel.groupSpecs['room-group'].selections.kitchenetteSolution = 'KITCHENETTE_180_COMPLETE';
@@ -521,6 +692,23 @@ async function run() {
       (line) => line.recipeCode === 'RECIPE_COMMON_AREA_INTENSIVE_M2'
     )
   );
+  const commonIntensivePricing = await buildPricingResult(
+    commonIntensiveInput.recipeResult,
+    commonIntensiveInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+    }
+  );
+  assert(
+    commonIntensivePricing.lines.some(
+      (line) => line.solutionCode === 'COMMON_AREA_INTENSIVE' && line.priceStatus === 'PRICE_INFERRED'
+    )
+  );
+  assert.equal(inferredPricing.coverage.priceCoveragePercent, 100);
+  assert.equal(inferredPricing.coverage.pendingValidationCount, 0);
+  assert(bathAdaptedPricing.coverage.pendingValidationCount > 0);
+  assert.equal(bathAdaptedPricing.estimateMode, 'MIXED');
 
   console.log('Discovery integration tests passed.');
 }

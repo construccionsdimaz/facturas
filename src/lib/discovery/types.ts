@@ -7,8 +7,10 @@ import type {
 } from '@/lib/automation/types';
 import type { TechnicalSpecModel } from './technical-spec-types';
 import type { ResolvedTechnicalSpecSummary } from './technical-spec-types';
+import type { TechnicalSpecStatus } from './technical-spec-types';
 import type { MeasurementResult } from '@/lib/estimate/measurement-types';
 import type { RecipeResult } from '@/lib/estimate/recipe-types';
+import type { PricingResult } from '@/lib/estimate/pricing-types';
 
 export type DiscoverySessionStatus =
   | 'DRAFT'
@@ -582,6 +584,7 @@ export type ExecutionContext = {
     accessLevel: AccessLevel;
     conditions: string;
     structuralWorks: boolean;
+    technicalSpecStatus?: TechnicalSpecStatus;
     complexityProfile?: ComplexityProfile;
   };
   totals: {
@@ -752,6 +755,7 @@ export type DerivedInput = {
   executionContext: ExecutionContext;
   measurementResult?: MeasurementResult;
   recipeResult?: RecipeResult;
+  pricingResult?: PricingResult;
   certainty: {
     byBlock: DiscoverySessionData['certainty']['byBlock'];
     confidenceLevel: 'BAJA' | 'MEDIA' | 'ALTA';

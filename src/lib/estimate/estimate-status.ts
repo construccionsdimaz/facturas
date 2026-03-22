@@ -64,6 +64,54 @@ export function deriveEstimateMode({
   return 'MIXED';
 }
 
+export function deriveEstimateModeFromPricing(params: {
+  technicalSpecStatus: TechnicalSpecStatus;
+  recipeCoveragePercent: number;
+  priceCoveragePercent: number;
+  pendingValidationCount: number;
+}): EstimateMode {
+  if (params.technicalSpecStatus !== 'READY_FOR_MEASUREMENT') {
+    return 'PARAMETRIC_PRELIMINARY';
+  }
+
+  if (
+    params.recipeCoveragePercent >= 100 &&
+    params.priceCoveragePercent >= 100 &&
+    params.pendingValidationCount === 0
+  ) {
+    return 'RECIPE_PRICED';
+  }
+
+  if (
+    params.recipeCoveragePercent <= 0 ||
+    params.priceCoveragePercent < 50
+  ) {
+    return 'PARAMETRIC_PRELIMINARY';
+  }
+
+  return 'MIXED';
+}
+
+export function buildEstimateStatusFromPipeline(params: {
+  technicalSpecStatus: TechnicalSpecStatus;
+  technicalCoveragePercent: number;
+  recipeCoveragePercent: number;
+  priceCoveragePercent: number;
+  pendingValidationCount: number;
+}): EstimateStatusSnapshot {
+  const snapshot: EstimateStatusSnapshot = {
+    technicalSpecStatus: params.technicalSpecStatus,
+    estimateMode: 'PARAMETRIC_PRELIMINARY',
+    technicalCoveragePercent: clampPercent(params.technicalCoveragePercent),
+    recipeCoveragePercent: clampPercent(params.recipeCoveragePercent),
+    priceCoveragePercent: clampPercent(params.priceCoveragePercent),
+    pendingValidationCount: Math.max(0, Math.round(params.pendingValidationCount || 0)),
+  };
+
+  snapshot.estimateMode = deriveEstimateModeFromPricing(snapshot);
+  return snapshot;
+}
+
 export function buildSprintOneEstimateStatus(params: {
   lineCount: number;
   technicalSpecStatus?: TechnicalSpecStatus;

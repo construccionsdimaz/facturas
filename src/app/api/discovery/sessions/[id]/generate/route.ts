@@ -4,6 +4,8 @@ import { deriveInputFromSession } from '@/lib/discovery/derive-input';
 import { evaluateDiscoveryForGenerate } from '@/lib/discovery/guard';
 import { buildDiscoverySummary } from '@/lib/discovery/summary';
 import { generateEstimateProposal } from '@/lib/automation/estimate-generator';
+import { buildPricingResult } from '@/lib/estimate/pricing-engine';
+import { buildEstimateStatusFromPipeline } from '@/lib/estimate/estimate-status';
 
 export async function POST(
   request: Request,
@@ -48,6 +50,13 @@ export async function POST(
       evaluation.confidenceLevel
     );
 
+    const pricingResult = await buildPricingResult(
+      derivedInput.recipeResult,
+      derivedInput.executionContext
+    );
+
+    derivedInput.pricingResult = pricingResult;
+
     const proposal = await generateEstimateProposal({
       workType: derivedInput.workType,
       siteType: derivedInput.siteType,
@@ -65,6 +74,29 @@ export async function POST(
       hasElevator: Boolean(derivedInput.hasElevator),
       structuralWorks: Boolean(derivedInput.structuralWorks),
     });
+
+    proposal.estimateStatus = buildEstimateStatusFromPipeline({
+      technicalSpecStatus:
+        derivedInput.executionContext.project.technicalSpecStatus || 'INCOMPLETE',
+      technicalCoveragePercent:
+        derivedInput.executionContext.resolvedSpecs.completeness.specifiedScopePercent || 0,
+      recipeCoveragePercent:
+        derivedInput.recipeResult?.coverage.recipeCoveragePercent || 0,
+      priceCoveragePercent:
+        derivedInput.pricingResult?.coverage.priceCoveragePercent || 0,
+      pendingValidationCount:
+        derivedInput.pricingResult?.coverage.pendingValidationCount || 0,
+    });
+
+    if (derivedInput.pricingResult?.estimateMode === 'PARAMETRIC_PRELIMINARY') {
+      proposal.notes.push(
+        'Pricing todavia preliminar: falta cobertura real suficiente de receta/precio para considerar el estimate cerrado.'
+      );
+    } else if (derivedInput.pricingResult?.estimateMode === 'MIXED') {
+      proposal.notes.push(
+        'Pricing mixto: parte del estimate ya viene de recetas valoradas y parte sigue pendiente de validacion.'
+      );
+    }
 
     const summary = buildDiscoverySummary(
       sessionData,
