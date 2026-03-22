@@ -379,6 +379,6 @@
   .gdpr { font-size: 7px !important; line-height: 1.1 !important; margin-bottom: 5px !important; padding: 3px !important; background: #fafafa !important; }
   .thanks { font-size: 10px !important; margin-bottom: 2px !important; }
   
-  /* Prevent large gaps */
-  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  /* Prevent large gaps and ensure colors */
+  .pdfContainer * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
 }
