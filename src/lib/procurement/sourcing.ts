@@ -112,6 +112,7 @@ export async function suggestSupplierForMaterial(input: {
     where: {
       materialId: input.materialId,
       status: 'ACTIVA',
+      isActive: true,
     },
     include: {
       supplier: {

@@ -255,7 +255,7 @@ async function loadMaterialLookup(): Promise<MaterialLookup> {
     where: { code: { in: neededCodes } },
     include: {
       offers: {
-        where: { status: 'ACTIVA' },
+        where: { status: 'ACTIVA', isActive: true },
         include: {
           supplier: {
             select: { id: true, name: true, address: true },

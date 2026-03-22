@@ -257,8 +257,12 @@ model SupplierMaterialOffer {
   id              String   @id @default(cuid())
   supplierId      String
   supplier        Client   @relation(fields: [supplierId], references: [id], onDelete: Cascade)
-  materialId      String
-  material        Material @relation(fields: [materialId], references: [id], onDelete: Cascade)
+  materialId      String?
+  material        Material? @relation(fields: [materialId], references: [id], onDelete: SetNull)
+  procurementMaterialCode String?
+  supplierProductName String?
+  supplierProductRef  String?
+  warehouseLabel      String?
 
   unitCost        Float
   currency        String   @default("EUR")
@@ -269,6 +273,10 @@ model SupplierMaterialOffer {
   validFrom       DateTime?
   validUntil      DateTime?
   status          String   @default("ACTIVA")
+  isActive        Boolean  @default(true)
+  intakeSource    String   @default("MANUAL")
+  mappingStatus   String   @default("MATCHED_DIRECT")
+  mappingReason   String?
   observations    String?
 
   supplies ProjectSupply[] @relation("SelectedSupplyOffer")

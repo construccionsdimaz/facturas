@@ -1,17 +1,23 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { ensureProcurementCatalog } from '@/lib/procurement/catalog';
+import { intakeSupplierOffer } from '@/lib/procurement/offer-intake';
 
 export async function GET(request: Request) {
   try {
     await ensureProcurementCatalog();
     const { searchParams } = new URL(request.url);
     const materialId = searchParams.get('materialId');
+    const mappingStatus = searchParams.get('mappingStatus');
+    const includeInactive = searchParams.get('includeInactive') === 'true';
+    const needsReview = searchParams.get('needsReview') === 'true';
 
     const offers = await db.supplierMaterialOffer.findMany({
       where: {
-        status: 'ACTIVA',
         ...(materialId ? { materialId } : {}),
+        ...(includeInactive ? {} : { isActive: true }),
+        ...(mappingStatus ? { mappingStatus } : {}),
+        ...(needsReview ? { mappingStatus: 'NEEDS_REVIEW' } : {}),
       },
       include: {
         supplier: {
@@ -38,35 +44,37 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    if (!body.materialId || !body.supplierId) {
-      return NextResponse.json({ error: 'materialId y supplierId son obligatorios' }, { status: 400 });
+    if (!body.supplierId && !body.supplierName) {
+      return NextResponse.json({ error: 'supplierId o supplierName es obligatorio' }, { status: 400 });
     }
     if (!body.unit || !body.unitCost || body.leadTimeDays === undefined || body.leadTimeDays === null) {
       return NextResponse.json({ error: 'La oferta requiere unit, unitCost y leadTimeDays' }, { status: 400 });
     }
 
-    const offer = await db.supplierMaterialOffer.create({
-      data: {
-        materialId: body.materialId,
-        supplierId: body.supplierId,
-        unitCost: Number(body.unitCost),
-        currency: body.currency || 'EUR',
+    const result = await intakeSupplierOffer({
+      payload: {
+        supplierId: body.supplierId || null,
+        supplierName: body.supplierName || null,
+        materialId: body.materialId || null,
+        procurementMaterialCode: body.procurementMaterialCode || null,
+        supplierProductName: body.supplierProductName || null,
+        supplierProductRef: body.supplierProductRef || null,
+        warehouseLabel: body.warehouseLabel || null,
         unit: body.unit,
+        unitCost: Number(body.unitCost),
         leadTimeDays: Number(body.leadTimeDays),
-        minimumOrderQty: body.minimumOrderQty ? Number(body.minimumOrderQty) : null,
-        isPreferred: Boolean(body.isPreferred),
-        validFrom: body.validFrom ? new Date(body.validFrom) : null,
-        validUntil: body.validUntil ? new Date(body.validUntil) : null,
-        observations: body.observations || null,
         status: body.status || 'ACTIVA',
+        isPreferred: Boolean(body.isPreferred),
+        validFrom: body.validFrom || null,
+        validUntil: body.validUntil || null,
+        observations: body.observations || null,
+        currency: body.currency || 'EUR',
       },
-      include: {
-        supplier: { select: { id: true, name: true } },
-        material: { select: { id: true, name: true, code: true } },
-      },
+      source: 'MANUAL',
+      updateExisting: Boolean(body.updateExisting),
     });
 
-    return NextResponse.json(offer, { status: 201 });
+    return NextResponse.json(result, { status: result.status === 'CREATED' ? 201 : 200 });
   } catch (error) {
     console.error('Error creating offer:', error);
     return NextResponse.json({ error: 'No se pudo crear la oferta' }, { status: 500 });

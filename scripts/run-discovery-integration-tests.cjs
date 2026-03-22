@@ -33,6 +33,7 @@ function installTsLoader() {
 installTsLoader();
 
 async function run() {
+  const { db } = require(path.join(srcRoot, 'lib/db.ts'));
   const { createEmptyDiscoverySessionData, createDefaultTemplate } = require(path.join(srcRoot, 'lib/discovery/defaults.ts'));
   const { deriveInputFromSession } = require(path.join(srcRoot, 'lib/discovery/derive-input.ts'));
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
@@ -63,6 +64,10 @@ async function run() {
     revokeEstimateAcceptance,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
+  const {
+    csvRowsToOfferPayloads,
+    intakeSupplierOffer,
+  } = require(path.join(srcRoot, 'lib/procurement/offer-intake.ts'));
   const {
     resolveRecipeMaterialSourcing,
   } = require(path.join(srcRoot, 'lib/procurement/material-resolution.ts'));
@@ -2151,6 +2156,143 @@ async function run() {
   });
   assert(policyHistorySummary.includes('estrategia BALANCED -> FASTEST'));
   assert(policyHistorySummary.includes('preferidos por familia actualizados'));
+
+  const uniqueSuffix = `T${Date.now()}`;
+  const harnessUser = (await db.user.findFirst()) || await db.user.create({
+    data: {
+      email: `harness-${uniqueSuffix.toLowerCase()}@dimaz.local`,
+      name: 'Harness',
+      role: 'ADMIN',
+    },
+  });
+  const harnessSupplier = await db.client.create({
+    data: {
+      name: `Harness Supplier ${uniqueSuffix}`,
+      category: 'PROVEEDOR',
+      email: `supplier-${uniqueSuffix.toLowerCase()}@dimaz.local`,
+      userId: harnessUser.id,
+    },
+  });
+  await db.material.upsert({
+    where: { code: 'ACA-WALL-STD' },
+    update: {
+      name: 'Revestimiento vertical ceramico estandar',
+      category: 'ACABADOS',
+      baseUnit: 'm2',
+      status: 'ACTIVO',
+    },
+    create: {
+      code: 'ACA-WALL-STD',
+      name: 'Revestimiento vertical ceramico estandar',
+      category: 'ACABADOS',
+      baseUnit: 'm2',
+      status: 'ACTIVO',
+    },
+  });
+  const manualOfferResult = await intakeSupplierOffer({
+    payload: {
+      supplierId: harnessSupplier.id,
+      procurementMaterialCode: 'ACA-WALL-STD',
+      supplierProductName: `Alicatado mural operativo ${uniqueSuffix}`,
+      supplierProductRef: `MANUAL-${uniqueSuffix}`,
+      warehouseLabel: 'Barcelona centro',
+      unit: 'm2',
+      unitCost: 12.34,
+      leadTimeDays: 4,
+      status: 'ACTIVA',
+      isPreferred: false,
+    },
+    source: 'MANUAL',
+    updateExisting: true,
+  });
+  assert.equal(manualOfferResult.status, 'CREATED');
+  assert.equal(manualOfferResult.mappingStatus, 'MATCHED_BY_CODE');
+
+  const duplicateOfferResult = await intakeSupplierOffer({
+    payload: {
+      supplierId: harnessSupplier.id,
+      procurementMaterialCode: 'ACA-WALL-STD',
+      supplierProductName: `Alicatado mural operativo ${uniqueSuffix}`,
+      supplierProductRef: `MANUAL-${uniqueSuffix}`,
+      warehouseLabel: 'Barcelona centro',
+      unit: 'm2',
+      unitCost: 12.34,
+      leadTimeDays: 4,
+      status: 'ACTIVA',
+    },
+    source: 'MANUAL',
+    updateExisting: false,
+  });
+  assert.equal(duplicateOfferResult.status, 'DUPLICATE_SKIPPED');
+
+  const csvPayloads = csvRowsToOfferPayloads([
+    'supplier,material/procurement code,product name,reference,unit,unit cost,lead time,status,preferred,valid until',
+    `${harnessSupplier.name},ACA-WALL-STD,Alicatado csv ${uniqueSuffix},CSV-${uniqueSuffix},m2,12.9,5,ACTIVA,yes,2026-12-31`,
+    `${harnessSupplier.name},,Producto ambiguo ${uniqueSuffix},CSV-REVIEW-${uniqueSuffix},ud,33,7,ACTIVA,no,`,
+  ].join('\n'));
+  assert.equal(csvPayloads.length, 2);
+  const csvMappedResult = await intakeSupplierOffer({
+    payload: csvPayloads[0],
+    source: 'CSV_IMPORT',
+    updateExisting: true,
+  });
+  assert.equal(csvMappedResult.mappingStatus, 'MATCHED_BY_CODE');
+  const csvReviewResult = await intakeSupplierOffer({
+    payload: csvPayloads[1],
+    source: 'CSV_IMPORT',
+    updateExisting: true,
+  });
+  assert.equal(csvReviewResult.mappingStatus, 'NEEDS_REVIEW');
+
+  const importedOffer = await db.supplierMaterialOffer.findFirst({
+    where: { supplierProductRef: `MANUAL-${uniqueSuffix}` },
+    include: {
+      supplier: true,
+    },
+  });
+  assert(importedOffer);
+  const dbDrivenPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      sourcingPolicyOverride: {
+        strategy: 'CHEAPEST',
+      },
+      materialLookupOverride: {
+        ...pricingLookupOverride,
+        'ACA-WALL-STD': {
+          id: 'mat-wall-std-intake',
+          code: 'ACA-WALL-STD',
+          offers: [
+            {
+              id: importedOffer.id,
+              supplierId: importedOffer.supplierId,
+              unitCost: importedOffer.unitCost,
+              unit: importedOffer.unit,
+              leadTimeDays: importedOffer.leadTimeDays,
+              isPreferred: importedOffer.isPreferred,
+              supplier: importedOffer.supplier
+                ? {
+                    id: importedOffer.supplier.id,
+                    name: importedOffer.supplier.name,
+                    address: importedOffer.supplier.address || null,
+                  }
+                : null,
+            },
+          ],
+        },
+      },
+    }
+  );
+  const dbDrivenBathTile = dbDrivenPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(dbDrivenBathTile);
+  assert(
+    dbDrivenBathTile.materialPricing.some(
+      (material) =>
+        material.supplierName === harnessSupplier.name &&
+        material.priceSource === 'SUPPLIER_OFFER'
+    )
+  );
   const canonicalControlProjection = buildControlProjection({
     commercialRuntimeOutput: integratedTechnicalRuntime,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,

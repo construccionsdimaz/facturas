@@ -99,6 +99,7 @@ export default function SettingsPage() {
         <div className={styles.sidebarSection}>
           <ul className={styles.settingsNav}>
             <li className={styles.active}>Perfil de Empresa</li>
+            <li><a href="/settings/offers" style={{ color: 'inherit', textDecoration: 'none' }}>Catalogo y Ofertas</a></li>
             <li className={styles.disabled}>Facturación y Planes 🔒</li>
             <li className={styles.disabled}>Equipo 🔒</li>
             <li className={styles.disabled}>Integraciones 🔒</li>
