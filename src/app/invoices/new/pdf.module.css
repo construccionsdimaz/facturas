@@ -319,7 +319,7 @@
 @media print {
   @page {
     size: A4;
-    margin: 5mm;
+    margin: 0; /* Forces removal of browser-default headers and footers */
   }
   
   html, body {
@@ -345,7 +345,7 @@
     height: auto !important;
     max-height: none !important;
     margin: 0 !important;
-    padding: 2mm 5mm !important;
+    padding: 10mm 15mm !important; /* Internal padding to act as page margins since @page margin is 0 */
     box-shadow: none !important;
     position: relative !important;
     display: block !important; /* Block is safer for print engines than flex for overflow */
