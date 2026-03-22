@@ -40,6 +40,12 @@ interface EstimateData {
     commercialStatus: 'DRAFT' | 'ISSUED_PROVISIONAL' | 'ISSUED_FINAL' | 'CONVERTED' | 'CANCELLED';
     commercialReasons: string[];
     nextCommercialAction?: string | null;
+    acceptance: {
+      status: 'NOT_ACCEPTED' | 'ACCEPTED' | 'REJECTED';
+      acceptedAt?: string | null;
+      acceptedBy?: string | null;
+      acceptanceReason?: string | null;
+    };
     manualOverride?: {
       applied: boolean;
       reason: string;
@@ -95,6 +101,12 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           : data.estimateStatus?.commercialStatus === 'CANCELLED'
             ? 'Cancelado'
             : 'No emitido';
+  const acceptanceLabel =
+    data.estimateStatus?.acceptance.status === 'ACCEPTED'
+      ? 'Aceptado'
+      : data.estimateStatus?.acceptance.status === 'REJECTED'
+        ? 'Rechazado'
+        : 'No aceptado';
 
   return (
     <div className={styles.pdfContainer} id="pdf-estimate-template">
@@ -172,7 +184,7 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: '4px' }}>
-            Estado comercial: {commercialLabel} | Emision: {issuanceLabel} | Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
+            Estado comercial: {commercialLabel} | Emision: {issuanceLabel} | Aceptacion: {acceptanceLabel} | Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
           </div>
           <div>
             Cobertura tecnica {data.estimateStatus.technicalCoveragePercent}% | Receta {data.estimateStatus.recipeCoveragePercent}% | Precio {data.estimateStatus.priceCoveragePercent}% | Lineas pendientes {data.estimateStatus.pendingValidationCount}
@@ -207,12 +219,30 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
               Documento emitido como provisional. No debe tratarse como cierre final.
             </div>
           )}
+          {data.estimateStatus.acceptance.status === 'ACCEPTED' && (
+            <div style={{ marginTop: '6px', fontWeight: 700 }}>
+              Presupuesto aceptado. Listo para conversion comercial.
+            </div>
+          )}
+          {data.estimateStatus.acceptance.status === 'REJECTED' && (
+            <div style={{ marginTop: '6px', fontWeight: 700 }}>
+              Presupuesto rechazado. No debe tratarse como convertible hasta nueva revision.
+            </div>
+          )}
           {data.estimateStatus.issuance.status !== 'NOT_ISSUED' && (
             <div style={{ marginTop: '6px' }}>
               Emitido por {data.estimateStatus.issuance.issuedBy || 'Usuario actual'}
               {data.estimateStatus.issuance.issuedAt ? ` el ${data.estimateStatus.issuance.issuedAt}` : ''}
               {data.estimateStatus.issuance.issuanceReason ? ` | Motivo: ${data.estimateStatus.issuance.issuanceReason}` : ''}
               {data.estimateStatus.issuance.manualOverrideUsed ? ' | Con override' : ''}
+            </div>
+          )}
+          {data.estimateStatus.acceptance.status !== 'NOT_ACCEPTED' && (
+            <div style={{ marginTop: '6px' }}>
+              {data.estimateStatus.acceptance.status === 'ACCEPTED' ? 'Aceptado por' : 'Registrado por'}
+              {` ${data.estimateStatus.acceptance.acceptedBy || 'Usuario actual'}`}
+              {data.estimateStatus.acceptance.acceptedAt ? ` el ${data.estimateStatus.acceptance.acceptedAt}` : ''}
+              {data.estimateStatus.acceptance.acceptanceReason ? ` | Motivo: ${data.estimateStatus.acceptance.acceptanceReason}` : ''}
             </div>
           )}
         </div>

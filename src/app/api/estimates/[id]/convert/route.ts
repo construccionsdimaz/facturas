@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import {
   assertEstimateCanConvert,
+  buildEstimateStatusFromPipeline,
   parseGenerationNotes,
   serializeGenerationNotes,
 } from '@/lib/estimate/estimate-status';
@@ -98,6 +99,21 @@ export async function POST(
     });
 
     // 4. Mark estimate as converted and link to invoice
+    const convertedStatus = buildEstimateStatusFromPipeline({
+      technicalSpecStatus: parsed.estimateStatus.technicalSpecStatus,
+      technicalCoveragePercent: parsed.estimateStatus.technicalCoveragePercent,
+      recipeCoveragePercent: parsed.estimateStatus.recipeCoveragePercent,
+      priceCoveragePercent: parsed.estimateStatus.priceCoveragePercent,
+      pendingValidationCount: parsed.estimateStatus.pendingValidationCount,
+      hasHybridBuckets: parsed.estimateStatus.hasHybridBuckets,
+      manualOverride: parsed.estimateStatus.manualOverride,
+      issuance: parsed.estimateStatus.issuance,
+      issuanceHistory: parsed.estimateStatus.issuanceHistory,
+      acceptance: parsed.estimateStatus.acceptance,
+      acceptanceHistory: parsed.estimateStatus.acceptanceHistory,
+      commercialStatusOverride: 'CONVERTED',
+    });
+
     await db.estimate.update({
       where: { id },
       data: {
@@ -107,23 +123,7 @@ export async function POST(
           update: {
             generationNotes: serializeGenerationNotes(
               parsed.notes,
-              {
-                ...parsed.estimateStatus,
-                commercialStatus: 'CONVERTED',
-                commercialReasons: [
-                  'El presupuesto ya ha sido convertido en factura y queda bloqueado para nueva emision o revocacion.',
-                ],
-                commercialCapabilities: {
-                  canEdit: false,
-                  canIssueProvisional: false,
-                  canIssueFinal: false,
-                  canRevokeIssuance: false,
-                  canConvert: false,
-                  canPrepareAcceptance: false,
-                  requiresFinalIssuanceBeforeConversion: false,
-                },
-                nextCommercialAction: 'Continuar el flujo comercial desde la factura generada.',
-              },
+              convertedStatus,
               parsed.integratedCostBuckets
             ),
           },

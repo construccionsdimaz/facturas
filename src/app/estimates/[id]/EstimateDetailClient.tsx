@@ -75,6 +75,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   const [isApplyingOverride, setIsApplyingOverride] = useState(false);
   const [isIssuing, setIsIssuing] = useState(false);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [isAccepting, setIsAccepting] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
+  const [isRevokingAcceptance, setIsRevokingAcceptance] = useState(false);
   const router = useRouter();
 
   const readinessLabel = (readiness?: string) => {
@@ -104,6 +107,17 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
         return 'Cancelado';
       default:
         return 'No emitido';
+    }
+  };
+
+  const acceptanceLabel = (status?: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return 'Aceptado';
+      case 'REJECTED':
+        return 'Rechazado';
+      default:
+        return 'No aceptado';
     }
   };
 
@@ -220,6 +234,73 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     }
   };
 
+  const handleAccept = async () => {
+    const reason = '';
+    setIsAccepting(true);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo aceptar el estimate.');
+      }
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || 'No se pudo aceptar el estimate.');
+    } finally {
+      setIsAccepting(false);
+    }
+  };
+
+  const handleReject = async () => {
+    const reason = window.prompt('Motivo obligatorio para registrar el rechazo:')?.trim() || '';
+    if (!reason) return;
+
+    setIsRejecting(true);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo rechazar el estimate.');
+      }
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || 'No se pudo rechazar el estimate.');
+    } finally {
+      setIsRejecting(false);
+    }
+  };
+
+  const handleRevokeAcceptance = async () => {
+    const reason = window.prompt('Motivo obligatorio para revocar la aceptacion:')?.trim() || '';
+    if (!reason) return;
+
+    setIsRevokingAcceptance(true);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/revoke-acceptance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo revocar la aceptacion.');
+      }
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || 'No se pudo revocar la aceptacion.');
+    } finally {
+      setIsRevokingAcceptance(false);
+    }
+  };
+
   // Group items by chapter
   const chaptersMap: { [key: string]: typeof estimate.items } = {};
   estimate.items.forEach(item => {
@@ -233,6 +314,8 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     : { notes: [], estimateStatus: null };
   const commercialCapabilities =
     parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;
+  const acceptanceCapabilities =
+    parsedInternalNotes.estimateStatus?.acceptanceCapabilities ?? null;
   const canConvertEstimate =
     estimate.status !== 'CONVERTED' && Boolean(commercialCapabilities?.canConvert);
 
@@ -302,6 +385,39 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             style={{ padding: '8px 20px' }}
           >
             {isRevoking ? 'Revocando...' : 'Revocar emision'}
+          </button>
+        )}
+
+        {acceptanceCapabilities?.canAccept && (
+          <button
+            className="btn-secondary"
+            onClick={handleAccept}
+            disabled={isAccepting}
+            style={{ padding: '8px 20px' }}
+          >
+            {isAccepting ? 'Aceptando...' : 'Aceptar'}
+          </button>
+        )}
+
+        {acceptanceCapabilities?.canReject && (
+          <button
+            className="btn-secondary"
+            onClick={handleReject}
+            disabled={isRejecting}
+            style={{ padding: '8px 20px' }}
+          >
+            {isRejecting ? 'Registrando rechazo...' : 'Rechazar'}
+          </button>
+        )}
+
+        {acceptanceCapabilities?.canRevokeAcceptance && (
+          <button
+            className="btn-secondary"
+            onClick={handleRevokeAcceptance}
+            disabled={isRevokingAcceptance}
+            style={{ padding: '8px 20px' }}
+          >
+            {isRevokingAcceptance ? 'Revocando aceptacion...' : 'Revocar aceptacion'}
           </button>
         )}
       </div>
@@ -390,6 +506,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               <div style={{ fontSize: '13px', marginBottom: '6px' }}>
                 Estado comercial: {commercialStatusLabel(parsedInternalNotes.estimateStatus.commercialStatus)}
               </div>
+              <div style={{ fontSize: '13px', marginBottom: '6px' }}>
+                Aceptacion: {acceptanceLabel(parsedInternalNotes.estimateStatus.acceptance.status)}
+              </div>
               <div style={{ fontSize: '13px' }}>
                 Cobertura tecnica {parsedInternalNotes.estimateStatus.technicalCoveragePercent}% | Receta {parsedInternalNotes.estimateStatus.recipeCoveragePercent}% | Precio {parsedInternalNotes.estimateStatus.priceCoveragePercent}% | Lineas pendientes {parsedInternalNotes.estimateStatus.pendingValidationCount}
               </div>
@@ -408,6 +527,11 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                 {parsedInternalNotes.estimateStatus.issuance.issuedBy ? ` | Por ${parsedInternalNotes.estimateStatus.issuance.issuedBy}` : ''}
                 {parsedInternalNotes.estimateStatus.issuance.issuedAt ? ` | ${parsedInternalNotes.estimateStatus.issuance.issuedAt}` : ''}
               </div>
+              <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                Aceptacion: {parsedInternalNotes.estimateStatus.acceptance.status}
+                {parsedInternalNotes.estimateStatus.acceptance.acceptedBy ? ` | Por ${parsedInternalNotes.estimateStatus.acceptance.acceptedBy}` : ''}
+                {parsedInternalNotes.estimateStatus.acceptance.acceptedAt ? ` | ${parsedInternalNotes.estimateStatus.acceptance.acceptedAt}` : ''}
+              </div>
               {parsedInternalNotes.estimateStatus.commercialReasons.length > 0 && (
                 <div style={{ fontSize: '13px', marginTop: '6px' }}>
                   {parsedInternalNotes.estimateStatus.commercialReasons.join(' | ')}
@@ -421,6 +545,11 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               {parsedInternalNotes.estimateStatus.issuance.issuanceReason && (
                 <div style={{ fontSize: '13px', marginTop: '6px' }}>
                   Motivo de emision: {parsedInternalNotes.estimateStatus.issuance.issuanceReason}
+                </div>
+              )}
+              {parsedInternalNotes.estimateStatus.acceptance.acceptanceReason && (
+                <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                  Motivo de aceptacion/rechazo: {parsedInternalNotes.estimateStatus.acceptance.acceptanceReason}
                 </div>
               )}
             </div>
@@ -540,8 +669,12 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
           {estimate.status === 'CONVERTED'
             ? 'Este presupuesto ya ha sido convertido en factura.'
-            : parsedInternalNotes.estimateStatus?.commercialStatus === 'ISSUED_FINAL'
-              ? 'Emitido final: listo para aceptacion comercial y conversion posterior.'
+            : parsedInternalNotes.estimateStatus?.acceptance.status === 'ACCEPTED'
+              ? 'Aceptado: listo para conversion.'
+              : parsedInternalNotes.estimateStatus?.acceptance.status === 'REJECTED'
+                ? 'Rechazado: no convertible hasta nueva revision comercial.'
+                : parsedInternalNotes.estimateStatus?.commercialStatus === 'ISSUED_FINAL'
+                  ? 'Emitido final: pendiente de aceptacion antes de convertir.'
               : parsedInternalNotes.estimateStatus?.commercialStatus === 'ISSUED_PROVISIONAL'
                 ? 'Emitido provisional: requiere emision final antes de conversion o aceptacion final.'
                 : 'No emitido: no se considera enviado al cliente y no puede convertirse todavia.'}

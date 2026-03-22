@@ -69,7 +69,9 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           <span className={`badge badge-${statusBadgeClass(commercialStatus === 'CONVERTED' ? 'CONVERTED' : estimate.status)}`}
             style={{ fontSize: '14px', padding: '8px 16px' }}
           >
-            {commercialStatusLabels[commercialStatus || ''] || statusLabels[estimate.status] || estimate.status}
+            {estimate.status === 'ACCEPTED' || estimate.status === 'REJECTED' || estimate.status === 'CONVERTED'
+              ? statusLabels[estimate.status] || estimate.status
+              : commercialStatusLabels[commercialStatus || ''] || statusLabels[estimate.status] || estimate.status}
           </span>
           {estimate.status === 'DRAFT' && (
             <Link href={`/estimates/${id}/edit`}>

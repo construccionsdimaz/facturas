@@ -26,6 +26,11 @@ export type EstimateCommercialStatus =
   | 'CONVERTED'
   | 'CANCELLED';
 
+export type EstimateAcceptanceStatus =
+  | 'NOT_ACCEPTED'
+  | 'ACCEPTED'
+  | 'REJECTED';
+
 export type EstimateLineEconomicStatus =
   | 'PARAMETRIC_PRELIMINARY'
   | 'PRICE_PENDING_VALIDATION'
@@ -79,6 +84,13 @@ export type EstimateCommercialCapabilities = {
   requiresFinalIssuanceBeforeConversion: boolean;
 };
 
+export type EstimateAcceptanceCapabilities = {
+  canAccept: boolean;
+  canReject: boolean;
+  requiresOverrideForAcceptance: boolean;
+  canRevokeAcceptance: boolean;
+};
+
 export type EstimateIssuanceRecord = {
   status: EstimateIssuanceStatus;
   issuedAt?: string | null;
@@ -102,6 +114,31 @@ export type EstimateIssuanceHistoryEntry = {
   manualOverrideUsed: boolean;
 };
 
+export type EstimateAcceptanceRecord = {
+  status: EstimateAcceptanceStatus;
+  acceptedAt?: string | null;
+  acceptedBy?: string | null;
+  acceptanceReason?: string | null;
+  readinessAtAcceptance?: EstimateReadiness | null;
+  estimateModeAtAcceptance?: EstimateMode | null;
+  commercialStatusAtAcceptance?: EstimateCommercialStatus | null;
+  warningsAtAcceptance?: string[];
+  manualOverrideUsed?: boolean;
+};
+
+export type EstimateAcceptanceHistoryEntry = {
+  action: 'ACCEPTED' | 'REJECTED' | 'REVOKED';
+  status: EstimateAcceptanceStatus;
+  timestamp: string;
+  actor: string;
+  reason: string;
+  readinessAtAction: EstimateReadiness;
+  estimateModeAtAction: EstimateMode;
+  commercialStatusAtAction: EstimateCommercialStatus;
+  warningsAtAction: string[];
+  manualOverrideUsed: boolean;
+};
+
 export type EstimateStatusSnapshot = {
   technicalSpecStatus: TechnicalSpecStatus;
   estimateMode: EstimateMode;
@@ -117,6 +154,9 @@ export type EstimateStatusSnapshot = {
   issuance: EstimateIssuanceRecord;
   issuanceHistory: EstimateIssuanceHistoryEntry[];
   issuanceCapabilities: EstimateIssuanceCapabilities;
+  acceptance: EstimateAcceptanceRecord;
+  acceptanceHistory: EstimateAcceptanceHistoryEntry[];
+  acceptanceCapabilities: EstimateAcceptanceCapabilities;
   commercialStatus: EstimateCommercialStatus;
   commercialReasons: string[];
   commercialCapabilities: EstimateCommercialCapabilities;
@@ -176,6 +216,29 @@ function defaultIssuanceCapabilities(): EstimateIssuanceCapabilities {
     requiresOverrideForProvisional: false,
     requiresOverrideForFinal: false,
     canRevokeIssuance: false,
+  };
+}
+
+function defaultAcceptance(): EstimateAcceptanceRecord {
+  return {
+    status: 'NOT_ACCEPTED',
+    acceptedAt: null,
+    acceptedBy: null,
+    acceptanceReason: null,
+    readinessAtAcceptance: null,
+    estimateModeAtAcceptance: null,
+    commercialStatusAtAcceptance: null,
+    warningsAtAcceptance: [],
+    manualOverrideUsed: false,
+  };
+}
+
+function defaultAcceptanceCapabilities(): EstimateAcceptanceCapabilities {
+  return {
+    canAccept: false,
+    canReject: false,
+    requiresOverrideForAcceptance: false,
+    canRevokeAcceptance: false,
   };
 }
 
@@ -388,10 +451,66 @@ function coerceCommercialStatus(value: unknown): EstimateCommercialStatus | null
   }
 }
 
+function coerceAcceptanceStatus(value: unknown): EstimateAcceptanceStatus {
+  switch (value) {
+    case 'ACCEPTED':
+    case 'REJECTED':
+    case 'NOT_ACCEPTED':
+      return value;
+    default:
+      return 'NOT_ACCEPTED';
+  }
+}
+
+export function deriveEstimateAcceptanceCapabilities(params: {
+  commercialStatus: EstimateCommercialStatus;
+  acceptanceStatus: EstimateAcceptanceStatus;
+}): EstimateAcceptanceCapabilities {
+  const capabilities = defaultAcceptanceCapabilities();
+
+  if (
+    params.commercialStatus === 'CONVERTED' ||
+    params.commercialStatus === 'CANCELLED' ||
+    params.commercialStatus === 'DRAFT'
+  ) {
+    return capabilities;
+  }
+
+  if (params.commercialStatus === 'ISSUED_PROVISIONAL') {
+    return {
+      ...capabilities,
+      canReject: params.acceptanceStatus === 'NOT_ACCEPTED',
+    };
+  }
+
+  if (params.commercialStatus === 'ISSUED_FINAL') {
+    if (params.acceptanceStatus === 'NOT_ACCEPTED') {
+      return {
+        canAccept: true,
+        canReject: true,
+        requiresOverrideForAcceptance: false,
+        canRevokeAcceptance: false,
+      };
+    }
+
+    if (params.acceptanceStatus === 'ACCEPTED' || params.acceptanceStatus === 'REJECTED') {
+      return {
+        canAccept: false,
+        canReject: false,
+        requiresOverrideForAcceptance: false,
+        canRevokeAcceptance: true,
+      };
+    }
+  }
+
+  return capabilities;
+}
+
 export function deriveEstimateCommercialStatus(params: {
   readiness: EstimateReadiness;
   issuance: EstimateIssuanceRecord;
   issuanceCapabilities: EstimateIssuanceCapabilities;
+  acceptance: EstimateAcceptanceRecord;
   lockedStatus?: EstimateCommercialStatus | null;
 }): {
   commercialStatus: EstimateCommercialStatus;
@@ -406,7 +525,7 @@ export function deriveEstimateCommercialStatus(params: {
 
   if (params.lockedStatus === 'CONVERTED') {
     commercialStatus = 'CONVERTED';
-    reasons.push('El presupuesto ya se ha convertido y no admite nueva emision ni revocacion.');
+    reasons.push('El presupuesto ya se ha convertido y no admite nueva emision, aceptacion ni revocacion.');
     return {
       commercialStatus,
       reasons,
@@ -434,19 +553,30 @@ export function deriveEstimateCommercialStatus(params: {
 
   if (params.issuance.status === 'ISSUED_FINAL') {
     commercialStatus = 'ISSUED_FINAL';
-    reasons.push('El presupuesto se considera emitido final y habilita la conversion posterior.');
+    if (params.acceptance.status === 'ACCEPTED') {
+      reasons.push('El presupuesto fue emitido final y ya esta aceptado.');
+    } else if (params.acceptance.status === 'REJECTED') {
+      reasons.push('El presupuesto fue emitido final, pero ha sido rechazado.');
+    } else {
+      reasons.push('El presupuesto se considera emitido final y esta pendiente de aceptacion antes de la conversion.');
+    }
     return {
       commercialStatus,
       reasons,
       capabilities: {
         ...capabilities,
         canEdit: false,
-        canRevokeIssuance: true,
-        canConvert: true,
-        canPrepareAcceptance: true,
+        canRevokeIssuance: params.acceptance.status !== 'ACCEPTED',
+        canConvert: params.acceptance.status === 'ACCEPTED',
+        canPrepareAcceptance: params.acceptance.status === 'NOT_ACCEPTED',
         requiresFinalIssuanceBeforeConversion: false,
       },
-      nextAction: 'Listo para aceptacion comercial y conversion posterior.',
+      nextAction:
+        params.acceptance.status === 'ACCEPTED'
+          ? 'Aceptado: listo para conversion.'
+          : params.acceptance.status === 'REJECTED'
+            ? 'Revisar, reemitir o revocar antes de cualquier conversion.'
+            : 'Emitido final: pendiente de aceptacion antes de convertir.',
     };
   }
 
@@ -500,8 +630,16 @@ export function assertEstimateCanConvert(snapshot: EstimateStatusSnapshot) {
     throw new Error('El estimate ya esta convertido.');
   }
 
+  if (snapshot.commercialStatus === 'CANCELLED') {
+    throw new Error('El estimate esta cancelado y no puede convertirse.');
+  }
+
   if (snapshot.commercialStatus !== 'ISSUED_FINAL') {
-    throw new Error('Solo un estimate emitido final puede aceptarse o convertirse.');
+    throw new Error('Solo un estimate emitido final puede convertirse.');
+  }
+
+  if (snapshot.acceptance.status !== 'ACCEPTED') {
+    throw new Error('El estimate debe estar aceptado antes de convertirse.');
   }
 }
 
@@ -515,6 +653,8 @@ export function buildEstimateStatusFromPipeline(params: {
   manualOverride?: EstimateReadinessOverride | null;
   issuance?: EstimateIssuanceRecord | null;
   issuanceHistory?: EstimateIssuanceHistoryEntry[] | null;
+  acceptance?: EstimateAcceptanceRecord | null;
+  acceptanceHistory?: EstimateAcceptanceHistoryEntry[] | null;
   commercialStatusOverride?: EstimateCommercialStatus | null;
 }): EstimateStatusSnapshot {
   const snapshot: EstimateStatusSnapshot = {
@@ -532,6 +672,9 @@ export function buildEstimateStatusFromPipeline(params: {
     issuance: params.issuance ?? defaultIssuance(),
     issuanceHistory: Array.isArray(params.issuanceHistory) ? params.issuanceHistory : [],
     issuanceCapabilities: defaultIssuanceCapabilities(),
+    acceptance: params.acceptance ?? defaultAcceptance(),
+    acceptanceHistory: Array.isArray(params.acceptanceHistory) ? params.acceptanceHistory : [],
+    acceptanceCapabilities: defaultAcceptanceCapabilities(),
     commercialStatus: 'DRAFT',
     commercialReasons: [],
     commercialCapabilities: defaultCommercialCapabilities(),
@@ -552,12 +695,17 @@ export function buildEstimateStatusFromPipeline(params: {
     readiness: snapshot.readiness,
     issuance: snapshot.issuance,
     issuanceCapabilities: snapshot.issuanceCapabilities,
+    acceptance: snapshot.acceptance,
     lockedStatus: params.commercialStatusOverride ?? null,
   });
   snapshot.commercialStatus = commercial.commercialStatus;
   snapshot.commercialReasons = commercial.reasons;
   snapshot.commercialCapabilities = commercial.capabilities;
   snapshot.nextCommercialAction = commercial.nextAction;
+  snapshot.acceptanceCapabilities = deriveEstimateAcceptanceCapabilities({
+    commercialStatus: snapshot.commercialStatus,
+    acceptanceStatus: snapshot.acceptance.status,
+  });
   return snapshot;
 }
 
@@ -576,6 +724,8 @@ export function buildSprintOneEstimateStatus(params: {
     manualOverride: null,
     issuance: defaultIssuance(),
     issuanceHistory: [],
+    acceptance: defaultAcceptance(),
+    acceptanceHistory: [],
   });
 }
 
@@ -601,6 +751,8 @@ export function applyEstimateReadinessOverride(
     hasHybridBuckets: snapshot.hasHybridBuckets,
     issuance: snapshot.issuance,
     issuanceHistory: snapshot.issuanceHistory,
+    acceptance: snapshot.acceptance,
+    acceptanceHistory: snapshot.acceptanceHistory,
     manualOverride: {
       applied: true,
       reason,
@@ -626,6 +778,10 @@ export function issueEstimate(
   const reason = params.reason?.trim() || '';
   const useOverride = Boolean(params.useOverride);
   const capabilities = snapshot.issuanceCapabilities;
+
+  if (snapshot.acceptance.status === 'ACCEPTED') {
+    throw new Error('No se puede reemitir un estimate ya aceptado sin revocar antes la aceptacion.');
+  }
 
   if (params.mode === 'PROVISIONAL') {
     if (!capabilities.canIssueProvisional) {
@@ -685,6 +841,8 @@ export function issueEstimate(
     manualOverride: snapshot.manualOverride,
     issuance: nextIssuance,
     issuanceHistory: nextHistory,
+    acceptance: snapshot.acceptance,
+    acceptanceHistory: snapshot.acceptanceHistory,
   });
 }
 
@@ -698,6 +856,10 @@ export function revokeEstimateIssuance(
 ): EstimateStatusSnapshot {
   if (snapshot.issuance.status === 'NOT_ISSUED') {
     throw new Error('El estimate no esta emitido.');
+  }
+
+  if (snapshot.acceptance.status === 'ACCEPTED') {
+    throw new Error('No se puede revocar la emision de un estimate ya aceptado sin revisar antes su aceptacion.');
   }
 
   const reason = params.reason.trim();
@@ -731,6 +893,202 @@ export function revokeEstimateIssuance(
     manualOverride: snapshot.manualOverride,
     issuance: defaultIssuance(),
     issuanceHistory: nextHistory,
+    acceptance: snapshot.acceptance,
+    acceptanceHistory: snapshot.acceptanceHistory,
+  });
+}
+
+export function acceptEstimate(
+  snapshot: EstimateStatusSnapshot,
+  params: {
+    actor: string;
+    reason?: string;
+    useOverride?: boolean;
+    timestamp?: string;
+  }
+): EstimateStatusSnapshot {
+  if (snapshot.commercialStatus === 'CONVERTED' || snapshot.commercialStatus === 'CANCELLED') {
+    throw new Error('Este estimate no admite aceptacion en su estado actual.');
+  }
+
+  if (!snapshot.acceptanceCapabilities.canAccept) {
+    throw new Error('Este estimate no puede aceptarse en su estado actual.');
+  }
+
+  const timestamp = params.timestamp || new Date().toISOString();
+  const reason = params.reason?.trim() || '';
+  const useOverride = Boolean(params.useOverride);
+
+  if (snapshot.acceptanceCapabilities.requiresOverrideForAcceptance && !useOverride) {
+    throw new Error('La aceptacion requiere override explicito.');
+  }
+
+  if (useOverride && !reason) {
+    throw new Error('El motivo del override de aceptacion es obligatorio.');
+  }
+
+  const nextAcceptance: EstimateAcceptanceRecord = {
+    status: 'ACCEPTED',
+    acceptedAt: timestamp,
+    acceptedBy: params.actor,
+    acceptanceReason: reason || null,
+    readinessAtAcceptance: snapshot.readiness,
+    estimateModeAtAcceptance: snapshot.estimateMode,
+    commercialStatusAtAcceptance: snapshot.commercialStatus,
+    warningsAtAcceptance: snapshot.readinessReasons,
+    manualOverrideUsed: useOverride,
+  };
+
+  const nextHistory: EstimateAcceptanceHistoryEntry[] = [
+    ...snapshot.acceptanceHistory,
+    {
+      action: 'ACCEPTED',
+      status: 'ACCEPTED',
+      timestamp,
+      actor: params.actor,
+      reason: reason || 'Aceptacion registrada',
+      readinessAtAction: snapshot.readiness,
+      estimateModeAtAction: snapshot.estimateMode,
+      commercialStatusAtAction: snapshot.commercialStatus,
+      warningsAtAction: snapshot.readinessReasons,
+      manualOverrideUsed: useOverride,
+    },
+  ];
+
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: snapshot.technicalSpecStatus,
+    technicalCoveragePercent: snapshot.technicalCoveragePercent,
+    recipeCoveragePercent: snapshot.recipeCoveragePercent,
+    priceCoveragePercent: snapshot.priceCoveragePercent,
+    pendingValidationCount: snapshot.pendingValidationCount,
+    hasHybridBuckets: snapshot.hasHybridBuckets,
+    manualOverride: snapshot.manualOverride,
+    issuance: snapshot.issuance,
+    issuanceHistory: snapshot.issuanceHistory,
+    acceptance: nextAcceptance,
+    acceptanceHistory: nextHistory,
+  });
+}
+
+export function rejectEstimate(
+  snapshot: EstimateStatusSnapshot,
+  params: {
+    actor: string;
+    reason: string;
+    timestamp?: string;
+  }
+): EstimateStatusSnapshot {
+  if (snapshot.commercialStatus === 'CONVERTED' || snapshot.commercialStatus === 'CANCELLED') {
+    throw new Error('Este estimate no admite rechazo en su estado actual.');
+  }
+
+  if (!snapshot.acceptanceCapabilities.canReject) {
+    throw new Error('Este estimate no puede rechazarse en su estado actual.');
+  }
+
+  const reason = params.reason.trim();
+  if (!reason) {
+    throw new Error('El motivo del rechazo es obligatorio.');
+  }
+
+  const timestamp = params.timestamp || new Date().toISOString();
+  const nextAcceptance: EstimateAcceptanceRecord = {
+    status: 'REJECTED',
+    acceptedAt: timestamp,
+    acceptedBy: params.actor,
+    acceptanceReason: reason,
+    readinessAtAcceptance: snapshot.readiness,
+    estimateModeAtAcceptance: snapshot.estimateMode,
+    commercialStatusAtAcceptance: snapshot.commercialStatus,
+    warningsAtAcceptance: snapshot.readinessReasons,
+    manualOverrideUsed: false,
+  };
+
+  const nextHistory: EstimateAcceptanceHistoryEntry[] = [
+    ...snapshot.acceptanceHistory,
+    {
+      action: 'REJECTED',
+      status: 'REJECTED',
+      timestamp,
+      actor: params.actor,
+      reason,
+      readinessAtAction: snapshot.readiness,
+      estimateModeAtAction: snapshot.estimateMode,
+      commercialStatusAtAction: snapshot.commercialStatus,
+      warningsAtAction: snapshot.readinessReasons,
+      manualOverrideUsed: false,
+    },
+  ];
+
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: snapshot.technicalSpecStatus,
+    technicalCoveragePercent: snapshot.technicalCoveragePercent,
+    recipeCoveragePercent: snapshot.recipeCoveragePercent,
+    priceCoveragePercent: snapshot.priceCoveragePercent,
+    pendingValidationCount: snapshot.pendingValidationCount,
+    hasHybridBuckets: snapshot.hasHybridBuckets,
+    manualOverride: snapshot.manualOverride,
+    issuance: snapshot.issuance,
+    issuanceHistory: snapshot.issuanceHistory,
+    acceptance: nextAcceptance,
+    acceptanceHistory: nextHistory,
+  });
+}
+
+export function revokeEstimateAcceptance(
+  snapshot: EstimateStatusSnapshot,
+  params: {
+    actor: string;
+    reason: string;
+    timestamp?: string;
+  }
+): EstimateStatusSnapshot {
+  if (snapshot.acceptance.status === 'NOT_ACCEPTED') {
+    throw new Error('El estimate no tiene aceptacion registrada.');
+  }
+
+  if (snapshot.commercialStatus === 'CONVERTED' || snapshot.commercialStatus === 'CANCELLED') {
+    throw new Error('No se puede revocar la aceptacion en el estado actual.');
+  }
+
+  if (!snapshot.acceptanceCapabilities.canRevokeAcceptance) {
+    throw new Error('La aceptacion no puede revocarse en el estado actual.');
+  }
+
+  const reason = params.reason.trim();
+  if (!reason) {
+    throw new Error('El motivo de revocacion de la aceptacion es obligatorio.');
+  }
+
+  const timestamp = params.timestamp || new Date().toISOString();
+  const nextHistory: EstimateAcceptanceHistoryEntry[] = [
+    ...snapshot.acceptanceHistory,
+    {
+      action: 'REVOKED',
+      status: snapshot.acceptance.status,
+      timestamp,
+      actor: params.actor,
+      reason,
+      readinessAtAction: snapshot.readiness,
+      estimateModeAtAction: snapshot.estimateMode,
+      commercialStatusAtAction: snapshot.commercialStatus,
+      warningsAtAction: snapshot.readinessReasons,
+      manualOverrideUsed: Boolean(snapshot.acceptance.manualOverrideUsed),
+    },
+  ];
+
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: snapshot.technicalSpecStatus,
+    technicalCoveragePercent: snapshot.technicalCoveragePercent,
+    recipeCoveragePercent: snapshot.recipeCoveragePercent,
+    priceCoveragePercent: snapshot.priceCoveragePercent,
+    pendingValidationCount: snapshot.pendingValidationCount,
+    hasHybridBuckets: snapshot.hasHybridBuckets,
+    manualOverride: snapshot.manualOverride,
+    issuance: snapshot.issuance,
+    issuanceHistory: snapshot.issuanceHistory,
+    acceptance: defaultAcceptance(),
+    acceptanceHistory: nextHistory,
   });
 }
 
@@ -902,6 +1260,81 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
             }))
         : [];
 
+      const acceptanceRecord =
+        statusRecord.acceptance && typeof statusRecord.acceptance === 'object'
+          ? (statusRecord.acceptance as Record<string, unknown>)
+          : null;
+      const acceptance: EstimateAcceptanceRecord = acceptanceRecord
+        ? {
+            status: coerceAcceptanceStatus(acceptanceRecord.status),
+            acceptedAt:
+              typeof acceptanceRecord.acceptedAt === 'string'
+                ? acceptanceRecord.acceptedAt
+                : null,
+            acceptedBy:
+              typeof acceptanceRecord.acceptedBy === 'string'
+                ? acceptanceRecord.acceptedBy
+                : null,
+            acceptanceReason:
+              typeof acceptanceRecord.acceptanceReason === 'string'
+                ? acceptanceRecord.acceptanceReason
+                : null,
+            readinessAtAcceptance: coerceReadiness(
+              acceptanceRecord.readinessAtAcceptance
+            ),
+            estimateModeAtAcceptance:
+              acceptanceRecord.estimateModeAtAcceptance === 'RECIPE_PRICED'
+                ? 'RECIPE_PRICED'
+                : acceptanceRecord.estimateModeAtAcceptance === 'MIXED'
+                  ? 'MIXED'
+                  : acceptanceRecord.estimateModeAtAcceptance === 'PARAMETRIC_PRELIMINARY'
+                    ? 'PARAMETRIC_PRELIMINARY'
+                    : null,
+            commercialStatusAtAcceptance: coerceCommercialStatus(
+              acceptanceRecord.commercialStatusAtAcceptance
+            ),
+            warningsAtAcceptance: Array.isArray(acceptanceRecord.warningsAtAcceptance)
+              ? acceptanceRecord.warningsAtAcceptance.filter(
+                  (item): item is string => typeof item === 'string'
+                )
+              : [],
+            manualOverrideUsed: Boolean(acceptanceRecord.manualOverrideUsed),
+          }
+        : defaultAcceptance();
+
+      const acceptanceHistory = Array.isArray(statusRecord.acceptanceHistory)
+        ? statusRecord.acceptanceHistory
+            .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object')
+            .map((entry): EstimateAcceptanceHistoryEntry => ({
+              action:
+                entry.action === 'REJECTED'
+                  ? 'REJECTED'
+                  : entry.action === 'REVOKED'
+                    ? 'REVOKED'
+                    : 'ACCEPTED',
+              status: coerceAcceptanceStatus(entry.status),
+              timestamp:
+                typeof entry.timestamp === 'string' ? entry.timestamp : new Date(0).toISOString(),
+              actor: typeof entry.actor === 'string' ? entry.actor : 'Usuario actual',
+              reason: typeof entry.reason === 'string' ? entry.reason : '',
+              readinessAtAction: coerceReadiness(entry.readinessAtAction),
+              estimateModeAtAction:
+                entry.estimateModeAtAction === 'RECIPE_PRICED'
+                  ? 'RECIPE_PRICED'
+                  : entry.estimateModeAtAction === 'MIXED'
+                    ? 'MIXED'
+                    : 'PARAMETRIC_PRELIMINARY',
+              commercialStatusAtAction:
+                coerceCommercialStatus(entry.commercialStatusAtAction) ?? 'DRAFT',
+              warningsAtAction: Array.isArray(entry.warningsAtAction)
+                ? entry.warningsAtAction.filter(
+                    (item): item is string => typeof item === 'string'
+                  )
+                : [],
+              manualOverrideUsed: Boolean(entry.manualOverrideUsed),
+            }))
+        : [];
+
       const snapshot = buildEstimateStatusFromPipeline({
         technicalSpecStatus:
           statusRecord.technicalSpecStatus === 'READY_FOR_MEASUREMENT'
@@ -927,6 +1360,8 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
         manualOverride,
         issuance,
         issuanceHistory,
+        acceptance,
+        acceptanceHistory,
         commercialStatusOverride: coerceCommercialStatus(statusRecord.commercialStatus),
       });
 

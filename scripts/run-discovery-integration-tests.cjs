@@ -39,11 +39,14 @@ async function run() {
   const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
   const {
+    acceptEstimate,
     applyEstimateReadinessOverride,
     assertEstimateCanConvert,
     buildEstimateStatusFromPipeline,
     issueEstimate,
+    rejectEstimate,
     revokeEstimateIssuance,
+    revokeEstimateAcceptance,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
@@ -354,6 +357,8 @@ async function run() {
   assert.equal(parametricReadiness.issuanceCapabilities.canIssueFinal, false);
   assert.equal(parametricReadiness.issuanceCapabilities.canIssueProvisional, true);
   assert.equal(parametricReadiness.issuanceCapabilities.requiresOverrideForProvisional, true);
+  assert.equal(parametricReadiness.acceptanceCapabilities.canAccept, false);
+  assert.throws(() => assertEstimateCanConvert(parametricReadiness), /emitido final/);
 
   const measured = createEmptyDiscoverySessionData('COLIVING');
   measured.modelingStrategy = 'STRUCTURED_REPETITIVE';
@@ -803,8 +808,33 @@ async function run() {
   assert.equal(issuedCommercialReady.issuance.status, 'ISSUED_FINAL');
   assert.equal(issuedCommercialReady.issuance.manualOverrideUsed, false);
   assert.equal(issuedCommercialReady.commercialStatus, 'ISSUED_FINAL');
-  assert.equal(issuedCommercialReady.commercialCapabilities.canConvert, true);
-  assert.doesNotThrow(() => assertEstimateCanConvert(issuedCommercialReady));
+  assert.equal(issuedCommercialReady.commercialCapabilities.canConvert, false);
+  assert.equal(issuedCommercialReady.acceptanceCapabilities.canAccept, true);
+  assert.throws(() => assertEstimateCanConvert(issuedCommercialReady), /aceptado/);
+  const acceptedCommercialReady = acceptEstimate(issuedCommercialReady, {
+    actor: 'Cliente',
+    timestamp: '2026-03-22T12:02:00.000Z',
+  });
+  assert.equal(acceptedCommercialReady.acceptance.status, 'ACCEPTED');
+  assert.equal(acceptedCommercialReady.commercialCapabilities.canConvert, true);
+  assert.doesNotThrow(() => assertEstimateCanConvert(acceptedCommercialReady));
+  assert.throws(() => issueEstimate(acceptedCommercialReady, {
+    mode: 'FINAL',
+    actor: 'Admin',
+    timestamp: '2026-03-22T12:03:00.000Z',
+  }), /aceptado/);
+  assert.throws(() => revokeEstimateIssuance(acceptedCommercialReady, {
+    actor: 'Admin',
+    reason: 'Intento inseguro',
+    timestamp: '2026-03-22T12:04:00.000Z',
+  }), /aceptado/);
+  const revokedAcceptance = revokeEstimateAcceptance(acceptedCommercialReady, {
+    actor: 'Admin',
+    reason: 'Cambio comercial detectado',
+    timestamp: '2026-03-22T12:05:00.000Z',
+  });
+  assert.equal(revokedAcceptance.acceptance.status, 'NOT_ACCEPTED');
+  assert.equal(revokedAcceptance.commercialCapabilities.canConvert, false);
   const technicallyClosedStatus = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',
     technicalCoveragePercent: 100,
@@ -858,7 +888,16 @@ async function run() {
   assert.equal(issuedProvisional.issuance.status, 'ISSUED_PROVISIONAL');
   assert.equal(issuedProvisional.commercialStatus, 'ISSUED_PROVISIONAL');
   assert.equal(issuedProvisional.commercialCapabilities.canConvert, false);
+  assert.equal(issuedProvisional.acceptanceCapabilities.canAccept, false);
   assert.throws(() => assertEstimateCanConvert(issuedProvisional), /emitido final/);
+  const rejectedProvisional = rejectEstimate(issuedProvisional, {
+    actor: 'Cliente',
+    reason: 'No cuadra comercialmente',
+    timestamp: '2026-03-22T10:12:00.000Z',
+  });
+  assert.equal(rejectedProvisional.acceptance.status, 'REJECTED');
+  assert.equal(rejectedProvisional.commercialCapabilities.canConvert, false);
+  assert.throws(() => assertEstimateCanConvert(rejectedProvisional), /emitido final|aceptado/);
   const issuedWithOverride = issueEstimate(provisionalStatus, {
     mode: 'FINAL',
     actor: 'Admin',
@@ -869,6 +908,7 @@ async function run() {
   assert.equal(issuedWithOverride.issuance.status, 'ISSUED_FINAL');
   assert.equal(issuedWithOverride.issuance.manualOverrideUsed, true);
   assert.equal(issuedWithOverride.commercialStatus, 'ISSUED_FINAL');
+  assert.equal(issuedWithOverride.acceptanceCapabilities.canAccept, true);
   const revoked = revokeEstimateIssuance(issuedWithOverride, {
     actor: 'Admin',
     reason: 'Se detecto un cambio pendiente',
@@ -886,6 +926,24 @@ async function run() {
   assert.equal(overriddenStatus.capabilities.canEmitAsFinal, true);
   assert.equal(overriddenStatus.manualOverride.applied, true);
   assert.equal(overriddenStatus.manualOverride.reason, 'Validado manualmente para envio al cliente');
+
+  const convertedLocked = buildEstimateStatusFromPipeline({
+    technicalSpecStatus: 'READY_FOR_MEASUREMENT',
+    technicalCoveragePercent: 100,
+    recipeCoveragePercent: 100,
+    priceCoveragePercent: 100,
+    pendingValidationCount: 0,
+    hasHybridBuckets: false,
+    issuance: acceptedCommercialReady.issuance,
+    issuanceHistory: acceptedCommercialReady.issuanceHistory,
+    acceptance: acceptedCommercialReady.acceptance,
+    acceptanceHistory: acceptedCommercialReady.acceptanceHistory,
+    commercialStatusOverride: 'CONVERTED',
+  });
+  assert.equal(convertedLocked.commercialStatus, 'CONVERTED');
+  assert.equal(convertedLocked.acceptanceCapabilities.canAccept, false);
+  assert.equal(convertedLocked.commercialCapabilities.canConvert, false);
+  assert.throws(() => assertEstimateCanConvert(convertedLocked), /convertido/);
 
   console.log('Discovery integration tests passed.');
 }
