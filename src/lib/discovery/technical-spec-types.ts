@@ -7,9 +7,26 @@ export type BathSolutionCode =
   | 'BATH_STD_MEDIUM'
   | 'BATH_ADAPTED';
 
+export type BathEquipmentSolutionCode =
+  | 'BATH_SHOWER_TRAY_STD'
+  | 'BATH_BATHTUB_STD'
+  | 'BATH_SCREEN_STD'
+  | 'BATH_VANITY_STD'
+  | 'BATH_TAPWARE_STD'
+  | 'BATH_TAPWARE_PLUS';
+
 export type KitchenetteSolutionCode =
   | 'KITCHENETTE_120_BASIC'
   | 'KITCHENETTE_180_COMPLETE';
+
+export type KitchenetteComponentSolutionCode =
+  | 'KITCHENETTE_CABINET_LOW_STD'
+  | 'KITCHENETTE_CABINET_HIGH_STD'
+  | 'KITCHENETTE_COUNTERTOP_STD'
+  | 'KITCHENETTE_COUNTERTOP_PLUS'
+  | 'KITCHENETTE_APPLIANCE_PACK_BASIC'
+  | 'KITCHENETTE_SINK_STD'
+  | 'KITCHENETTE_TAPWARE_STD';
 
 export type LevelingSolutionCode =
   | 'LEVELING_LIGHT'
@@ -55,22 +72,29 @@ export type BasicMEPSolutionCode =
   | 'LIGHTING_BASIC'
   | 'PLUMBING_POINT_STD'
   | 'PLUMBING_WET_ROOM_STD'
+  | 'PLUMBING_WET_ROOM_PLUS'
   | 'DRAINAGE_POINT_STD'
-  | 'DRAINAGE_WET_ROOM_STD';
+  | 'DRAINAGE_WET_ROOM_STD'
+  | 'DRAINAGE_WET_ROOM_PLUS';
 
 export type WallFinishSolutionCode =
   | 'WALL_TILE_BATH_STD'
   | 'WALL_TILE_BATH_PLUS'
   | 'WALL_TILE_KITCHEN_SPLASHBACK'
+  | 'WALL_TILE_WET_PARTIAL'
+  | 'WALL_TILE_WET_FULL'
   | 'PAINT_WALL_STD'
   | 'PAINT_WALL_PLUS'
   | 'PAINT_CEILING_STD'
-  | 'WET_AREA_WATERPROOFING_STD';
+  | 'WET_AREA_WATERPROOFING_STD'
+  | 'WET_AREA_WATERPROOFING_PLUS';
 
 export type VerticalSolutionCode =
   | RoomSolutionCode
   | BathSolutionCode
+  | BathEquipmentSolutionCode
   | KitchenetteSolutionCode
+  | KitchenetteComponentSolutionCode
   | LevelingSolutionCode
   | CommonAreaSolutionCode
   | WallFinishSolutionCode
@@ -100,13 +124,57 @@ export type TechnicalSpecCoverage = {
 export type TechnicalSpecSelection = {
   roomSolution?: RoomSolutionCode;
   bathSolution?: BathSolutionCode;
+  bathShowerBaseSolution?: Extract<
+    BathEquipmentSolutionCode,
+    'BATH_SHOWER_TRAY_STD' | 'BATH_BATHTUB_STD'
+  >;
+  bathScreenSolution?: Extract<BathEquipmentSolutionCode, 'BATH_SCREEN_STD'>;
+  bathVanitySolution?: Extract<BathEquipmentSolutionCode, 'BATH_VANITY_STD'>;
+  bathTapwareSolution?: Extract<
+    BathEquipmentSolutionCode,
+    'BATH_TAPWARE_STD' | 'BATH_TAPWARE_PLUS'
+  >;
   kitchenetteSolution?: KitchenetteSolutionCode;
+  kitchenetteLowCabinetSolution?: Extract<
+    KitchenetteComponentSolutionCode,
+    'KITCHENETTE_CABINET_LOW_STD'
+  >;
+  kitchenetteHighCabinetSolution?: Extract<
+    KitchenetteComponentSolutionCode,
+    'KITCHENETTE_CABINET_HIGH_STD'
+  >;
+  kitchenetteCountertopSolution?: Extract<
+    KitchenetteComponentSolutionCode,
+    'KITCHENETTE_COUNTERTOP_STD' | 'KITCHENETTE_COUNTERTOP_PLUS'
+  >;
+  kitchenetteApplianceSolution?: Extract<
+    KitchenetteComponentSolutionCode,
+    'KITCHENETTE_APPLIANCE_PACK_BASIC'
+  >;
+  kitchenetteSinkSolution?: Extract<
+    KitchenetteComponentSolutionCode,
+    'KITCHENETTE_SINK_STD'
+  >;
+  kitchenetteTapwareSolution?: Extract<
+    KitchenetteComponentSolutionCode,
+    'KITCHENETTE_TAPWARE_STD'
+  >;
   levelingSolution?: LevelingSolutionCode;
   commonAreaSolution?: CommonAreaSolutionCode;
-  wallTileSolution?: Extract<WallFinishSolutionCode, 'WALL_TILE_BATH_STD' | 'WALL_TILE_BATH_PLUS' | 'WALL_TILE_KITCHEN_SPLASHBACK'>;
+  wallTileSolution?: Extract<
+    WallFinishSolutionCode,
+    | 'WALL_TILE_BATH_STD'
+    | 'WALL_TILE_BATH_PLUS'
+    | 'WALL_TILE_KITCHEN_SPLASHBACK'
+    | 'WALL_TILE_WET_PARTIAL'
+    | 'WALL_TILE_WET_FULL'
+  >;
   wallPaintSolution?: Extract<WallFinishSolutionCode, 'PAINT_WALL_STD' | 'PAINT_WALL_PLUS'>;
   ceilingPaintSolution?: Extract<WallFinishSolutionCode, 'PAINT_CEILING_STD'>;
-  waterproofingSolution?: Extract<WallFinishSolutionCode, 'WET_AREA_WATERPROOFING_STD'>;
+  waterproofingSolution?: Extract<
+    WallFinishSolutionCode,
+    'WET_AREA_WATERPROOFING_STD' | 'WET_AREA_WATERPROOFING_PLUS'
+  >;
   partitionSolution?: PartitionSolutionCode;
   liningSolution?: Extract<PartitionSolutionCode, 'PARTITION_LINING_STD'>;
   ceilingSolution?: CeilingSolutionCode;
@@ -120,9 +188,15 @@ export type TechnicalSpecSelection = {
   electricalPanelSolution?: Extract<BasicMEPSolutionCode, 'ELECTRICAL_PANEL_BASIC'>;
   lightingSolution?: Extract<BasicMEPSolutionCode, 'LIGHTING_BASIC'>;
   plumbingSolution?: Extract<BasicMEPSolutionCode, 'PLUMBING_POINT_STD'>;
-  plumbingWetSolution?: Extract<BasicMEPSolutionCode, 'PLUMBING_WET_ROOM_STD'>;
+  plumbingWetSolution?: Extract<
+    BasicMEPSolutionCode,
+    'PLUMBING_WET_ROOM_STD' | 'PLUMBING_WET_ROOM_PLUS'
+  >;
   drainageSolution?: Extract<BasicMEPSolutionCode, 'DRAINAGE_POINT_STD'>;
-  drainageWetSolution?: Extract<BasicMEPSolutionCode, 'DRAINAGE_WET_ROOM_STD'>;
+  drainageWetSolution?: Extract<
+    BasicMEPSolutionCode,
+    'DRAINAGE_WET_ROOM_STD' | 'DRAINAGE_WET_ROOM_PLUS'
+  >;
 };
 
 export type TechnicalSpecPatch = {
@@ -134,15 +208,19 @@ export type TechnicalSpecPatch = {
     levelingAreaM2?: number | null;
     commonAreaM2?: number | null;
     wallTileAreaM2?: number | null;
+    wetWallTileAreaM2?: number | null;
     paintWallAreaM2?: number | null;
     paintCeilingAreaM2?: number | null;
     waterproofingAreaM2?: number | null;
+    wetWaterproofingAreaM2?: number | null;
+    backsplashAreaM2?: number | null;
     liningWallAreaM2?: number | null;
     partitionWallAreaM2?: number | null;
     partitionHeightM?: number | null;
     ceilingAreaM2?: number | null;
     flooringAreaM2?: number | null;
     skirtingLengthMl?: number | null;
+    countertopLengthMl?: number | null;
   };
   counts?: {
     bathroomsCount?: number | null;
@@ -158,6 +236,13 @@ export type TechnicalSpecPatch = {
     electricalPanelCount?: number | null;
     plumbingWetPointsCount?: number | null;
     drainageWetPointsCount?: number | null;
+    bathShowerBaseCount?: number | null;
+    bathScreenCount?: number | null;
+    bathVanityCount?: number | null;
+    bathTapwareCount?: number | null;
+    kitchenetteAppliancePackCount?: number | null;
+    kitchenetteSinkCount?: number | null;
+    kitchenetteTapwareCount?: number | null;
   };
   options?: {
     hasBathroom?: boolean;
@@ -232,9 +317,28 @@ export const BATH_SOLUTION_CODES: BathSolutionCode[] = [
   'BATH_ADAPTED',
 ];
 
+export const BATH_EQUIPMENT_SOLUTION_CODES: BathEquipmentSolutionCode[] = [
+  'BATH_SHOWER_TRAY_STD',
+  'BATH_BATHTUB_STD',
+  'BATH_SCREEN_STD',
+  'BATH_VANITY_STD',
+  'BATH_TAPWARE_STD',
+  'BATH_TAPWARE_PLUS',
+];
+
 export const KITCHENETTE_SOLUTION_CODES: KitchenetteSolutionCode[] = [
   'KITCHENETTE_120_BASIC',
   'KITCHENETTE_180_COMPLETE',
+];
+
+export const KITCHENETTE_COMPONENT_SOLUTION_CODES: KitchenetteComponentSolutionCode[] = [
+  'KITCHENETTE_CABINET_LOW_STD',
+  'KITCHENETTE_CABINET_HIGH_STD',
+  'KITCHENETTE_COUNTERTOP_STD',
+  'KITCHENETTE_COUNTERTOP_PLUS',
+  'KITCHENETTE_APPLIANCE_PACK_BASIC',
+  'KITCHENETTE_SINK_STD',
+  'KITCHENETTE_TAPWARE_STD',
 ];
 
 export const LEVELING_SOLUTION_CODES: LevelingSolutionCode[] = [
@@ -251,10 +355,13 @@ export const WALL_FINISH_SOLUTION_CODES: WallFinishSolutionCode[] = [
   'WALL_TILE_BATH_STD',
   'WALL_TILE_BATH_PLUS',
   'WALL_TILE_KITCHEN_SPLASHBACK',
+  'WALL_TILE_WET_PARTIAL',
+  'WALL_TILE_WET_FULL',
   'PAINT_WALL_STD',
   'PAINT_WALL_PLUS',
   'PAINT_CEILING_STD',
   'WET_AREA_WATERPROOFING_STD',
+  'WET_AREA_WATERPROOFING_PLUS',
 ];
 
 export const PARTITION_SOLUTION_CODES: PartitionSolutionCode[] = [
@@ -297,8 +404,10 @@ export const BASIC_MEP_SOLUTION_CODES: BasicMEPSolutionCode[] = [
   'LIGHTING_BASIC',
   'PLUMBING_POINT_STD',
   'PLUMBING_WET_ROOM_STD',
+  'PLUMBING_WET_ROOM_PLUS',
   'DRAINAGE_POINT_STD',
   'DRAINAGE_WET_ROOM_STD',
+  'DRAINAGE_WET_ROOM_PLUS',
 ];
 
 export const SOLUTION_LABELS: Record<VerticalSolutionCode, string> = {
@@ -307,8 +416,21 @@ export const SOLUTION_LABELS: Record<VerticalSolutionCode, string> = {
   BATH_STD_COMPACT: 'Bano compacto',
   BATH_STD_MEDIUM: 'Bano medio',
   BATH_ADAPTED: 'Bano adaptado',
+  BATH_SHOWER_TRAY_STD: 'Plato de ducha estandar',
+  BATH_BATHTUB_STD: 'Banera basica',
+  BATH_SCREEN_STD: 'Mampara de ducha estandar',
+  BATH_VANITY_STD: 'Mueble lavabo estandar',
+  BATH_TAPWARE_STD: 'Griferia bano estandar',
+  BATH_TAPWARE_PLUS: 'Griferia bano plus',
   KITCHENETTE_120_BASIC: 'Kitchenette 120 basica',
   KITCHENETTE_180_COMPLETE: 'Kitchenette 180 completa',
+  KITCHENETTE_CABINET_LOW_STD: 'Mueble bajo cocina estandar',
+  KITCHENETTE_CABINET_HIGH_STD: 'Mueble alto cocina estandar',
+  KITCHENETTE_COUNTERTOP_STD: 'Encimera cocina estandar',
+  KITCHENETTE_COUNTERTOP_PLUS: 'Encimera cocina mejorada',
+  KITCHENETTE_APPLIANCE_PACK_BASIC: 'Pack electrodomesticos cocina basico',
+  KITCHENETTE_SINK_STD: 'Fregadero cocina estandar',
+  KITCHENETTE_TAPWARE_STD: 'Griferia cocina estandar',
   LEVELING_LIGHT: 'Nivelacion ligera',
   LEVELING_MEDIUM: 'Nivelacion media',
   COMMON_AREA_BASIC: 'Zona comun basica',
@@ -316,10 +438,13 @@ export const SOLUTION_LABELS: Record<VerticalSolutionCode, string> = {
   WALL_TILE_BATH_STD: 'Alicatado bano estandar',
   WALL_TILE_BATH_PLUS: 'Alicatado bano mejorado',
   WALL_TILE_KITCHEN_SPLASHBACK: 'Frontal cocina alicatado',
+  WALL_TILE_WET_PARTIAL: 'Alicatado humedo parcial',
+  WALL_TILE_WET_FULL: 'Alicatado humedo completo',
   PAINT_WALL_STD: 'Pintura paredes estandar',
   PAINT_WALL_PLUS: 'Pintura paredes mejorada',
   PAINT_CEILING_STD: 'Pintura techos estandar',
   WET_AREA_WATERPROOFING_STD: 'Impermeabilizacion ligera zona humeda',
+  WET_AREA_WATERPROOFING_PLUS: 'Impermeabilizacion humeda reforzada',
   PARTITION_PLADUR_STD: 'Tabiqueria pladur estandar',
   PARTITION_PLADUR_ACOUSTIC: 'Tabiqueria pladur acustica',
   PARTITION_BRICK_STD: 'Tabiqueria ladrillo hueco',
@@ -347,6 +472,8 @@ export const SOLUTION_LABELS: Record<VerticalSolutionCode, string> = {
   LIGHTING_BASIC: 'Iluminacion basica por punto',
   PLUMBING_POINT_STD: 'Fontaneria basica por punto',
   PLUMBING_WET_ROOM_STD: 'Fontaneria humeda por punto',
+  PLUMBING_WET_ROOM_PLUS: 'Fontaneria humeda reforzada',
   DRAINAGE_POINT_STD: 'Saneamiento basico por punto',
   DRAINAGE_WET_ROOM_STD: 'Saneamiento humedo por punto',
+  DRAINAGE_WET_ROOM_PLUS: 'Saneamiento humedo reforzado',
 };

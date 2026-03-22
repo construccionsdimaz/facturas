@@ -202,10 +202,29 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 5;
     case 'BATH_ADAPTED':
       return 4;
+    case 'BATH_SHOWER_TRAY_STD':
+    case 'BATH_SCREEN_STD':
+    case 'BATH_VANITY_STD':
+    case 'BATH_TAPWARE_STD':
+    case 'BATH_TAPWARE_PLUS':
+      return 6;
+    case 'BATH_BATHTUB_STD':
+      return 4;
     case 'KITCHENETTE_120_BASIC':
       return line.unit === 'ml' ? 2.2 : 1;
     case 'KITCHENETTE_180_COMPLETE':
       return line.unit === 'ml' ? 1.8 : 1;
+    case 'KITCHENETTE_CABINET_LOW_STD':
+      return line.unit === 'ml' ? 2.8 : 1;
+    case 'KITCHENETTE_CABINET_HIGH_STD':
+      return line.unit === 'ml' ? 3.4 : 1;
+    case 'KITCHENETTE_COUNTERTOP_STD':
+    case 'KITCHENETTE_COUNTERTOP_PLUS':
+      return line.unit === 'ml' ? 4.2 : 1;
+    case 'KITCHENETTE_APPLIANCE_PACK_BASIC':
+    case 'KITCHENETTE_SINK_STD':
+    case 'KITCHENETTE_TAPWARE_STD':
+      return 3;
     case 'LEVELING_LIGHT':
       return 35;
     case 'LEVELING_MEDIUM':
@@ -220,6 +239,10 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 14;
     case 'WALL_TILE_KITCHEN_SPLASHBACK':
       return 18;
+    case 'WALL_TILE_WET_PARTIAL':
+      return 17;
+    case 'WALL_TILE_WET_FULL':
+      return 14;
     case 'PAINT_WALL_STD':
       return 70;
     case 'PAINT_WALL_PLUS':
@@ -228,6 +251,8 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 75;
     case 'WET_AREA_WATERPROOFING_STD':
       return 45;
+    case 'WET_AREA_WATERPROOFING_PLUS':
+      return 34;
     case 'PARTITION_LINING_STD':
       return 14;
     case 'PARTITION_PLADUR_STD':
@@ -269,8 +294,10 @@ function measurementRatePerDay(line: MeasurementLine) {
     case 'LIGHTING_BASIC':
     case 'PLUMBING_POINT_STD':
     case 'PLUMBING_WET_ROOM_STD':
+    case 'PLUMBING_WET_ROOM_PLUS':
     case 'DRAINAGE_POINT_STD':
     case 'DRAINAGE_WET_ROOM_STD':
+    case 'DRAINAGE_WET_ROOM_PLUS':
       return 12;
     default:
       return 10;

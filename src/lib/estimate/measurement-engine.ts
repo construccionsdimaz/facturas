@@ -365,11 +365,130 @@ function resolveCount(primary: number | null | undefined, fallback: number | nul
   return { quantity: null, status: 'BLOCKED', warning: message };
 }
 
+function pushUnique(solutions: VerticalSolutionCode[], solutionCode?: VerticalSolutionCode | null) {
+  if (solutionCode && !solutions.includes(solutionCode)) solutions.push(solutionCode);
+}
+
+function isBathSpace(space: ResolvedSpace) {
+  return space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom;
+}
+
+function isKitchenSpace(space: ResolvedSpace) {
+  return space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette;
+}
+
+function resolveWetUnitCount(
+  explicitCount: number | null | undefined,
+  space: ResolvedSpace,
+  message: string,
+  assumedLabel: string
+): MeasurementSource {
+  const resolved = resolveCount(explicitCount, null, message);
+  if (resolved.quantity != null) return resolved;
+  if (isBathSpace(space) || isKitchenSpace(space)) {
+    return {
+      quantity: 1,
+      status: 'ASSUMED',
+      assumption: assumedLabel,
+    };
+  }
+  return resolved;
+}
+
+function resolveCountertopLength(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.countertopLengthMl === 'number' && spec.dimensions.countertopLengthMl > 0) {
+    return { quantity: spec.dimensions.countertopLengthMl, status: 'MEASURED' };
+  }
+  return resolveKitchenetteLength(space, spec);
+}
+
+function resolveBacksplashArea(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.backsplashAreaM2 === 'number' && spec.dimensions.backsplashAreaM2 > 0) {
+    return { quantity: spec.dimensions.backsplashAreaM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.tilingSurfaceM2 === 'number' && space.measurementDrivers.tilingSurfaceM2 > 0) {
+    return { quantity: space.measurementDrivers.tilingSurfaceM2, status: 'MEASURED' };
+  }
+  const kitchenetteLength = resolveKitchenetteLength(space, spec);
+  if (kitchenetteLength.quantity && kitchenetteLength.quantity > 0) {
+    return {
+      quantity: Number((kitchenetteLength.quantity * 0.6).toFixed(2)),
+      status: 'ASSUMED',
+      assumption: `Se usa longitud de kitchenette x 0.6 para el frontal de cocina en ${space.label}.`,
+    };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta area base de frontal de cocina en ${space.label}.`,
+  };
+}
+
+function resolveWetWallTileArea(
+  space: ResolvedSpace,
+  spec: ResolvedSpec,
+  solutionCode: VerticalSolutionCode
+): MeasurementSource {
+  if (typeof spec.dimensions.wetWallTileAreaM2 === 'number' && spec.dimensions.wetWallTileAreaM2 > 0) {
+    return { quantity: spec.dimensions.wetWallTileAreaM2, status: 'MEASURED' };
+  }
+  if (typeof spec.dimensions.wallTileAreaM2 === 'number' && spec.dimensions.wallTileAreaM2 > 0) {
+    return { quantity: spec.dimensions.wallTileAreaM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.tilingSurfaceM2 === 'number' && space.measurementDrivers.tilingSurfaceM2 > 0) {
+    return { quantity: space.measurementDrivers.tilingSurfaceM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.wallSurfaceM2 === 'number' && space.measurementDrivers.wallSurfaceM2 > 0) {
+    const factor = solutionCode === 'WALL_TILE_WET_PARTIAL' ? 0.55 : 1;
+    return {
+      quantity: Number((space.measurementDrivers.wallSurfaceM2 * factor).toFixed(2)),
+      status: solutionCode === 'WALL_TILE_WET_PARTIAL' ? 'ASSUMED' : 'MEASURED',
+      assumption:
+        solutionCode === 'WALL_TILE_WET_PARTIAL'
+          ? `Se usa 55% de superficie vertical como alicatado humedo parcial en ${space.label}.`
+          : undefined,
+    };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta superficie base de alicatado humedo en ${space.label}.`,
+  };
+}
+
+function resolveWetWaterproofingArea(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.wetWaterproofingAreaM2 === 'number' && spec.dimensions.wetWaterproofingAreaM2 > 0) {
+    return { quantity: spec.dimensions.wetWaterproofingAreaM2, status: 'MEASURED' };
+  }
+  if (typeof spec.dimensions.waterproofingAreaM2 === 'number' && spec.dimensions.waterproofingAreaM2 > 0) {
+    return { quantity: spec.dimensions.waterproofingAreaM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.floorSurfaceM2 === 'number' && space.measurementDrivers.floorSurfaceM2 > 0) {
+    return {
+      quantity: Number((space.measurementDrivers.floorSurfaceM2 * 1.15).toFixed(2)),
+      status: 'ASSUMED',
+      assumption: `Se usa superficie de suelo x 1.15 como impermeabilizacion humeda reforzada en ${space.label}.`,
+    };
+  }
+  if (typeof space.measurementDrivers.tilingSurfaceM2 === 'number' && space.measurementDrivers.tilingSurfaceM2 > 0) {
+    return {
+      quantity: Number((space.measurementDrivers.tilingSurfaceM2 * 0.45).toFixed(2)),
+      status: 'ASSUMED',
+      assumption: `Se usa 45% de superficie alicatada como impermeabilizacion reforzada en ${space.label}.`,
+    };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta superficie base de impermeabilizacion reforzada en ${space.label}.`,
+  };
+}
+
 function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpaces: ResolvedSpace[]) {
   const solutions: VerticalSolutionCode[] = [];
 
   if ((space.unitKind === 'HABITACION' || space.areaType === 'HABITACION') && spec.selections.roomSolution) {
-    solutions.push(spec.selections.roomSolution);
+    pushUnique(solutions, spec.selections.roomSolution);
   }
 
   const bathHandledByChild = hasDedicatedBathChild(space, allSpaces);
@@ -378,10 +497,16 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     (space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom) &&
     spec.selections.bathSolution
   ) {
-    solutions.push(spec.selections.bathSolution);
+    pushUnique(solutions, spec.selections.bathSolution);
   }
   if ((space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO') && spec.selections.bathSolution) {
-    if (!solutions.includes(spec.selections.bathSolution)) solutions.push(spec.selections.bathSolution);
+    pushUnique(solutions, spec.selections.bathSolution);
+  }
+  if (isBathSpace(space)) {
+    pushUnique(solutions, spec.selections.bathShowerBaseSolution);
+    pushUnique(solutions, spec.selections.bathScreenSolution);
+    pushUnique(solutions, spec.selections.bathVanitySolution);
+    pushUnique(solutions, spec.selections.bathTapwareSolution);
   }
 
   const kitchenHandledByChild = hasDedicatedKitchenChild(space, allSpaces);
@@ -390,21 +515,29 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     (space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette) &&
     spec.selections.kitchenetteSolution
   ) {
-    solutions.push(spec.selections.kitchenetteSolution);
+    pushUnique(solutions, spec.selections.kitchenetteSolution);
   }
   if ((space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA') && spec.selections.kitchenetteSolution) {
-    if (!solutions.includes(spec.selections.kitchenetteSolution)) solutions.push(spec.selections.kitchenetteSolution);
+    pushUnique(solutions, spec.selections.kitchenetteSolution);
+  }
+  if (isKitchenSpace(space)) {
+    pushUnique(solutions, spec.selections.kitchenetteLowCabinetSolution);
+    pushUnique(solutions, spec.selections.kitchenetteHighCabinetSolution);
+    pushUnique(solutions, spec.selections.kitchenetteCountertopSolution);
+    pushUnique(solutions, spec.selections.kitchenetteApplianceSolution);
+    pushUnique(solutions, spec.selections.kitchenetteSinkSolution);
+    pushUnique(solutions, spec.selections.kitchenetteTapwareSolution);
   }
 
   if (space.features.requiresLeveling && spec.selections.levelingSolution) {
-    solutions.push(spec.selections.levelingSolution);
+    pushUnique(solutions, spec.selections.levelingSolution);
   }
 
   if (
     ['ZONA_COMUN', 'PASILLO', 'PORTAL', 'ESCALERA'].includes(space.areaType) &&
     spec.selections.commonAreaSolution
   ) {
-    solutions.push(spec.selections.commonAreaSolution);
+    pushUnique(solutions, spec.selections.commonAreaSolution);
   }
 
   if (
@@ -412,7 +545,7 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     spec.selections.wallTileSolution &&
     (requiresWallFinishes(space) || (spec.dimensions.wallTileAreaM2 || 0) > 0 || (space.measurementDrivers.tilingSurfaceM2 || 0) > 0 || (space.measurementDrivers.wallSurfaceM2 || 0) > 0)
   ) {
-    solutions.push(spec.selections.wallTileSolution);
+    pushUnique(solutions, spec.selections.wallTileSolution);
   }
 
   if (
@@ -420,7 +553,7 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     spec.selections.wallPaintSolution &&
     (requiresWallFinishes(space) || (spec.dimensions.paintWallAreaM2 || 0) > 0 || (space.measurementDrivers.wallSurfaceM2 || 0) > 0)
   ) {
-    solutions.push(spec.selections.wallPaintSolution);
+    pushUnique(solutions, spec.selections.wallPaintSolution);
   }
 
   if (
@@ -428,7 +561,7 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     spec.selections.ceilingPaintSolution &&
     (requiresWallFinishes(space) || (spec.dimensions.paintCeilingAreaM2 || 0) > 0 || (space.measurementDrivers.ceilingSurfaceM2 || 0) > 0 || (space.measurementDrivers.areaM2 || 0) > 0)
   ) {
-    solutions.push(spec.selections.ceilingPaintSolution);
+    pushUnique(solutions, spec.selections.ceilingPaintSolution);
   }
 
   if (
@@ -436,41 +569,41 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     spec.selections.waterproofingSolution &&
     (requiresWaterproofing(space) || (spec.dimensions.waterproofingAreaM2 || 0) > 0 || (space.measurementDrivers.tilingSurfaceM2 || 0) > 0 || (space.measurementDrivers.floorSurfaceM2 || 0) > 0)
   ) {
-    solutions.push(spec.selections.waterproofingSolution);
+    pushUnique(solutions, spec.selections.waterproofingSolution);
   }
 
   if ((requiresPartition(space) || Boolean(spec.selections.partitionSolution)) && spec.selections.partitionSolution) {
-    solutions.push(spec.selections.partitionSolution);
+    pushUnique(solutions, spec.selections.partitionSolution);
   }
 
   if ((requiresPartition(space) || Boolean(spec.selections.liningSolution)) && spec.selections.liningSolution) {
-    solutions.push(spec.selections.liningSolution);
+    pushUnique(solutions, spec.selections.liningSolution);
   }
 
   if ((requiresCeiling(space) || Boolean(spec.selections.ceilingSolution)) && spec.selections.ceilingSolution) {
-    solutions.push(spec.selections.ceilingSolution);
+    pushUnique(solutions, spec.selections.ceilingSolution);
   }
 
   if ((requiresFlooring(space) || Boolean(spec.selections.flooringSolution)) && spec.selections.flooringSolution) {
-    solutions.push(spec.selections.flooringSolution);
+    pushUnique(solutions, spec.selections.flooringSolution);
   }
 
   if ((requiresFlooring(space) || Boolean(spec.selections.skirtingSolution)) && spec.options.includeSkirting && spec.selections.skirtingSolution) {
-    solutions.push(spec.selections.skirtingSolution);
+    pushUnique(solutions, spec.selections.skirtingSolution);
   }
 
   if (
     spec.selections.doorSolution &&
     (requiresDoors(space) || (spec.counts.doorCount || 0) > 0 || (space.measurementDrivers.doorsCount || 0) > 0)
   ) {
-    solutions.push(spec.selections.doorSolution);
+    pushUnique(solutions, spec.selections.doorSolution);
   }
 
   if (
     spec.selections.windowSolution &&
     (requiresWindows(space) || (spec.counts.windowCount || 0) > 0 || (space.measurementDrivers.windowsCount || 0) > 0)
   ) {
-    solutions.push(spec.selections.windowSolution);
+    pushUnique(solutions, spec.selections.windowSolution);
   }
 
   if (
@@ -648,7 +781,263 @@ function measureSolutionForSpace(
     return lines;
   }
 
-  if (solutionCode.startsWith('BATH_')) {
+  if (solutionCode === 'BATH_SHOWER_TRAY_STD') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.bathShowerBaseCount,
+      space,
+      `Falta conteo base de platos de ducha en ${space.label}.`,
+      `Se asume un plato de ducha por bano en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'SHOWER_TRAY_UNITS',
+        description: `Plato de ducha ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'BATH_BATHTUB_STD') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.bathShowerBaseCount,
+      space,
+      `Falta conteo base de baneras en ${space.label}.`,
+      `Se asume una banera por bano en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'BATHTUB_UNITS',
+        description: `Banera ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'BATH_SCREEN_STD') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.bathScreenCount,
+      space,
+      `Falta conteo base de mamparas en ${space.label}.`,
+      `Se asume una mampara por bano en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'SHOWER_SCREEN_UNITS',
+        description: `Mampara ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'BATH_VANITY_STD') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.bathVanityCount,
+      space,
+      `Falta conteo base de muebles lavabo en ${space.label}.`,
+      `Se asume un mueble lavabo por bano en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'VANITY_UNITS',
+        description: `Mueble lavabo ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'BATH_TAPWARE_STD' || solutionCode === 'BATH_TAPWARE_PLUS') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.bathTapwareCount,
+      space,
+      `Falta conteo base de griferia de bano en ${space.label}.`,
+      `Se asume un juego de griferia de bano por unidad en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'BATH_TAPWARE_UNITS',
+        description: `Griferia bano ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (
+    solutionCode === 'KITCHENETTE_CABINET_LOW_STD' ||
+    solutionCode === 'KITCHENETTE_CABINET_HIGH_STD'
+  ) {
+    const resolved = resolveKitchenetteLength(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode:
+          solutionCode === 'KITCHENETTE_CABINET_LOW_STD'
+            ? 'KITCHEN_CABINET_LOW_LENGTH'
+            : 'KITCHEN_CABINET_HIGH_LENGTH',
+        description:
+          solutionCode === 'KITCHENETTE_CABINET_LOW_STD'
+            ? `Mueble bajo ${space.label}`
+            : `Mueble alto ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ml',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (
+    solutionCode === 'KITCHENETTE_COUNTERTOP_STD' ||
+    solutionCode === 'KITCHENETTE_COUNTERTOP_PLUS'
+  ) {
+    const resolved = resolveCountertopLength(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'COUNTERTOP_LENGTH',
+        description: `Encimera ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ml',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'KITCHENETTE_APPLIANCE_PACK_BASIC') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.kitchenetteAppliancePackCount,
+      space,
+      `Falta conteo base de packs de electrodomesticos en ${space.label}.`,
+      `Se asume un pack basico de electrodomesticos por kitchenette en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'KITCHEN_APPLIANCE_UNITS',
+        description: `Pack electrodomesticos ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'KITCHENETTE_SINK_STD') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.kitchenetteSinkCount,
+      space,
+      `Falta conteo base de fregaderos en ${space.label}.`,
+      `Se asume un fregadero por kitchenette en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'KITCHEN_SINK_UNITS',
+        description: `Fregadero ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'KITCHENETTE_TAPWARE_STD') {
+    const resolved = resolveWetUnitCount(
+      spec.counts.kitchenetteTapwareCount,
+      space,
+      `Falta conteo base de griferia de cocina en ${space.label}.`,
+      `Se asume una griferia de cocina por kitchenette en ${space.label}.`
+    );
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'KITCHEN_TAPWARE_UNITS',
+        description: `Griferia cocina ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (
+    solutionCode === 'BATH_STD_COMPACT' ||
+    solutionCode === 'BATH_STD_MEDIUM' ||
+    solutionCode === 'BATH_ADAPTED'
+  ) {
     const resolved = resolveBathArea(space, spec);
     if (resolved.warning) warnings.push(resolved.warning);
     if (resolved.assumption) assumptions.push(resolved.assumption);
@@ -683,7 +1072,10 @@ function measureSolutionForSpace(
     ];
   }
 
-  if (solutionCode.startsWith('KITCHENETTE_')) {
+  if (
+    solutionCode === 'KITCHENETTE_120_BASIC' ||
+    solutionCode === 'KITCHENETTE_180_COMPLETE'
+  ) {
     const resolved = resolveKitchenetteLength(space, spec);
     if (resolved.warning) warnings.push(resolved.warning);
     if (resolved.assumption) assumptions.push(resolved.assumption);
@@ -712,6 +1104,46 @@ function measureSolutionForSpace(
       warnings,
       assumptions
     );
+  }
+
+  if (solutionCode === 'WALL_TILE_KITCHEN_SPLASHBACK') {
+    const resolved = resolveBacksplashArea(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'BACKSPLASH_AREA',
+        description: `Frontal cocina ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'm2',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'WALL_TILE_WET_PARTIAL' || solutionCode === 'WALL_TILE_WET_FULL') {
+    const resolved = resolveWetWallTileArea(space, spec, solutionCode);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'WET_WALL_TILE_AREA',
+        description: `Alicatado humedo ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'm2',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
   }
 
   if (solutionCode.startsWith('WALL_TILE_')) {
@@ -763,6 +1195,26 @@ function measureSolutionForSpace(
         solutionCode,
         measurementCode: 'PAINT_CEILING_AREA',
         description: `Pintura techos ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'm2',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'WET_AREA_WATERPROOFING_PLUS') {
+    const resolved = resolveWetWaterproofingArea(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'WET_WATERPROOFING_AREA',
+        description: `Impermeabilizacion reforzada ${space.label}`,
         quantity: resolved.quantity ?? 0,
         unit: 'm2',
         sourceLevel: spec.sourceLevel,
@@ -1061,7 +1513,7 @@ function measureSolutionForSpace(
     ];
   }
 
-  if (solutionCode === 'PLUMBING_WET_ROOM_STD') {
+  if (solutionCode === 'PLUMBING_WET_ROOM_STD' || solutionCode === 'PLUMBING_WET_ROOM_PLUS') {
     const resolved = resolveCount(
       spec.counts.plumbingWetPointsCount,
       space.measurementDrivers.waterPointsCount,
@@ -1103,7 +1555,7 @@ function measureSolutionForSpace(
     ];
   }
 
-  if (solutionCode === 'DRAINAGE_WET_ROOM_STD') {
+  if (solutionCode === 'DRAINAGE_WET_ROOM_STD' || solutionCode === 'DRAINAGE_WET_ROOM_PLUS') {
     const resolved = resolveCount(
       spec.counts.drainageWetPointsCount,
       space.measurementDrivers.sanitaryFixturesCount,

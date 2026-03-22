@@ -36,7 +36,7 @@ async function run() {
   const { createEmptyDiscoverySessionData, createDefaultTemplate } = require(path.join(srcRoot, 'lib/discovery/defaults.ts'));
   const { deriveInputFromSession } = require(path.join(srcRoot, 'lib/discovery/derive-input.ts'));
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
-  const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
+  const { buildPricingResult, MATERIAL_BINDINGS } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
   const {
     normalizeInternalAnalysis,
@@ -133,6 +133,27 @@ async function run() {
         { id: 'offer-imp-1', supplierId: 'sup-acabats', unitCost: 7.4, unit: 'm2', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
       ],
     },
+    'ACA-WALL-WET-STD': {
+      id: 'mat-wall-wet-std',
+      code: 'ACA-WALL-WET-STD',
+      offers: [
+        { id: 'offer-wall-wet-std-1', supplierId: 'sup-acabats', unitCost: 20.8, unit: 'm2', leadTimeDays: 7, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'ACA-WALL-WET-PLUS': {
+      id: 'mat-wall-wet-plus',
+      code: 'ACA-WALL-WET-PLUS',
+      offers: [
+        { id: 'offer-wall-wet-plus-1', supplierId: 'sup-acabats', unitCost: 27.1, unit: 'm2', leadTimeDays: 8, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'IMP-LIQ-PLUS': {
+      id: 'mat-imp-plus',
+      code: 'IMP-LIQ-PLUS',
+      offers: [
+        { id: 'offer-imp-plus-1', supplierId: 'sup-acabats', unitCost: 10.5, unit: 'm2', leadTimeDays: 4, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
     'PLADUR-FRAME-STD': {
       id: 'mat-lining-frame',
       code: 'PLADUR-FRAME-STD',
@@ -196,6 +217,97 @@ async function run() {
         { id: 'offer-win-thermal-1', supplierId: 'sup-puertas', unitCost: 528, unit: 'ud', leadTimeDays: 12, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
       ],
     },
+    'SAN-SHOWER-TRAY-STD': {
+      id: 'mat-shower-tray',
+      code: 'SAN-SHOWER-TRAY-STD',
+      offers: [
+        { id: 'offer-shower-tray-1', supplierId: 'sup-acabats', unitCost: 118, unit: 'ud', leadTimeDays: 5, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'SAN-BATHTUB-STD': {
+      id: 'mat-bathtub-std',
+      code: 'SAN-BATHTUB-STD',
+      offers: [
+        { id: 'offer-bathtub-1', supplierId: 'sup-acabats', unitCost: 205, unit: 'ud', leadTimeDays: 7, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'SAN-SCREEN-STD': {
+      id: 'mat-screen-std',
+      code: 'SAN-SCREEN-STD',
+      offers: [
+        { id: 'offer-screen-1', supplierId: 'sup-acabats', unitCost: 172, unit: 'ud', leadTimeDays: 6, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'SAN-VANITY-STD': {
+      id: 'mat-vanity-std',
+      code: 'SAN-VANITY-STD',
+      offers: [
+        { id: 'offer-vanity-1', supplierId: 'sup-acabats', unitCost: 232, unit: 'ud', leadTimeDays: 7, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'SAN-TAP-STD': {
+      id: 'mat-san-tap-std',
+      code: 'SAN-TAP-STD',
+      offers: [
+        { id: 'offer-san-tap-std-1', supplierId: 'sup-acabats', unitCost: 86, unit: 'ud', leadTimeDays: 4, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'SAN-TAP-PLUS': {
+      id: 'mat-san-tap-plus',
+      code: 'SAN-TAP-PLUS',
+      offers: [
+        { id: 'offer-san-tap-plus-1', supplierId: 'sup-acabats', unitCost: 132, unit: 'ud', leadTimeDays: 5, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'KIT-CAB-LOW-STD': {
+      id: 'mat-kit-cab-low',
+      code: 'KIT-CAB-LOW-STD',
+      offers: [
+        { id: 'offer-kit-cab-low-1', supplierId: 'sup-puertas', unitCost: 116, unit: 'ml', leadTimeDays: 9, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+    'KIT-CAB-HIGH-STD': {
+      id: 'mat-kit-cab-high',
+      code: 'KIT-CAB-HIGH-STD',
+      offers: [
+        { id: 'offer-kit-cab-high-1', supplierId: 'sup-puertas', unitCost: 94, unit: 'ml', leadTimeDays: 9, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+    'KIT-CTOP-STD': {
+      id: 'mat-kit-ctop-std',
+      code: 'KIT-CTOP-STD',
+      offers: [
+        { id: 'offer-kit-ctop-std-1', supplierId: 'sup-acabats', unitCost: 41, unit: 'ml', leadTimeDays: 5, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'KIT-CTOP-PLUS': {
+      id: 'mat-kit-ctop-plus',
+      code: 'KIT-CTOP-PLUS',
+      offers: [
+        { id: 'offer-kit-ctop-plus-1', supplierId: 'sup-acabats', unitCost: 66, unit: 'ml', leadTimeDays: 7, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'KIT-APP-BASIC': {
+      id: 'mat-kit-app-basic',
+      code: 'KIT-APP-BASIC',
+      offers: [
+        { id: 'offer-kit-app-basic-1', supplierId: 'sup-electro', unitCost: 455, unit: 'ud', leadTimeDays: 5, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'KIT-SINK-STD': {
+      id: 'mat-kit-sink-std',
+      code: 'KIT-SINK-STD',
+      offers: [
+        { id: 'offer-kit-sink-std-1', supplierId: 'sup-acabats', unitCost: 88, unit: 'ud', leadTimeDays: 4, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'KIT-TAP-STD': {
+      id: 'mat-kit-tap-std',
+      code: 'KIT-TAP-STD',
+      offers: [
+        { id: 'offer-kit-tap-std-1', supplierId: 'sup-acabats', unitCost: 71, unit: 'ud', leadTimeDays: 4, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
     'ELE-MECH-STD': {
       id: 'mat-ele-mech',
       code: 'ELE-MECH-STD',
@@ -222,6 +334,20 @@ async function run() {
       code: 'SAN-WET-STD',
       offers: [
         { id: 'offer-san-wet-1', supplierId: 'sup-electro', unitCost: 28.6, unit: 'pt', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'FON-WET-PLUS': {
+      id: 'mat-fon-wet-plus',
+      code: 'FON-WET-PLUS',
+      offers: [
+        { id: 'offer-fon-wet-plus-1', supplierId: 'sup-electro', unitCost: 43, unit: 'pt', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'SAN-WET-PLUS': {
+      id: 'mat-san-wet-plus',
+      code: 'SAN-WET-PLUS',
+      offers: [
+        { id: 'offer-san-wet-plus-1', supplierId: 'sup-electro', unitCost: 36, unit: 'pt', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
       ],
     },
   };
@@ -742,15 +868,27 @@ async function run() {
     selections: {
       wallTileSolution: 'WALL_TILE_BATH_STD',
       waterproofingSolution: 'WET_AREA_WATERPROOFING_STD',
+      bathShowerBaseSolution: 'BATH_SHOWER_TRAY_STD',
+      bathScreenSolution: 'BATH_SCREEN_STD',
+      bathVanitySolution: 'BATH_VANITY_STD',
+      bathTapwareSolution: 'BATH_TAPWARE_PLUS',
+      plumbingWetSolution: 'PLUMBING_WET_ROOM_PLUS',
+      drainageWetSolution: 'DRAINAGE_WET_ROOM_PLUS',
     },
     dimensions: {
       wallTileAreaM2: 9,
       waterproofingAreaM2: 4,
+      wetWallTileAreaM2: 11,
+      wetWaterproofingAreaM2: 5,
     },
     counts: {
       electricalMechanismsCount: 3,
       plumbingWetPointsCount: 3,
       drainageWetPointsCount: 3,
+      bathShowerBaseCount: 1,
+      bathScreenCount: 1,
+      bathVanityCount: 1,
+      bathTapwareCount: 1,
     },
     options: {
       includeWallTile: true,
@@ -762,14 +900,25 @@ async function run() {
   measured.technicalSpecModel.instanceSpecs['kit-1'] = {
     selections: {
       wallTileSolution: 'WALL_TILE_KITCHEN_SPLASHBACK',
+      kitchenetteLowCabinetSolution: 'KITCHENETTE_CABINET_LOW_STD',
+      kitchenetteHighCabinetSolution: 'KITCHENETTE_CABINET_HIGH_STD',
+      kitchenetteCountertopSolution: 'KITCHENETTE_COUNTERTOP_PLUS',
+      kitchenetteApplianceSolution: 'KITCHENETTE_APPLIANCE_PACK_BASIC',
+      kitchenetteSinkSolution: 'KITCHENETTE_SINK_STD',
+      kitchenetteTapwareSolution: 'KITCHENETTE_TAPWARE_STD',
     },
     dimensions: {
       wallTileAreaM2: 3,
+      backsplashAreaM2: 3.2,
+      countertopLengthMl: 1.8,
     },
     counts: {
       electricalMechanismsCount: 4,
       plumbingWetPointsCount: 2,
       drainageWetPointsCount: 1,
+      kitchenetteAppliancePackCount: 1,
+      kitchenetteSinkCount: 1,
+      kitchenetteTapwareCount: 1,
     },
     options: {
       includeWallTile: true,
@@ -870,7 +1019,7 @@ async function run() {
   );
   assert(
     measuredInput.measurementResult.lines.some(
-      (line) => line.solutionCode === 'WALL_TILE_KITCHEN_SPLASHBACK' && line.measurementCode === 'WALL_TILE_AREA'
+      (line) => line.solutionCode === 'WALL_TILE_KITCHEN_SPLASHBACK' && line.measurementCode === 'BACKSPLASH_AREA'
     )
   );
   assert(
@@ -886,6 +1035,71 @@ async function run() {
   assert(
     measuredInput.measurementResult.lines.some(
       (line) => line.solutionCode === 'WET_AREA_WATERPROOFING_STD' && line.measurementCode === 'WATERPROOFING_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'BATH_SHOWER_TRAY_STD' && line.measurementCode === 'SHOWER_TRAY_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'BATH_SCREEN_STD' && line.measurementCode === 'SHOWER_SCREEN_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'BATH_VANITY_STD' && line.measurementCode === 'VANITY_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'BATH_TAPWARE_PLUS' && line.measurementCode === 'BATH_TAPWARE_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'KITCHENETTE_CABINET_LOW_STD' && line.measurementCode === 'KITCHEN_CABINET_LOW_LENGTH'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'KITCHENETTE_CABINET_HIGH_STD' && line.measurementCode === 'KITCHEN_CABINET_HIGH_LENGTH'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'KITCHENETTE_COUNTERTOP_PLUS' && line.measurementCode === 'COUNTERTOP_LENGTH'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'KITCHENETTE_APPLIANCE_PACK_BASIC' && line.measurementCode === 'KITCHEN_APPLIANCE_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'KITCHENETTE_SINK_STD' && line.measurementCode === 'KITCHEN_SINK_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'KITCHENETTE_TAPWARE_STD' && line.measurementCode === 'KITCHEN_TAPWARE_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'WALL_TILE_KITCHEN_SPLASHBACK' && line.measurementCode === 'BACKSPLASH_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'PLUMBING_WET_ROOM_PLUS' && line.measurementCode === 'PLUMBING_WET_POINTS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'DRAINAGE_WET_ROOM_PLUS' && line.measurementCode === 'DRAINAGE_WET_POINTS'
     )
   );
   assert(
@@ -924,6 +1138,18 @@ async function run() {
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PAINT_WALL_STD_M2'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PAINT_CEILING_STD_M2'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_WET_AREA_WATERPROOFING_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_BATH_SHOWER_TRAY_STD_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_BATH_SCREEN_STD_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_BATH_VANITY_STD_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_BATH_TAPWARE_PLUS_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_KITCHENETTE_CABINET_LOW_STD_ML'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_KITCHENETTE_CABINET_HIGH_STD_ML'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_KITCHENETTE_COUNTERTOP_PLUS_ML'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_KITCHENETTE_APPLIANCE_PACK_BASIC_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_KITCHENETTE_SINK_STD_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_KITCHENETTE_TAPWARE_STD_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PLUMBING_WET_ROOM_PLUS_PT'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_DRAINAGE_WET_ROOM_PLUS_PT'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_MECHANISMS_STD_PT'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_PANEL_BASIC_UD'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PLUMBING_WET_ROOM_STD_PT'));
@@ -951,7 +1177,7 @@ async function run() {
     inferredPricing.lines.some(
       (line) =>
         line.solutionCode === 'KITCHENETTE_120_BASIC' &&
-        line.materialPricing.some((material) => material.priceSource === 'PREFERRED_SUPPLIER')
+        line.materialPricing.some((material) => ['PREFERRED_SUPPLIER', 'SUPPLIER_OFFER'].includes(material.priceSource))
     )
   );
   assert(
@@ -1028,6 +1254,90 @@ async function run() {
     inferredPricing.lines.some(
       (line) =>
         line.solutionCode === 'ELECTRICAL_PANEL_BASIC' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'BATH_SHOWER_TRAY_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'BATH_SCREEN_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'BATH_VANITY_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'BATH_TAPWARE_PLUS' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_CABINET_LOW_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_CABINET_HIGH_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_COUNTERTOP_PLUS' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_APPLIANCE_PACK_BASIC' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_SINK_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'KITCHENETTE_TAPWARE_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'PLUMBING_WET_ROOM_PLUS' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'DRAINAGE_WET_ROOM_PLUS' &&
         line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
     )
   );
@@ -1317,6 +1627,48 @@ async function run() {
     )
   );
 
+  const wetTileFull = JSON.parse(JSON.stringify(measured));
+  wetTileFull.technicalSpecModel.instanceSpecs['bath-1'].selections.wallTileSolution = 'WALL_TILE_WET_FULL';
+  const wetTileFullInput = deriveInputFromSession(wetTileFull, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    wetTileFullInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'WALL_TILE_WET_FULL' && line.measurementCode === 'WET_WALL_TILE_AREA'
+    )
+  );
+  assert(
+    wetTileFullInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_WALL_TILE_WET_FULL_M2'
+    )
+  );
+
+  const waterproofPlus = JSON.parse(JSON.stringify(measured));
+  waterproofPlus.technicalSpecModel.instanceSpecs['bath-1'].selections.waterproofingSolution = 'WET_AREA_WATERPROOFING_PLUS';
+  const waterproofPlusInput = deriveInputFromSession(waterproofPlus, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    waterproofPlusInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'WET_AREA_WATERPROOFING_PLUS' && line.measurementCode === 'WET_WATERPROOFING_AREA'
+    )
+  );
+  assert(
+    waterproofPlusInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_WET_AREA_WATERPROOFING_PLUS_M2'
+    )
+  );
+
+  const bathtubBath = JSON.parse(JSON.stringify(measured));
+  bathtubBath.technicalSpecModel.instanceSpecs['bath-1'].selections.bathShowerBaseSolution = 'BATH_BATHTUB_STD';
+  const bathtubBathInput = deriveInputFromSession(bathtubBath, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    bathtubBathInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'BATH_BATHTUB_STD' && line.measurementCode === 'BATHTUB_UNITS'
+    )
+  );
+  assert(
+    bathtubBathInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_BATH_BATHTUB_STD_UD'
+    )
+  );
+
   const paintWallPlus = JSON.parse(JSON.stringify(measured));
   paintWallPlus.technicalSpecModel.projectSpecs.selections.wallPaintSolution = 'PAINT_WALL_PLUS';
   const paintWallPlusInput = deriveInputFromSession(paintWallPlus, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
@@ -1424,6 +1776,11 @@ async function run() {
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'WALL_TILE_BATH_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'PAINT_WALL_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'WET_AREA_WATERPROOFING_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'BATH_SHOWER_TRAY_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'BATH_SCREEN_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'KITCHENETTE_COUNTERTOP_PLUS'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'KITCHENETTE_APPLIANCE_PACK_BASIC'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'PLUMBING_WET_ROOM_PLUS'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'PARTITION_PLADUR_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'CEILING_CONTINUOUS_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'ELECTRICAL_ROOM_STD'));
@@ -1513,6 +1870,31 @@ async function run() {
   assert(
     canonicalProcurementProjection.procurementLines.some(
       (line) => line.supportedSolutionCodes.includes('WET_AREA_WATERPROOFING_STD')
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('BATH_SHOWER_TRAY_STD') && Boolean(line.supplierOfferId)
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('BATH_SCREEN_STD') && Boolean(line.supplierOfferId)
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('KITCHENETTE_COUNTERTOP_PLUS') && Boolean(line.supplierOfferId)
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('KITCHENETTE_APPLIANCE_PACK_BASIC') && Boolean(line.supplierOfferId)
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('PLUMBING_WET_ROOM_PLUS') && Boolean(line.supplierOfferId)
     )
   );
   const canonicalControlProjection = buildControlProjection({
@@ -2047,7 +2429,86 @@ async function run() {
   assert.equal(convertedLocked.commercialCapabilities.canConvert, false);
   assert.throws(() => assertEstimateCanConvert(convertedLocked), /convertido/);
 
+  const phase3RecipeMaterialCodes = [
+    'MAT_BATH_SHOWER_TRAY_STD',
+    'MAT_BATH_BATHTUB_STD',
+    'MAT_BATH_SCREEN_STD',
+    'MAT_BATH_VANITY_STD',
+    'MAT_BATH_TAPWARE_STD',
+    'MAT_BATH_TAPWARE_PLUS',
+    'MAT_KITCH_CABINET_LOW_STD',
+    'MAT_KITCH_CABINET_HIGH_STD',
+    'MAT_KITCH_COUNTERTOP_STD',
+    'MAT_KITCH_COUNTERTOP_PLUS',
+    'MAT_KITCH_APPLIANCE_PACK_BASIC',
+    'MAT_KITCH_SINK_STD',
+    'MAT_KITCH_TAPWARE_STD',
+    'MAT_WALL_TILE_WET_PARTIAL',
+    'MAT_WALL_TILE_WET_FULL',
+    'MAT_WATERPROOFING_PLUS',
+    'MAT_PLUMBING_WET_ROOM_PLUS',
+    'MAT_DRAINAGE_WET_ROOM_PLUS',
+  ];
+  const explicitBindingCount = phase3RecipeMaterialCodes.filter(
+    (code) => MATERIAL_BINDINGS[code]
+  ).length;
+  const procurementLinkedCount = phase3RecipeMaterialCodes.filter((code) => {
+    const procurementCode = MATERIAL_BINDINGS[code]?.procurementMaterialCode;
+    return procurementCode && procurementLookupOverride[procurementCode];
+  }).length;
+  assert.equal(explicitBindingCount, phase3RecipeMaterialCodes.length);
+  assert.equal(procurementLinkedCount, phase3RecipeMaterialCodes.length);
+
+  const phase3SolutionCodes = [
+    'BATH_SHOWER_TRAY_STD',
+    'BATH_BATHTUB_STD',
+    'BATH_SCREEN_STD',
+    'BATH_VANITY_STD',
+    'BATH_TAPWARE_PLUS',
+    'KITCHENETTE_CABINET_LOW_STD',
+    'KITCHENETTE_CABINET_HIGH_STD',
+    'KITCHENETTE_COUNTERTOP_PLUS',
+    'KITCHENETTE_APPLIANCE_PACK_BASIC',
+    'KITCHENETTE_SINK_STD',
+    'KITCHENETTE_TAPWARE_STD',
+    'WALL_TILE_WET_FULL',
+    'WET_AREA_WATERPROOFING_PLUS',
+    'PLUMBING_WET_ROOM_PLUS',
+    'DRAINAGE_WET_ROOM_PLUS',
+  ];
+  const phase3InferredLines = inferredPricing.lines.filter(
+    (line) =>
+      phase3SolutionCodes.includes(line.solutionCode) &&
+      line.priceStatus === 'PRICE_INFERRED'
+  );
+  assert(
+    phase3InferredLines.every(
+      (line) =>
+        line.materialPricing.every((material) =>
+          ['SUPPLIER_OFFER', 'PREFERRED_SUPPLIER', 'CATALOG_REFERENCE'].includes(material.priceSource)
+        ) &&
+        line.laborPricing.some((labor) =>
+          ['PARAMETRIC_REFERENCE', 'CATALOG_REFERENCE'].includes(labor.priceSource)
+        )
+    )
+  );
+
   console.log('Discovery integration tests passed.');
+  console.log(
+    JSON.stringify(
+      {
+        phase3PricingBindingStats: {
+          explicitBindingCount,
+          procurementLinkedCount,
+          inferredLineSolutionCodes: Array.from(
+            new Set(phase3InferredLines.map((line) => line.solutionCode))
+          ),
+        },
+      },
+      null,
+      2
+    )
+  );
 }
 
 run().catch((error) => {

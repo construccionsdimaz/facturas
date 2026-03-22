@@ -17,7 +17,18 @@ type RecipeMeasurementCode =
   | 'ROOM_UNIT'
   | 'BATH_AREA'
   | 'BATH_UNIT'
+  | 'SHOWER_TRAY_UNITS'
+  | 'BATHTUB_UNITS'
+  | 'SHOWER_SCREEN_UNITS'
+  | 'VANITY_UNITS'
+  | 'BATH_TAPWARE_UNITS'
   | 'KITCHENETTE_LENGTH'
+  | 'KITCHEN_CABINET_LOW_LENGTH'
+  | 'KITCHEN_CABINET_HIGH_LENGTH'
+  | 'COUNTERTOP_LENGTH'
+  | 'KITCHEN_APPLIANCE_UNITS'
+  | 'KITCHEN_SINK_UNITS'
+  | 'KITCHEN_TAPWARE_UNITS'
   | 'LEVELING_AREA'
   | 'COMMON_AREA'
   | 'PARTITION_WALL_AREA'
@@ -32,9 +43,12 @@ type RecipeMeasurementCode =
   | 'PLUMBING_POINTS'
   | 'DRAINAGE_POINTS'
   | 'WALL_TILE_AREA'
+  | 'BACKSPLASH_AREA'
+  | 'WET_WALL_TILE_AREA'
   | 'PAINT_WALL_AREA'
   | 'PAINT_CEILING_AREA'
   | 'WATERPROOFING_AREA'
+  | 'WET_WATERPROOFING_AREA'
   | 'LINING_WALL_AREA'
   | 'ELECTRICAL_MECHANISMS_COUNT'
   | 'ELECTRICAL_PANEL_UNITS'
@@ -69,8 +83,21 @@ const RECIPE_MAPPING_TABLE: Partial<Record<MappingKey, RecipeCode>> = {
   'BATH_STD_COMPACT:BATH_AREA': 'RECIPE_BATH_STD_COMPACT_M2',
   'BATH_STD_MEDIUM:BATH_AREA': 'RECIPE_BATH_STD_MEDIUM_M2',
   'BATH_ADAPTED:BATH_AREA': 'RECIPE_BATH_ADAPTED_M2',
+  'BATH_SHOWER_TRAY_STD:SHOWER_TRAY_UNITS': 'RECIPE_BATH_SHOWER_TRAY_STD_UD',
+  'BATH_BATHTUB_STD:BATHTUB_UNITS': 'RECIPE_BATH_BATHTUB_STD_UD',
+  'BATH_SCREEN_STD:SHOWER_SCREEN_UNITS': 'RECIPE_BATH_SCREEN_STD_UD',
+  'BATH_VANITY_STD:VANITY_UNITS': 'RECIPE_BATH_VANITY_STD_UD',
+  'BATH_TAPWARE_STD:BATH_TAPWARE_UNITS': 'RECIPE_BATH_TAPWARE_STD_UD',
+  'BATH_TAPWARE_PLUS:BATH_TAPWARE_UNITS': 'RECIPE_BATH_TAPWARE_PLUS_UD',
   'KITCHENETTE_120_BASIC:KITCHENETTE_LENGTH': 'RECIPE_KITCHENETTE_120_BASIC_ML',
   'KITCHENETTE_180_COMPLETE:KITCHENETTE_LENGTH': 'RECIPE_KITCHENETTE_180_COMPLETE_ML',
+  'KITCHENETTE_CABINET_LOW_STD:KITCHEN_CABINET_LOW_LENGTH': 'RECIPE_KITCHENETTE_CABINET_LOW_STD_ML',
+  'KITCHENETTE_CABINET_HIGH_STD:KITCHEN_CABINET_HIGH_LENGTH': 'RECIPE_KITCHENETTE_CABINET_HIGH_STD_ML',
+  'KITCHENETTE_COUNTERTOP_STD:COUNTERTOP_LENGTH': 'RECIPE_KITCHENETTE_COUNTERTOP_STD_ML',
+  'KITCHENETTE_COUNTERTOP_PLUS:COUNTERTOP_LENGTH': 'RECIPE_KITCHENETTE_COUNTERTOP_PLUS_ML',
+  'KITCHENETTE_APPLIANCE_PACK_BASIC:KITCHEN_APPLIANCE_UNITS': 'RECIPE_KITCHENETTE_APPLIANCE_PACK_BASIC_UD',
+  'KITCHENETTE_SINK_STD:KITCHEN_SINK_UNITS': 'RECIPE_KITCHENETTE_SINK_STD_UD',
+  'KITCHENETTE_TAPWARE_STD:KITCHEN_TAPWARE_UNITS': 'RECIPE_KITCHENETTE_TAPWARE_STD_UD',
   'LEVELING_LIGHT:LEVELING_AREA': 'RECIPE_LEVELING_LIGHT_M2',
   'LEVELING_MEDIUM:LEVELING_AREA': 'RECIPE_LEVELING_MEDIUM_M2',
   'COMMON_AREA_BASIC:COMMON_AREA': 'RECIPE_COMMON_AREA_BASIC_M2',
@@ -97,11 +124,14 @@ const RECIPE_MAPPING_TABLE: Partial<Record<MappingKey, RecipeCode>> = {
   'DRAINAGE_POINT_STD:DRAINAGE_POINTS': 'RECIPE_DRAINAGE_POINT_STD_PT',
   'WALL_TILE_BATH_STD:WALL_TILE_AREA': 'RECIPE_WALL_TILE_BATH_STD_M2',
   'WALL_TILE_BATH_PLUS:WALL_TILE_AREA': 'RECIPE_WALL_TILE_BATH_PLUS_M2',
-  'WALL_TILE_KITCHEN_SPLASHBACK:WALL_TILE_AREA': 'RECIPE_WALL_TILE_KITCHEN_SPLASHBACK_M2',
+  'WALL_TILE_KITCHEN_SPLASHBACK:BACKSPLASH_AREA': 'RECIPE_WALL_TILE_KITCHEN_SPLASHBACK_M2',
+  'WALL_TILE_WET_PARTIAL:WET_WALL_TILE_AREA': 'RECIPE_WALL_TILE_WET_PARTIAL_M2',
+  'WALL_TILE_WET_FULL:WET_WALL_TILE_AREA': 'RECIPE_WALL_TILE_WET_FULL_M2',
   'PAINT_WALL_STD:PAINT_WALL_AREA': 'RECIPE_PAINT_WALL_STD_M2',
   'PAINT_WALL_PLUS:PAINT_WALL_AREA': 'RECIPE_PAINT_WALL_PLUS_M2',
   'PAINT_CEILING_STD:PAINT_CEILING_AREA': 'RECIPE_PAINT_CEILING_STD_M2',
   'WET_AREA_WATERPROOFING_STD:WATERPROOFING_AREA': 'RECIPE_WET_AREA_WATERPROOFING_STD_M2',
+  'WET_AREA_WATERPROOFING_PLUS:WET_WATERPROOFING_AREA': 'RECIPE_WET_AREA_WATERPROOFING_PLUS_M2',
   'PARTITION_LINING_STD:LINING_WALL_AREA': 'RECIPE_PARTITION_LINING_STD_M2',
   'CEILING_CONTINUOUS_PLUS:CEILING_AREA': 'RECIPE_CEILING_CONTINUOUS_PLUS_M2',
   'DOOR_SLIDING_STD:DOOR_UNITS': 'RECIPE_DOOR_SLIDING_STD_UD',
@@ -111,6 +141,8 @@ const RECIPE_MAPPING_TABLE: Partial<Record<MappingKey, RecipeCode>> = {
   'ELECTRICAL_PANEL_BASIC:ELECTRICAL_PANEL_UNITS': 'RECIPE_ELECTRICAL_PANEL_BASIC_UD',
   'PLUMBING_WET_ROOM_STD:PLUMBING_WET_POINTS': 'RECIPE_PLUMBING_WET_ROOM_STD_PT',
   'DRAINAGE_WET_ROOM_STD:DRAINAGE_WET_POINTS': 'RECIPE_DRAINAGE_WET_ROOM_STD_PT',
+  'PLUMBING_WET_ROOM_PLUS:PLUMBING_WET_POINTS': 'RECIPE_PLUMBING_WET_ROOM_PLUS_PT',
+  'DRAINAGE_WET_ROOM_PLUS:DRAINAGE_WET_POINTS': 'RECIPE_DRAINAGE_WET_ROOM_PLUS_PT',
 };
 
 const AUXILIARY_MEASUREMENT_CODES = new Set<RecipeMeasurementCode>(['ROOM_UNIT', 'BATH_UNIT']);
@@ -203,6 +235,60 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
       { laborCode: 'LAB_BATH_ADAPTED', description: 'Mano de obra bano adaptado', quantityPerUnit: 1.7, unit: 'h' },
     ],
   },
+  RECIPE_BATH_SHOWER_TRAY_STD_UD: {
+    recipeCode: 'RECIPE_BATH_SHOWER_TRAY_STD_UD',
+    description: 'Plato de ducha estandar por unidad',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_BATH_SHOWER_TRAY_STD', description: 'Plato de ducha estandar', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_BATH_SHOWER_TRAY_STD', description: 'Montaje plato de ducha estandar', quantityPerUnit: 1.1, unit: 'h' }],
+  },
+  RECIPE_BATH_BATHTUB_STD_UD: {
+    recipeCode: 'RECIPE_BATH_BATHTUB_STD_UD',
+    description: 'Banera basica por unidad',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_BATH_BATHTUB_STD', description: 'Banera basica', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_BATH_BATHTUB_STD', description: 'Montaje banera basica', quantityPerUnit: 1.45, unit: 'h' }],
+  },
+  RECIPE_BATH_SCREEN_STD_UD: {
+    recipeCode: 'RECIPE_BATH_SCREEN_STD_UD',
+    description: 'Mampara estandar por unidad',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_BATH_SCREEN_STD', description: 'Mampara estandar', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_BATH_SCREEN_STD', description: 'Montaje mampara estandar', quantityPerUnit: 0.65, unit: 'h' }],
+  },
+  RECIPE_BATH_VANITY_STD_UD: {
+    recipeCode: 'RECIPE_BATH_VANITY_STD_UD',
+    description: 'Mueble lavabo estandar por unidad',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_BATH_VANITY_STD', description: 'Mueble lavabo estandar', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_BATH_VANITY_STD', description: 'Montaje mueble lavabo estandar', quantityPerUnit: 0.72, unit: 'h' }],
+  },
+  RECIPE_BATH_TAPWARE_STD_UD: {
+    recipeCode: 'RECIPE_BATH_TAPWARE_STD_UD',
+    description: 'Griferia bano estandar por unidad',
+    unit: 'ud',
+    wasteFactor: 0.01,
+    indirectFactor: 0.07,
+    materials: [{ materialCode: 'MAT_BATH_TAPWARE_STD', description: 'Juego de griferia bano estandar', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_BATH_TAPWARE_STD', description: 'Montaje griferia bano estandar', quantityPerUnit: 0.42, unit: 'h' }],
+  },
+  RECIPE_BATH_TAPWARE_PLUS_UD: {
+    recipeCode: 'RECIPE_BATH_TAPWARE_PLUS_UD',
+    description: 'Griferia bano plus por unidad',
+    unit: 'ud',
+    wasteFactor: 0.01,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_BATH_TAPWARE_PLUS', description: 'Juego de griferia bano plus', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_BATH_TAPWARE_PLUS', description: 'Montaje griferia bano plus', quantityPerUnit: 0.46, unit: 'h' }],
+  },
   RECIPE_KITCHENETTE_120_BASIC_ML: {
     recipeCode: 'RECIPE_KITCHENETTE_120_BASIC_ML',
     description: 'Kitchenette 120 basica por metro lineal',
@@ -235,6 +321,69 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
     labor: [
       { laborCode: 'LAB_KITCH_COMPLETE', description: 'Montaje kitchenette completa', quantityPerUnit: 1.45, unit: 'h' },
     ],
+  },
+  RECIPE_KITCHENETTE_CABINET_LOW_STD_ML: {
+    recipeCode: 'RECIPE_KITCHENETTE_CABINET_LOW_STD_ML',
+    description: 'Mueble bajo cocina por metro lineal',
+    unit: 'ml',
+    wasteFactor: 0.04,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_KITCH_CABINET_LOW_STD', description: 'Mueble bajo cocina estandar', quantityPerUnit: 1, unit: 'ml' }],
+    labor: [{ laborCode: 'LAB_KITCH_CABINET_LOW_STD', description: 'Montaje mueble bajo cocina', quantityPerUnit: 0.68, unit: 'h' }],
+  },
+  RECIPE_KITCHENETTE_CABINET_HIGH_STD_ML: {
+    recipeCode: 'RECIPE_KITCHENETTE_CABINET_HIGH_STD_ML',
+    description: 'Mueble alto cocina por metro lineal',
+    unit: 'ml',
+    wasteFactor: 0.04,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_KITCH_CABINET_HIGH_STD', description: 'Mueble alto cocina estandar', quantityPerUnit: 1, unit: 'ml' }],
+    labor: [{ laborCode: 'LAB_KITCH_CABINET_HIGH_STD', description: 'Montaje mueble alto cocina', quantityPerUnit: 0.74, unit: 'h' }],
+  },
+  RECIPE_KITCHENETTE_COUNTERTOP_STD_ML: {
+    recipeCode: 'RECIPE_KITCHENETTE_COUNTERTOP_STD_ML',
+    description: 'Encimera cocina estandar por metro lineal',
+    unit: 'ml',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_KITCH_COUNTERTOP_STD', description: 'Encimera cocina estandar', quantityPerUnit: 1, unit: 'ml' }],
+    labor: [{ laborCode: 'LAB_KITCH_COUNTERTOP_STD', description: 'Montaje encimera cocina estandar', quantityPerUnit: 0.36, unit: 'h' }],
+  },
+  RECIPE_KITCHENETTE_COUNTERTOP_PLUS_ML: {
+    recipeCode: 'RECIPE_KITCHENETTE_COUNTERTOP_PLUS_ML',
+    description: 'Encimera cocina mejorada por metro lineal',
+    unit: 'ml',
+    wasteFactor: 0.03,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_KITCH_COUNTERTOP_PLUS', description: 'Encimera cocina mejorada', quantityPerUnit: 1, unit: 'ml' }],
+    labor: [{ laborCode: 'LAB_KITCH_COUNTERTOP_PLUS', description: 'Montaje encimera cocina mejorada', quantityPerUnit: 0.4, unit: 'h' }],
+  },
+  RECIPE_KITCHENETTE_APPLIANCE_PACK_BASIC_UD: {
+    recipeCode: 'RECIPE_KITCHENETTE_APPLIANCE_PACK_BASIC_UD',
+    description: 'Pack de electrodomesticos basico por unidad',
+    unit: 'ud',
+    wasteFactor: 0.01,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_KITCH_APPLIANCE_PACK_BASIC', description: 'Pack electrodomesticos basico', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_KITCH_APPLIANCE_PACK_BASIC', description: 'Montaje pack electrodomesticos basico', quantityPerUnit: 0.8, unit: 'h' }],
+  },
+  RECIPE_KITCHENETTE_SINK_STD_UD: {
+    recipeCode: 'RECIPE_KITCHENETTE_SINK_STD_UD',
+    description: 'Fregadero cocina estandar por unidad',
+    unit: 'ud',
+    wasteFactor: 0.01,
+    indirectFactor: 0.07,
+    materials: [{ materialCode: 'MAT_KITCH_SINK_STD', description: 'Fregadero cocina estandar', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_KITCH_SINK_STD', description: 'Montaje fregadero cocina estandar', quantityPerUnit: 0.46, unit: 'h' }],
+  },
+  RECIPE_KITCHENETTE_TAPWARE_STD_UD: {
+    recipeCode: 'RECIPE_KITCHENETTE_TAPWARE_STD_UD',
+    description: 'Griferia cocina estandar por unidad',
+    unit: 'ud',
+    wasteFactor: 0.01,
+    indirectFactor: 0.07,
+    materials: [{ materialCode: 'MAT_KITCH_TAPWARE_STD', description: 'Griferia cocina estandar', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_KITCH_TAPWARE_STD', description: 'Montaje griferia cocina estandar', quantityPerUnit: 0.34, unit: 'h' }],
   },
   RECIPE_LEVELING_LIGHT_M2: {
     recipeCode: 'RECIPE_LEVELING_LIGHT_M2',
@@ -533,6 +682,24 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
     materials: [{ materialCode: 'MAT_WALL_TILE_KITCH_SPLASHBACK', description: 'Revestimiento frente cocina', quantityPerUnit: 1.05, unit: 'm2' }],
     labor: [{ laborCode: 'LAB_WALL_TILE_KITCH_SPLASHBACK', description: 'Colocacion frente cocina', quantityPerUnit: 0.55, unit: 'h' }],
   },
+  RECIPE_WALL_TILE_WET_PARTIAL_M2: {
+    recipeCode: 'RECIPE_WALL_TILE_WET_PARTIAL_M2',
+    description: 'Alicatado humedo parcial por m2',
+    unit: 'm2',
+    wasteFactor: 0.08,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_WALL_TILE_WET_PARTIAL', description: 'Revestimiento humedo parcial', quantityPerUnit: 1.05, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WALL_TILE_WET_PARTIAL', description: 'Colocacion alicatado humedo parcial', quantityPerUnit: 0.58, unit: 'h' }],
+  },
+  RECIPE_WALL_TILE_WET_FULL_M2: {
+    recipeCode: 'RECIPE_WALL_TILE_WET_FULL_M2',
+    description: 'Alicatado humedo completo por m2',
+    unit: 'm2',
+    wasteFactor: 0.09,
+    indirectFactor: 0.11,
+    materials: [{ materialCode: 'MAT_WALL_TILE_WET_FULL', description: 'Revestimiento humedo completo', quantityPerUnit: 1.06, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WALL_TILE_WET_FULL', description: 'Colocacion alicatado humedo completo', quantityPerUnit: 0.68, unit: 'h' }],
+  },
   RECIPE_PAINT_WALL_STD_M2: {
     recipeCode: 'RECIPE_PAINT_WALL_STD_M2',
     description: 'Pintura pared estandar por m2',
@@ -568,6 +735,15 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
     indirectFactor: 0.09,
     materials: [{ materialCode: 'MAT_WATERPROOFING_STD', description: 'Lamina/liquido impermeabilizante ligero', quantityPerUnit: 1.05, unit: 'm2' }],
     labor: [{ laborCode: 'LAB_WATERPROOFING_STD', description: 'Aplicacion impermeabilizacion ligera', quantityPerUnit: 0.24, unit: 'h' }],
+  },
+  RECIPE_WET_AREA_WATERPROOFING_PLUS_M2: {
+    recipeCode: 'RECIPE_WET_AREA_WATERPROOFING_PLUS_M2',
+    description: 'Impermeabilizacion humeda reforzada por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_WATERPROOFING_PLUS', description: 'Impermeabilizacion humeda reforzada', quantityPerUnit: 1.08, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WATERPROOFING_PLUS', description: 'Aplicacion impermeabilizacion humeda reforzada', quantityPerUnit: 0.29, unit: 'h' }],
   },
   RECIPE_PARTITION_LINING_STD_M2: {
     recipeCode: 'RECIPE_PARTITION_LINING_STD_M2',
@@ -657,6 +833,24 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
     indirectFactor: 0.09,
     materials: [{ materialCode: 'MAT_DRAINAGE_WET_ROOM_STD', description: 'Material saneamiento zona humeda', quantityPerUnit: 1, unit: 'pt' }],
     labor: [{ laborCode: 'LAB_DRAINAGE_WET_ROOM_STD', description: 'Montaje saneamiento zona humeda', quantityPerUnit: 0.44, unit: 'h' }],
+  },
+  RECIPE_PLUMBING_WET_ROOM_PLUS_PT: {
+    recipeCode: 'RECIPE_PLUMBING_WET_ROOM_PLUS_PT',
+    description: 'Punto humedo de fontaneria reforzado por punto',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_PLUMBING_WET_ROOM_PLUS', description: 'Material fontaneria humeda reforzada', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_PLUMBING_WET_ROOM_PLUS', description: 'Montaje fontaneria humeda reforzada', quantityPerUnit: 0.56, unit: 'h' }],
+  },
+  RECIPE_DRAINAGE_WET_ROOM_PLUS_PT: {
+    recipeCode: 'RECIPE_DRAINAGE_WET_ROOM_PLUS_PT',
+    description: 'Punto humedo de saneamiento reforzado por punto',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_DRAINAGE_WET_ROOM_PLUS', description: 'Material saneamiento humedo reforzado', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_DRAINAGE_WET_ROOM_PLUS', description: 'Montaje saneamiento humedo reforzado', quantityPerUnit: 0.5, unit: 'h' }],
   },
 };
 

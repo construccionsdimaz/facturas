@@ -63,6 +63,14 @@ function requiresDrainageSpec(space: ResolvedSpace) {
   return (((space.measurementDrivers.sanitaryFixturesCount || 0) > 0 || space.areaType === 'BANO' || space.areaType === 'COCINA') && hasWorkCode(space, 'SANEAMIENTO')) || hasAction(space, 'RENOVAR_INSTALACION_SANEAMIENTO');
 }
 
+function hasBathScope(space: ResolvedSpace) {
+  return space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom;
+}
+
+function hasKitchenScope(space: ResolvedSpace) {
+  return space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette;
+}
+
 function getParentInstance(space: ResolvedSpace, sessionData: DiscoverySessionData) {
   if (!space.parentSpaceId) return null;
   return sessionData.spatialModel.instances.find(
@@ -157,12 +165,40 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('selections.roomSolution');
   }
 
-  if ((space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom) && !merged.selections.bathSolution) {
+  if (hasBathScope(space) && !merged.selections.bathSolution) {
     assumedFields.push('selections.bathSolution');
   }
 
-  if ((space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette) && !merged.selections.kitchenetteSolution) {
+  if (hasKitchenScope(space) && !merged.selections.kitchenetteSolution) {
     assumedFields.push('selections.kitchenetteSolution');
+  }
+
+  if (hasBathScope(space) && merged.selections.bathShowerBaseSolution && !merged.counts?.bathShowerBaseCount) {
+    assumedFields.push('counts.bathShowerBaseCount');
+  }
+
+  if (hasBathScope(space) && merged.selections.bathScreenSolution && !merged.counts?.bathScreenCount) {
+    assumedFields.push('counts.bathScreenCount');
+  }
+
+  if (hasBathScope(space) && merged.selections.bathVanitySolution && !merged.counts?.bathVanityCount) {
+    assumedFields.push('counts.bathVanityCount');
+  }
+
+  if (hasBathScope(space) && merged.selections.bathTapwareSolution && !merged.counts?.bathTapwareCount) {
+    assumedFields.push('counts.bathTapwareCount');
+  }
+
+  if (hasKitchenScope(space) && merged.selections.kitchenetteApplianceSolution && !merged.counts?.kitchenetteAppliancePackCount) {
+    assumedFields.push('counts.kitchenetteAppliancePackCount');
+  }
+
+  if (hasKitchenScope(space) && merged.selections.kitchenetteSinkSolution && !merged.counts?.kitchenetteSinkCount) {
+    assumedFields.push('counts.kitchenetteSinkCount');
+  }
+
+  if (hasKitchenScope(space) && merged.selections.kitchenetteTapwareSolution && !merged.counts?.kitchenetteTapwareCount) {
+    assumedFields.push('counts.kitchenetteTapwareCount');
   }
 
   if (space.features.requiresLeveling && !merged.selections.levelingSolution) {
@@ -260,20 +296,22 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('dimensions.roomAreaM2');
   }
 
-  if (
-    (space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom) &&
-    !merged.dimensions?.bathAreaM2 &&
-    !space.measurementDrivers.areaM2
-  ) {
+  if (hasBathScope(space) && !merged.dimensions?.bathAreaM2 && !space.measurementDrivers.areaM2) {
     assumedFields.push('dimensions.bathAreaM2');
   }
 
+  if (hasKitchenScope(space) && !merged.dimensions?.kitchenetteLinearMeters && !space.measurementDrivers.linearMeters) {
+    assumedFields.push('dimensions.kitchenetteLinearMeters');
+  }
+
   if (
-    (space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette) &&
+    hasKitchenScope(space) &&
+    merged.selections.kitchenetteCountertopSolution &&
+    !merged.dimensions?.countertopLengthMl &&
     !merged.dimensions?.kitchenetteLinearMeters &&
     !space.measurementDrivers.linearMeters
   ) {
-    assumedFields.push('dimensions.kitchenetteLinearMeters');
+    assumedFields.push('dimensions.countertopLengthMl');
   }
 
   if (
@@ -297,6 +335,30 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('dimensions.wallTileAreaM2');
   }
 
+  if (
+    requiresWallFinishSpec(space) &&
+    merged.options?.includeWallTile &&
+    merged.selections.wallTileSolution &&
+    ['WALL_TILE_WET_PARTIAL', 'WALL_TILE_WET_FULL'].includes(merged.selections.wallTileSolution) &&
+    !merged.dimensions?.wetWallTileAreaM2 &&
+    !merged.dimensions?.wallTileAreaM2 &&
+    !space.measurementDrivers.tilingSurfaceM2 &&
+    !space.measurementDrivers.wallSurfaceM2
+  ) {
+    assumedFields.push('dimensions.wetWallTileAreaM2');
+  }
+
+  if (
+    hasKitchenScope(space) &&
+    merged.selections.wallTileSolution === 'WALL_TILE_KITCHEN_SPLASHBACK' &&
+    !merged.dimensions?.backsplashAreaM2 &&
+    !merged.dimensions?.wallTileAreaM2 &&
+    !space.measurementDrivers.tilingSurfaceM2 &&
+    !space.measurementDrivers.linearMeters
+  ) {
+    assumedFields.push('dimensions.backsplashAreaM2');
+  }
+
   if (requiresWallFinishSpec(space) && merged.options?.includeWallPaint && !merged.dimensions?.paintWallAreaM2 && !space.measurementDrivers.wallSurfaceM2) {
     assumedFields.push('dimensions.paintWallAreaM2');
   }
@@ -307,6 +369,18 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
 
   if (requiresWaterproofingSpec(space) && merged.options?.includeWaterproofing && !merged.dimensions?.waterproofingAreaM2 && !space.measurementDrivers.tilingSurfaceM2 && !space.measurementDrivers.floorSurfaceM2) {
     assumedFields.push('dimensions.waterproofingAreaM2');
+  }
+
+  if (
+    requiresWaterproofingSpec(space) &&
+    merged.options?.includeWaterproofing &&
+    merged.selections.waterproofingSolution === 'WET_AREA_WATERPROOFING_PLUS' &&
+    !merged.dimensions?.wetWaterproofingAreaM2 &&
+    !merged.dimensions?.waterproofingAreaM2 &&
+    !space.measurementDrivers.tilingSurfaceM2 &&
+    !space.measurementDrivers.floorSurfaceM2
+  ) {
+    assumedFields.push('dimensions.wetWaterproofingAreaM2');
   }
 
   if (requiresPartitionSpec(space) && merged.selections.liningSolution && !merged.dimensions?.liningWallAreaM2 && !space.measurementDrivers.wallSurfaceM2) {
@@ -433,13 +507,43 @@ function isScopeSatisfied(space: ResolvedSpace, spec: ResolvedSpec) {
     applicable.push('room');
     if (!spec.selections.roomSolution) missing.push('room');
   }
-  if (space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom) {
+  if (hasBathScope(space)) {
     applicable.push('bath');
     if (!spec.selections.bathSolution) missing.push('bath');
   }
-  if (space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette) {
+  if (hasKitchenScope(space)) {
     applicable.push('kitchenette');
     if (!spec.selections.kitchenetteSolution) missing.push('kitchenette');
+  }
+  if (hasBathScope(space) && spec.selections.bathShowerBaseSolution) {
+    applicable.push('bathShowerBase');
+  }
+  if (hasBathScope(space) && spec.selections.bathScreenSolution) {
+    applicable.push('bathScreen');
+  }
+  if (hasBathScope(space) && spec.selections.bathVanitySolution) {
+    applicable.push('bathVanity');
+  }
+  if (hasBathScope(space) && spec.selections.bathTapwareSolution) {
+    applicable.push('bathTapware');
+  }
+  if (hasKitchenScope(space) && spec.selections.kitchenetteLowCabinetSolution) {
+    applicable.push('kitchenetteLowCabinet');
+  }
+  if (hasKitchenScope(space) && spec.selections.kitchenetteHighCabinetSolution) {
+    applicable.push('kitchenetteHighCabinet');
+  }
+  if (hasKitchenScope(space) && spec.selections.kitchenetteCountertopSolution) {
+    applicable.push('kitchenetteCountertop');
+  }
+  if (hasKitchenScope(space) && spec.selections.kitchenetteApplianceSolution) {
+    applicable.push('kitchenetteAppliance');
+  }
+  if (hasKitchenScope(space) && spec.selections.kitchenetteSinkSolution) {
+    applicable.push('kitchenetteSink');
+  }
+  if (hasKitchenScope(space) && spec.selections.kitchenetteTapwareSolution) {
+    applicable.push('kitchenetteTapware');
   }
   if (space.features.requiresLeveling) {
     applicable.push('leveling');
