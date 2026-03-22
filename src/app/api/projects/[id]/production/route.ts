@@ -1,12 +1,12 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db as prisma } from '@/lib/db';
 
 export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: projectId } = params;
+    const { id: projectId } = await params;
     
     const logs = await (prisma as any).projectProductionLog.findMany({
       where: { projectId },
@@ -21,11 +21,11 @@ export async function GET(
 }
 
 export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: projectId } = params;
+    const { id: projectId } = await params;
     const data = await request.json();
 
     const log = await (prisma as any).projectProductionLog.create({

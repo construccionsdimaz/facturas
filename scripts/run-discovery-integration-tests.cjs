@@ -68,6 +68,9 @@ async function run() {
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const {
+    copyFloorPatchToTargetFloor,
+  } = require(path.join(srcRoot, 'lib/discovery/technical-spec-bulk.ts'));
+  const {
     applyBulkOfferAction,
     buildOfferCatalogMetrics,
     buildOfferReviewQueue,
@@ -83,6 +86,11 @@ async function run() {
   const { summarizeProjectSourcingPolicyChange } = require(path.join(srcRoot, 'lib/procurement/project-sourcing-policy.ts'));
   const { buildProcurementProjection } = require(path.join(srcRoot, 'lib/procurement/procurement-projection.ts'));
   const { buildControlProjection } = require(path.join(srcRoot, 'lib/control/control-projection.ts'));
+  const {
+    buildTechnicalHierarchyRows,
+    buildTechnicalReviewSummary,
+    buildTechnicalSystemCards,
+  } = require(path.join(srcRoot, 'lib/discovery/technical-spec-ui.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
   const { buildPlanningProjection } = require(path.join(srcRoot, 'lib/planning/planning-projection.ts'));
@@ -1182,6 +1190,26 @@ async function run() {
   assert(wetRecipeLine);
   assert(wetRecipeLine.labor.some((labor) => labor.tradeCode === 'OFICIO_FONTANERO'));
   assert(wetRecipeLine.labor.some((labor) => (labor.productivityFactors || []).length > 0));
+  const technicalSystemCards = buildTechnicalSystemCards({
+    executionContext: measuredInput.executionContext,
+    resolvedSummary: measuredInput.executionContext.resolvedSpecs,
+    measurementResult: measuredInput.measurementResult,
+    pricingResult: measuredInput.pricingResult,
+  });
+  const technicalReviewSummary = buildTechnicalReviewSummary(technicalSystemCards);
+  const technicalHierarchyRows = buildTechnicalHierarchyRows({
+    data: measured,
+    resolvedSummary: measuredInput.executionContext.resolvedSpecs,
+    measurementResult: measuredInput.measurementResult,
+    pricingResult: measuredInput.pricingResult,
+  });
+  assert(technicalSystemCards.some((card) => card.key === 'bathrooms' && card.status !== 'BLOCKED'));
+  assert(technicalSystemCards.some((card) => card.key === 'wallFinishes' && (card.applicableCount > 0 || card.blockedMeasurementCount >= 0)));
+  assert(['LOW', 'MEDIUM', 'HIGH'].includes(technicalReviewSummary.provisionalRisk));
+  assert(technicalHierarchyRows.some((row) => row.level === 'GROUP'));
+  const copiedFloorModel = copyFloorPatchToTargetFloor(structured.technicalSpecModel, 'floor-1', 'floor-2');
+  assert.ok(copiedFloorModel.floorSpecs['floor-2']);
+  assert.ok(copiedFloorModel.floorSpecs['floor-2'].selections);
 
   const inferredPricing = await buildPricingResult(
     measuredInput.recipeResult,

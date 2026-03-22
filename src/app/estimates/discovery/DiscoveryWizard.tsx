@@ -11,6 +11,7 @@ import { deriveInputFromSession } from '@/lib/discovery/derive-input';
 import { evaluateDiscoveryForGenerate } from '@/lib/discovery/guard';
 import { shouldSuggestStructuredMode } from '@/lib/discovery/resolve-spatial-model';
 import { buildDiscoverySummary } from '@/lib/discovery/summary';
+import { buildTechnicalReviewSummary, buildTechnicalSystemCards } from '@/lib/discovery/technical-spec-ui';
 import type {
   AreaActionCode,
   BudgetGoal,
@@ -48,10 +49,12 @@ function SummaryPanel({
   summaryPreview,
   evaluation,
   modelingStrategy,
+  technicalReview,
 }: {
   summaryPreview: ReturnType<typeof buildDiscoverySummary>;
   evaluation: ReturnType<typeof evaluateDiscoveryForGenerate>;
   modelingStrategy?: ModelingStrategy;
+  technicalReview: ReturnType<typeof buildTechnicalReviewSummary>;
 }) {
   return (
     <div className="glass-panel" style={{ padding: '18px', background: 'rgba(255,255,255,0.02)' }}>
@@ -65,10 +68,15 @@ function SummaryPanel({
         <div><strong style={{ color: 'white' }}>Estimado:</strong> {summaryPreview.estimated.length}</div>
         <div><strong style={{ color: 'white' }}>Supuesto:</strong> {summaryPreview.assumed.length}</div>
         <div><strong style={{ color: 'white' }}>Pendiente:</strong> {summaryPreview.pending.length}</div>
+        <div><strong style={{ color: 'white' }}>Sistemas READY:</strong> {technicalReview.readySystems}</div>
+        <div><strong style={{ color: 'white' }}>Sistemas PARTIAL:</strong> {technicalReview.partialSystems}</div>
+        <div><strong style={{ color: 'white' }}>Sistemas BLOCKED:</strong> {technicalReview.blockedSystems}</div>
+        <div><strong style={{ color: 'white' }}>Riesgo provisionalidad:</strong> {technicalReview.provisionalRisk}</div>
       </div>
       {evaluation.blockers.length > 0 && <div style={{ marginTop: '12px', color: '#fca5a5' }}><strong>Bloquea generar:</strong><ul>{evaluation.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></div>}
       {evaluation.warnings.length > 0 && <div style={{ marginTop: '12px', color: '#fcd34d' }}><strong>Avisos:</strong><ul>{evaluation.warnings.map((warning) => <li key={warning.code}>{warning.message}</li>)}</ul></div>}
       {evaluation.assumptions.length > 0 && <div style={{ marginTop: '12px', color: '#93c5fd' }}><strong>Supuestos del sistema:</strong><ul>{evaluation.assumptions.map((assumption) => <li key={assumption.code}>{assumption.message}</li>)}</ul></div>}
+      {technicalReview.blockers.length > 0 && <div style={{ marginTop: '12px', color: '#fca5a5' }}><strong>Huecos tecnicos principales:</strong><ul>{technicalReview.blockers.map((issue) => <li key={issue}>{issue}</li>)}</ul></div>}
     </div>
   );
 }
@@ -208,6 +216,7 @@ export default function DiscoveryWizard() {
   const evaluation = useMemo(() => evaluateDiscoveryForGenerate(sessionData), [sessionData]);
   const derivedPreview = useMemo(() => deriveInputFromSession(sessionData, budgetGoal, precisionMode, evaluation.warnings, evaluation.assumptions, evaluation.confidenceLevel), [budgetGoal, evaluation.assumptions, evaluation.confidenceLevel, evaluation.warnings, precisionMode, sessionData]);
   const summaryPreview = useMemo(() => buildDiscoverySummary(sessionData, evaluation.assumptions, evaluation.warnings, derivedPreview.workType), [derivedPreview.workType, evaluation.assumptions, evaluation.warnings, sessionData]);
+  const technicalReview = useMemo(() => buildTechnicalReviewSummary(buildTechnicalSystemCards({ executionContext: derivedPreview.executionContext, resolvedSummary: derivedPreview.executionContext.resolvedSpecs, measurementResult: derivedPreview.measurementResult, pricingResult: derivedPreview.pricingResult })), [derivedPreview]);
   const selectedAreas = sessionData.areas.filter((area) => area.selected);
   const filteredClients = useMemo(() => {
     const query = clientSearch.trim().toLowerCase();
@@ -431,7 +440,7 @@ export default function DiscoveryWizard() {
         {completionStep === 6 && <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}><div className="formGroup"><label>Restricciones comunidad</label><select className="input-modern" value={String(sessionData.executionConstraints.communityRestrictions)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, communityRestrictions: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Restricciones horarias</label><select className="input-modern" value={String(sessionData.executionConstraints.timeRestrictions)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, timeRestrictions: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Obra por fases</label><select className="input-modern" value={String(sessionData.executionConstraints.worksInPhases)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, worksInPhases: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Urgencia</label><select className="input-modern" value={String(sessionData.executionConstraints.urgent)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, urgent: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Licencia pendiente</label><select className="input-modern" value={String(sessionData.executionConstraints.licensePending)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, licensePending: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Dificultad logística</label><select className="input-modern" value={sessionData.executionConstraints.logisticsDifficulty || 'PENDIENTE'} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, logisticsDifficulty: e.target.value as any } }))}><option value="PENDIENTE">Pendiente</option><option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option><option value="MUY_ALTA">Muy alta</option></select></div></div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>{INCLUSION_FAMILIES.map((family) => <div className="formGroup" key={family}><label>{prettyEnum(family)}</label><select className="input-modern" value={sessionData.inclusions[family as InclusionFamily]} onChange={(e) => updateSession((current) => ({ ...current, inclusions: { ...current.inclusions, [family]: e.target.value as any } }))}><option value="INCLUIDO">Incluido</option><option value="EXCLUIDO">Excluido</option><option value="CLIENTE">Cliente</option><option value="TERCERO">Tercero</option><option value="PENDIENTE">Pendiente</option></select></div>)}</div>
-          <SummaryPanel summaryPreview={summaryPreview} evaluation={evaluation} modelingStrategy={sessionData.modelingStrategy} />
+          <SummaryPanel summaryPreview={summaryPreview} evaluation={evaluation} modelingStrategy={sessionData.modelingStrategy} technicalReview={technicalReview} />
         </div>}
 
         <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
