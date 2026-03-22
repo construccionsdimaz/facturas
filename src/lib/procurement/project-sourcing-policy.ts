@@ -19,6 +19,15 @@ export type ResolvedProjectSourcingPolicy = {
   source: 'PROJECT_OVERRIDE' | 'DEFAULT';
 };
 
+export type ProjectSourcingPolicyHistoryEntry = {
+  id: string;
+  changedAt: string;
+  changedBy?: string | null;
+  previousPolicy: ProjectSourcingPolicy | null;
+  newPolicy: ProjectSourcingPolicy;
+  summaryOfChanges: string;
+};
+
 function isStringArray(value: unknown): value is string[] {
   return Array.isArray(value) && value.every((item) => typeof item === 'string');
 }
@@ -141,4 +150,69 @@ export function resolveProjectSourcingPolicy(params: {
     hasProjectOverride: Boolean(parsedOverride),
     source: parsedOverride ? 'PROJECT_OVERRIDE' : 'DEFAULT',
   };
+}
+
+function equalStringArrays(left?: string[], right?: string[]) {
+  return JSON.stringify(left || []) === JSON.stringify(right || []);
+}
+
+function equalBooleanMaps(
+  left?: Partial<Record<SourcingFamily, boolean>>,
+  right?: Partial<Record<SourcingFamily, boolean>>,
+) {
+  return JSON.stringify(left || {}) === JSON.stringify(right || {});
+}
+
+function equalStringMaps(
+  left?: Partial<Record<SourcingFamily, string[]>>,
+  right?: Partial<Record<SourcingFamily, string[]>>,
+) {
+  return JSON.stringify(left || {}) === JSON.stringify(right || {});
+}
+
+export function summarizeProjectSourcingPolicyChange(params: {
+  previousPolicy?: ProjectSourcingPolicy | null;
+  newPolicy: ProjectSourcingPolicy;
+}) {
+  const previous = params.previousPolicy || null;
+  const next = params.newPolicy;
+  if (!previous) {
+    return 'Se crea un override de sourcing para la obra.';
+  }
+
+  const changes: string[] = [];
+  if (previous.strategy !== next.strategy) {
+    changes.push(`estrategia ${previous.strategy} -> ${next.strategy}`);
+  }
+  if (!equalStringArrays(previous.allowedSupplierNames, next.allowedSupplierNames)) {
+    changes.push('proveedores permitidos actualizados');
+  }
+  if (!equalStringArrays(previous.allowedSupplierIds, next.allowedSupplierIds)) {
+    changes.push('IDs de proveedores permitidos actualizados');
+  }
+  if (!equalStringMaps(previous.preferredSuppliersByFamily, next.preferredSuppliersByFamily)) {
+    changes.push('preferidos por familia actualizados');
+  }
+  if (previous.useOnlyPreferredSuppliers !== next.useOnlyPreferredSuppliers) {
+    changes.push(
+      next.useOnlyPreferredSuppliers
+        ? 'solo preferidos global activado'
+        : 'solo preferidos global desactivado',
+    );
+  }
+  if (!equalBooleanMaps(previous.useOnlyPreferredByFamily, next.useOnlyPreferredByFamily)) {
+    changes.push('solo preferidos por familia actualizado');
+  }
+  if ((previous.zoneHint || null) !== (next.zoneHint || null)) {
+    changes.push(`zoneHint ${previous.zoneHint || 'sin zona'} -> ${next.zoneHint || 'sin zona'}`);
+  }
+  if ((previous.maxLeadTimeDays || null) !== (next.maxLeadTimeDays || null)) {
+    changes.push(
+      `lead time max ${previous.maxLeadTimeDays ?? 'sin limite'} -> ${next.maxLeadTimeDays ?? 'sin limite'}`,
+    );
+  }
+
+  return changes.length > 0
+    ? `Policy actualizada: ${changes.join(', ')}.`
+    : 'Policy guardada sin diferencias materiales respecto al estado previo.';
 }

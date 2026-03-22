@@ -360,9 +360,21 @@ model Project {
   restrictions Restriction[]
   supplies     ProjectSupply[]
   baselines    ProjectBaseline[]
+  sourcingPolicyChanges ProjectSourcingPolicyChange[]
   changeRequests ProjectChangeRequest[]
   learningDeviations LearningDeviation[]
   recalibrationSuggestions RecalibrationSuggestion[]
+}
+
+model ProjectSourcingPolicyChange {
+  id            String   @id @default(cuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changedAt      DateTime @default(now())
+  changedBy      String?
+  previousPolicy Json?
+  newPolicy      Json
+  summaryOfChanges String? @db.Text
 }
 
 model ProjectTypology {

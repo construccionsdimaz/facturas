@@ -63,7 +63,11 @@ async function run() {
     revokeEstimateAcceptance,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
+  const {
+    resolveRecipeMaterialSourcing,
+  } = require(path.join(srcRoot, 'lib/procurement/material-resolution.ts'));
   const { resolveProjectSourcingPolicy } = require(path.join(srcRoot, 'lib/procurement/project-sourcing-policy.ts'));
+  const { summarizeProjectSourcingPolicyChange } = require(path.join(srcRoot, 'lib/procurement/project-sourcing-policy.ts'));
   const { buildProcurementProjection } = require(path.join(srcRoot, 'lib/procurement/procurement-projection.ts'));
   const { buildControlProjection } = require(path.join(srcRoot, 'lib/control/control-projection.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
@@ -1370,6 +1374,7 @@ async function run() {
   const cheapestBathTile = cheapestPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
   assert(cheapestBathTile);
   assert.equal(cheapestBathTile.materialPricing[0].supplierName, 'Ceramica Cheap');
+  assert.equal(cheapestBathTile.materialPricing[0].selectionReasonCode, 'SELECTION_CHEAPEST');
 
   const fastestPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -1385,6 +1390,7 @@ async function run() {
   const fastestBathTile = fastestPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
   assert(fastestBathTile);
   assert.equal(fastestBathTile.materialPricing[0].supplierName, 'Ceramica Fast');
+  assert.equal(fastestBathTile.materialPricing[0].selectionReasonCode, 'SELECTION_FASTEST');
 
   const balancedPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -1400,6 +1406,7 @@ async function run() {
   const balancedBathTile = balancedPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
   assert(balancedBathTile);
   assert.equal(balancedBathTile.materialPricing[0].supplierName, 'Ceramica Preferida');
+  assert.equal(balancedBathTile.materialPricing[0].selectionReasonCode, 'SELECTION_BALANCED_SCORE');
 
   const preferredPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -1421,6 +1428,7 @@ async function run() {
   assert(
     preferredBathTile.materialPricing[0].sourcingReason.includes('proveedor preferido')
   );
+  assert.equal(preferredBathTile.materialPricing[0].selectionReasonCode, 'SELECTION_PREFERRED_MATCH');
 
   const restrictedPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -1437,6 +1445,10 @@ async function run() {
   const restrictedBathTile = restrictedPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
   assert(restrictedBathTile);
   assert.equal(restrictedBathTile.materialPricing[0].priceSource, 'CATALOG_REFERENCE');
+  assert.equal(restrictedBathTile.materialPricing[0].selectionReasonCode, 'SELECTION_FALLBACK_CATALOG_REFERENCE');
+  assert(
+    restrictedBathTile.materialPricing[0].filterReasonCodes.includes('DISCARDED_NOT_ALLOWED_SUPPLIER')
+  );
 
   const resolvedFastestProjectPolicy = resolveProjectSourcingPolicy({
     executionContext: measuredInput.executionContext,
@@ -1498,6 +1510,35 @@ async function run() {
   assert(projectPreferredBathTile);
   assert.equal(projectPreferredBathTile.materialPricing[0].supplierName, 'Ceramica Preferida');
   assert(projectPreferredBathTile.materialPricing[0].sourcingReason.includes('preferido'));
+  assert(
+    projectPreferredBathTile.materialPricing[0].eligibleOffersSummary.every(
+      (offer) => offer.supplierName === 'Ceramica Preferida'
+    )
+  );
+
+  const explainabilityResolution = resolveRecipeMaterialSourcing({
+    materialCode: 'MAT_WALL_TILE_BATH_STD',
+    binding: MATERIAL_BINDINGS.MAT_WALL_TILE_BATH_STD,
+    materialLookup: multiOfferCeramicLookup['ACA-WALL-STD'],
+    preferredSuppliers: preferredSuppliersOverride,
+    policy: {
+      strategy: 'PREFERRED',
+      allowedSupplierNames: ['Ceramica Cheap', 'Ceramica Preferida'],
+      preferredSuppliersByFamily: {
+        CERAMICS: ['Ceramica Preferida'],
+      },
+      useOnlyPreferredByFamily: {
+        CERAMICS: true,
+      },
+    },
+  });
+  assert.equal(explainabilityResolution.selectionReasonCode, 'SELECTION_PREFERRED_MATCH');
+  assert.equal(explainabilityResolution.selectedOffer?.supplierName, 'Ceramica Preferida');
+  assert(
+    explainabilityResolution.discardedOffersSummary.some(
+      (offer) => offer.supplierName === 'Ceramica Cheap' && offer.filterReasonCodes.includes('DISCARDED_NOT_PREFERRED')
+    )
+  );
 
   const confirmedPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -2078,9 +2119,38 @@ async function run() {
     policyDrivenProcurementProjection.procurementLines.some(
       (line) =>
         line.materialCode === 'ACA-WALL-STD' &&
-        line.sourcingStrategy === 'PREFERRED'
+        line.sourcingStrategy === 'PREFERRED' &&
+        line.selectionReasonCode === 'SELECTION_PREFERRED_MATCH'
     )
   );
+  const policyHistorySummary = summarizeProjectSourcingPolicyChange({
+    previousPolicy: {
+      strategy: 'BALANCED',
+      allowedSupplierNames: ['Acabats Mediterrani'],
+      preferredSuppliersByFamily: {
+        CERAMICS: ['Acabats Mediterrani'],
+      },
+      useOnlyPreferredSuppliers: false,
+      useOnlyPreferredByFamily: {},
+      zoneHint: null,
+      maxLeadTimeDays: null,
+    },
+    newPolicy: {
+      strategy: 'FASTEST',
+      allowedSupplierNames: ['Ceramica Fast'],
+      preferredSuppliersByFamily: {
+        CERAMICS: ['Ceramica Fast'],
+      },
+      useOnlyPreferredSuppliers: true,
+      useOnlyPreferredByFamily: {
+        CERAMICS: true,
+      },
+      zoneHint: 'Barcelona',
+      maxLeadTimeDays: 3,
+    },
+  });
+  assert(policyHistorySummary.includes('estrategia BALANCED -> FASTEST'));
+  assert(policyHistorySummary.includes('preferidos por familia actualizados'));
   const canonicalControlProjection = buildControlProjection({
     commercialRuntimeOutput: integratedTechnicalRuntime,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,

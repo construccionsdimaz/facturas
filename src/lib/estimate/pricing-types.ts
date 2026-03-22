@@ -4,6 +4,12 @@ import type {
   SourcingFamily,
   SourcingStrategy,
 } from '@/lib/procurement/sourcing-policy';
+import type {
+  DiscardedOfferSummary,
+  SourcingFilterReasonCode,
+  SourcingOfferSummary,
+  SourcingSelectionReasonCode,
+} from '@/lib/procurement/material-resolution';
 import type { RecipeLaborCode, RecipeMaterialCode } from './recipe-types';
 
 export type PriceStatus =
@@ -29,6 +35,13 @@ export type PricingMaterial = {
   sourcingReason?: string;
   candidateOfferCount?: number;
   eligibleOfferCount?: number;
+  selectionReasonCode?: SourcingSelectionReasonCode;
+  filterReasonCodes?: SourcingFilterReasonCode[];
+  selectedOffer?: SourcingOfferSummary | null;
+  candidateOffersSummary?: SourcingOfferSummary[];
+  eligibleOffersSummary?: SourcingOfferSummary[];
+  discardedOffersSummary?: DiscardedOfferSummary[];
+  sourcingPolicySnapshotApplied?: ProjectSourcingPolicy;
   supplierId?: string;
   supplierName?: string | null;
   supplierOfferId?: string;

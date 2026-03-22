@@ -11,6 +11,12 @@ import { ensureProcurementCatalog } from './catalog';
 import { buildDiscoverySupplyHints, type DiscoverySupplyHint } from './discovery-context';
 import { chooseSupplierOffer } from './sourcing';
 import type { ProjectSourcingPolicy, SourcingStrategy } from './sourcing-policy';
+import type {
+  DiscardedOfferSummary,
+  SourcingFilterReasonCode,
+  SourcingOfferSummary,
+  SourcingSelectionReasonCode,
+} from './material-resolution';
 
 type ProcurementProjectionSource = 'RECIPE_DRIVEN' | 'HYBRID' | 'DISCOVERY_HINTS';
 
@@ -83,6 +89,15 @@ export type ProcurementProjectionLine = {
   priceSource?: PriceSource | 'DISCOVERY_HINT' | 'ACTIVITY_FALLBACK' | null;
   sourcingStrategy?: SourcingStrategy | null;
   sourcingReason?: string | null;
+  selectionReasonCode?: SourcingSelectionReasonCode | null;
+  filterReasonCodes: SourcingFilterReasonCode[];
+  candidateOfferCount: number;
+  eligibleOfferCount: number;
+  selectedOffer?: SourcingOfferSummary | null;
+  candidateOffersSummary: SourcingOfferSummary[];
+  eligibleOffersSummary: SourcingOfferSummary[];
+  discardedOffersSummary: DiscardedOfferSummary[];
+  sourcingPolicySnapshotApplied?: ProjectSourcingPolicy | null;
   generatedFrom: ProcurementLineGeneratedFrom;
   requiredOnSiteDate?: string | null;
   planningLinkage?: ProcurementPlanningLinkage | null;
@@ -317,6 +332,21 @@ function mergeProjectionLine(target: ProcurementProjectionLine, incoming: Procur
   target.supportedSolutionCodes = unique([...target.supportedSolutionCodes, ...incoming.supportedSolutionCodes]);
   target.assumptions = unique([...target.assumptions, ...incoming.assumptions]);
   target.warnings = unique([...target.warnings, ...incoming.warnings]);
+  target.filterReasonCodes = unique([...target.filterReasonCodes, ...incoming.filterReasonCodes]);
+  target.candidateOfferCount = Math.max(target.candidateOfferCount, incoming.candidateOfferCount);
+  target.eligibleOfferCount = Math.max(target.eligibleOfferCount, incoming.eligibleOfferCount);
+  target.candidateOffersSummary = unique([
+    ...target.candidateOffersSummary.map((offer) => JSON.stringify(offer)),
+    ...incoming.candidateOffersSummary.map((offer) => JSON.stringify(offer)),
+  ]).map((value) => JSON.parse(value));
+  target.eligibleOffersSummary = unique([
+    ...target.eligibleOffersSummary.map((offer) => JSON.stringify(offer)),
+    ...incoming.eligibleOffersSummary.map((offer) => JSON.stringify(offer)),
+  ]).map((value) => JSON.parse(value));
+  target.discardedOffersSummary = unique([
+    ...target.discardedOffersSummary.map((offer) => JSON.stringify(offer)),
+    ...incoming.discardedOffersSummary.map((offer) => JSON.stringify(offer)),
+  ]).map((value) => JSON.parse(value));
 
   const currentDate = target.requiredOnSiteDate ? new Date(target.requiredOnSiteDate).getTime() : Number.MAX_SAFE_INTEGER;
   const incomingDate = incoming.requiredOnSiteDate ? new Date(incoming.requiredOnSiteDate).getTime() : Number.MAX_SAFE_INTEGER;
@@ -366,6 +396,25 @@ function activityFallbackLine(
       priceSource: suggestion.offer ? 'SUPPLIER_OFFER' : 'ACTIVITY_FALLBACK',
       sourcingStrategy,
       sourcingReason: suggestion.offer ? suggestion.reason : 'Fallback legacy de actividad sin oferta real.',
+      selectionReasonCode: suggestion.offer ? 'SELECTION_BALANCED_SCORE' : 'SELECTION_MISSING',
+      filterReasonCodes: [],
+      candidateOfferCount: lookup?.offers?.length || 0,
+      eligibleOfferCount: suggestion.offer ? 1 : 0,
+      selectedOffer: suggestion.offer
+        ? {
+            offerId: suggestion.offer.id,
+            supplierId: suggestion.offer.supplier?.id || '',
+            supplierName: suggestion.offer.supplier?.name || null,
+            unitCost: suggestion.offer.unitCost,
+            unit: suggestion.offer.unit,
+            leadTimeDays: suggestion.offer.leadTimeDays,
+            isPreferred: Boolean(suggestion.offer.isPreferred),
+          }
+        : null,
+      candidateOffersSummary: [],
+      eligibleOffersSummary: [],
+      discardedOffersSummary: [],
+      sourcingPolicySnapshotApplied: null,
       generatedFrom: 'LEGACY_ACTIVITY_FALLBACK',
       requiredOnSiteDate: linkage.requiredOnSiteDate,
       planningLinkage: linkage,
@@ -460,6 +509,25 @@ export async function buildProcurementProjection(
         priceSource: pricingMaterial?.priceSource || (fallbackSuggestion.offer ? 'SUPPLIER_OFFER' : null),
         sourcingStrategy: pricingMaterial?.sourcingStrategy || input.sourcingPolicy?.strategy || 'BALANCED',
         sourcingReason: pricingMaterial?.sourcingReason || (fallbackSuggestion.offer ? fallbackSuggestion.reason : null),
+        selectionReasonCode: pricingMaterial?.selectionReasonCode || (fallbackSuggestion.offer ? 'SELECTION_BALANCED_SCORE' : null),
+        filterReasonCodes: pricingMaterial?.filterReasonCodes || [],
+        candidateOfferCount: pricingMaterial?.candidateOfferCount || lookup?.offers?.length || 0,
+        eligibleOfferCount: pricingMaterial?.eligibleOfferCount || (fallbackSuggestion.offer ? 1 : 0),
+        selectedOffer: pricingMaterial?.selectedOffer || (fallbackSuggestion.offer
+          ? {
+              offerId: fallbackSuggestion.offer.id,
+              supplierId: fallbackSuggestion.offer.supplier?.id || '',
+              supplierName: fallbackSuggestion.offer.supplier?.name || null,
+              unitCost: fallbackSuggestion.offer.unitCost,
+              unit: fallbackSuggestion.offer.unit,
+              leadTimeDays: fallbackSuggestion.offer.leadTimeDays,
+              isPreferred: Boolean(fallbackSuggestion.offer.isPreferred),
+            }
+          : null),
+        candidateOffersSummary: pricingMaterial?.candidateOffersSummary || [],
+        eligibleOffersSummary: pricingMaterial?.eligibleOffersSummary || [],
+        discardedOffersSummary: pricingMaterial?.discardedOffersSummary || [],
+        sourcingPolicySnapshotApplied: pricingMaterial?.sourcingPolicySnapshotApplied || input.sourcingPolicy || null,
         generatedFrom: 'RECIPE',
         requiredOnSiteDate: planningLinkage?.requiredOnSiteDate || null,
         planningLinkage,
@@ -526,6 +594,25 @@ export async function buildProcurementProjection(
       priceSource: suggestion.offer ? 'SUPPLIER_OFFER' : 'DISCOVERY_HINT',
       sourcingStrategy: input.sourcingPolicy?.strategy || 'BALANCED',
       sourcingReason: suggestion.offer ? suggestion.reason : 'Necesidad derivada por discovery hint sin oferta elegible.',
+      selectionReasonCode: suggestion.offer ? 'SELECTION_BALANCED_SCORE' : 'SELECTION_MISSING',
+      filterReasonCodes: [],
+      candidateOfferCount: lookup?.offers?.length || 0,
+      eligibleOfferCount: suggestion.offer ? 1 : 0,
+      selectedOffer: suggestion.offer
+        ? {
+            offerId: suggestion.offer.id,
+            supplierId: suggestion.offer.supplier?.id || '',
+            supplierName: suggestion.offer.supplier?.name || null,
+            unitCost: suggestion.offer.unitCost,
+            unit: suggestion.offer.unit,
+            leadTimeDays: suggestion.offer.leadTimeDays,
+            isPreferred: Boolean(suggestion.offer.isPreferred),
+          }
+        : null,
+      candidateOffersSummary: [],
+      eligibleOffersSummary: [],
+      discardedOffersSummary: [],
+      sourcingPolicySnapshotApplied: input.sourcingPolicy || null,
       generatedFrom: 'DISCOVERY_HINT',
       requiredOnSiteDate: planningLinkage?.requiredOnSiteDate || null,
       planningLinkage,
@@ -650,6 +737,9 @@ export function procurementProjectionLineToProjectSupply(
   const observations = [
     `Generado desde procurement projection (${line.generatedFrom}).`,
     line.sourcingReason ? `Sourcing: ${line.sourcingReason}` : null,
+    line.selectionReasonCode ? `Selection reason: ${line.selectionReasonCode}.` : null,
+    `Offers: ${line.eligibleOfferCount}/${line.candidateOfferCount} elegibles.`,
+    line.filterReasonCodes.length ? `Discards: ${line.filterReasonCodes.join(', ')}.` : null,
     line.supportedRecipeLineIds.length
       ? `Recipe lines: ${line.supportedRecipeLineIds.join(', ')}.`
       : null,
@@ -691,7 +781,14 @@ export function procurementProjectionLineToProjectSupply(
     expectedTotalCost: line.expectedTotalCost ?? null,
     suggestedSupplierReason:
       line.priceSource || line.sourcingReason
-        ? [`Fuente de precio: ${line.priceSource || 'N/A'}`, line.sourcingReason].filter(Boolean).join(' | ')
+        ? [
+            `Fuente de precio: ${line.priceSource || 'N/A'}`,
+            `Estrategia: ${line.sourcingStrategy || 'N/A'}`,
+            line.selectionReasonCode ? `Decision: ${line.selectionReasonCode}` : null,
+            `Elegibles: ${line.eligibleOfferCount}/${line.candidateOfferCount}`,
+            line.filterReasonCodes.length ? `Descartes: ${line.filterReasonCodes.join(', ')}` : null,
+            line.sourcingReason,
+          ].filter(Boolean).join(' | ')
         : null,
     scheduleRisk: line.requiredOnSiteDate ? 'PENDIENTE_ANALISIS' : 'SIN_FECHA',
     isCriticalForSchedule: line.generatedFrom === 'RECIPE',

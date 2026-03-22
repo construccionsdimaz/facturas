@@ -79,6 +79,12 @@ type SourcingPolicyResponse = {
   defaultPolicy: ProjectSourcingPolicy;
   hasProjectOverride: boolean;
   source: 'PROJECT_OVERRIDE' | 'DEFAULT';
+  history?: Array<{
+    id: string;
+    changedAt: string;
+    changedBy?: string | null;
+    summaryOfChanges: string;
+  }>;
 };
 
 function emptyPolicy(): ProjectSourcingPolicy {
@@ -522,6 +528,28 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
             </button>
           </div>
         </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <strong style={{ fontSize: '13px' }}>Historial reciente de policy</strong>
+          {policyState?.history?.length ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {policyState.history.map((entry) => (
+                <div key={entry.id} style={{ padding: '10px 12px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '10px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
+                    <strong style={{ fontSize: '12px' }}>{entry.summaryOfChanges}</strong>
+                    <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                      {new Date(entry.changedAt).toLocaleString()} {entry.changedBy ? `| ${entry.changedBy}` : ''}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+              Todavia no hay cambios auditados de policy para esta obra.
+            </div>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
@@ -604,6 +632,11 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
                       )}
                       {s.suggestedSupplierReason && (
                         <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>{s.suggestedSupplierReason}</div>
+                      )}
+                      {s.observations && (
+                        <div style={{ fontSize: '10px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                          {s.observations}
+                        </div>
                       )}
                     </td>
                     <td>
