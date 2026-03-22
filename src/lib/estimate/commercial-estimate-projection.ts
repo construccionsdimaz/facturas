@@ -13,22 +13,28 @@ import type {
   EstimateStatusSnapshot,
   InternalCostSource,
 } from './estimate-status';
+import {
+  buildLegacyStructureScaffold,
+  getCommercialStructureScaffold,
+  matchLegacyProposalLineToBucket,
+  type CommercialLineGeneratedFrom,
+  type IntegratedEstimateBucketCode,
+  type LegacyBucketMatch,
+  type LegacyBucketMatchStrategy,
+} from './estimate-structure-scaffold';
 
-export type IntegratedEstimateBucketCode =
-  | 'ROOMS'
-  | 'BATHS'
-  | 'KITCHENETTES'
-  | 'LEVELING'
-  | 'COMMON_AREAS';
+export type { CommercialLineGeneratedFrom, IntegratedEstimateBucketCode } from './estimate-structure-scaffold';
 
 export type IntegratedEstimateCostBucket = {
   bucketCode: IntegratedEstimateBucketCode;
   source: InternalCostSource;
+  generatedFrom: CommercialLineGeneratedFrom;
   pricingLineIds: string[];
   recipeLineIds: string[];
   measurementLineIds: string[];
   supportedSolutionCodes: VerticalSolutionCode[];
   matchedProposalLineCodes: string[];
+  legacyMatchStrategy: LegacyBucketMatchStrategy;
   materialCost: number;
   laborCost: number;
   indirectCost: number;
@@ -57,6 +63,7 @@ export type CommercialEstimateProjection = {
     internalCost: number | null;
     commercialPrice: number | null;
     costSource: InternalCostSource;
+    generatedFrom: CommercialLineGeneratedFrom;
     supportedSolutionCodes: VerticalSolutionCode[];
     measurementLineIds: string[];
     recipeLineIds: string[];
@@ -84,30 +91,6 @@ type ProjectionInput = {
   estimateStatus: EstimateStatusSnapshot;
 };
 
-const DEFAULT_BUCKET_LABELS: Record<IntegratedEstimateBucketCode, string> = {
-  ROOMS: 'Habitaciones / unidades tipo',
-  BATHS: 'Banos repetitivos',
-  KITCHENETTES: 'Kitchenettes',
-  LEVELING: 'Nivelacion y regularizacion',
-  COMMON_AREAS: 'Zonas comunes',
-};
-
-const DEFAULT_BUCKET_CODES: Record<IntegratedEstimateBucketCode, string> = {
-  ROOMS: 'INT-ROOMS',
-  BATHS: 'INT-BATHS',
-  KITCHENETTES: 'INT-KITCH',
-  LEVELING: 'INT-LEVEL',
-  COMMON_AREAS: 'INT-COMMON',
-};
-
-const DEFAULT_BUCKET_CHAPTERS: Record<IntegratedEstimateBucketCode, string> = {
-  ROOMS: '05 ACABADOS Y EQUIPAMIENTO',
-  BATHS: '05 ACABADOS Y EQUIPAMIENTO',
-  KITCHENETTES: '05 ACABADOS Y EQUIPAMIENTO',
-  LEVELING: '03 ALBANILERIA Y REDISTRIBUCION',
-  COMMON_AREAS: '06 ZONAS COMUNES Y REMATES',
-};
-
 function round(value: number) {
   return Number(value.toFixed(2));
 }
@@ -118,20 +101,6 @@ function bucketFromSolutionCode(solutionCode: string): IntegratedEstimateBucketC
   if (solutionCode.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (solutionCode.startsWith('LEVELING_')) return 'LEVELING';
   if (solutionCode.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
-  return null;
-}
-
-function bucketFromProposalLine(line: GeneratedEstimateLine): IntegratedEstimateBucketCode | null {
-  const code = (line.code || '').toUpperCase();
-  const text = `${line.chapter} ${line.description}`.toUpperCase();
-
-  if (code === 'ACABADOS_HAB' || /HABITACI|UNIDADES|COLIVING/.test(text)) return 'ROOMS';
-  if (code === 'BANOS_REPETITIVOS' || /BANOS|SANITARIOS/.test(text)) return 'BATHS';
-  if (code === 'COCINAS_OFFICE' || /COCINA|KITCHENETTE|OFFICE/.test(text)) return 'KITCHENETTES';
-  if (code === 'ZONAS_COMUNES' || /ZONAS COMUNES|PORTAL|PASILLOS|ESCALERAS/.test(text)) return 'COMMON_AREAS';
-  if (code === 'PAVIMENTOS' || /NIVELACI|REGULARIZACI|PAVIMENT/.test(text)) return 'LEVELING';
-  if (code === 'REDISTRIBUCION' && /REGULARIZACI|NIVELACI/.test(text)) return 'LEVELING';
-
   return null;
 }
 
@@ -169,11 +138,13 @@ function aggregatePricingBuckets(input: ProjectionInput): Map<IntegratedEstimate
     const existing = buckets.get(bucketCode) || {
       bucketCode,
       source: 'PARAMETRIC_MASTER' as InternalCostSource,
+      generatedFrom: 'TECHNICAL' as CommercialLineGeneratedFrom,
       pricingLineIds: [],
       recipeLineIds: [],
       measurementLineIds: [],
       supportedSolutionCodes: [],
       matchedProposalLineCodes: [],
+      legacyMatchStrategy: 'NONE' as LegacyBucketMatchStrategy,
       materialCost: 0,
       laborCost: 0,
       indirectCost: 0,
@@ -278,6 +249,7 @@ function integrateBucketWithParametricLines(
   bucketCode: IntegratedEstimateBucketCode,
   bucket: IntegratedEstimateCostBucket,
   matchedLines: GeneratedEstimateLine[],
+  legacyMatch: LegacyBucketMatch | null,
   globalCommercialFactor: number
 ): GeneratedEstimateLine {
   const parametric = matchedLines.reduce(
@@ -304,8 +276,12 @@ function integrateBucketWithParametricLines(
 
   bucket.source =
     bucket.priceStatus === 'PRICE_PENDING_VALIDATION' ? 'HYBRID' : 'RECIPE_PRICED';
+  bucket.generatedFrom = bucket.source === 'HYBRID' ? 'HYBRID' : 'TECHNICAL';
   bucket.provisional = bucket.source === 'HYBRID';
   bucket.matchedProposalLineCodes = parametric.matchedProposalLineCodes;
+  bucket.legacyMatchStrategy = legacyMatch?.strategy || 'NONE';
+
+  const scaffold = getCommercialStructureScaffold(bucketCode);
 
   const fallbackRatio =
     bucket.priceStatus === 'PRICE_PENDING_VALIDATION'
@@ -325,10 +301,10 @@ function integrateBucketWithParametricLines(
   );
 
   return {
-    chapter: matchedLines[0]?.chapter || DEFAULT_BUCKET_CHAPTERS[bucketCode],
-    code: DEFAULT_BUCKET_CODES[bucketCode],
-    description: `${DEFAULT_BUCKET_LABELS[bucketCode]} integradas desde pricing tecnico${bucket.provisional ? ' (provisional)' : ''}`,
-    unit: 'lot',
+    chapter: scaffold.chapter,
+    code: scaffold.code,
+    description: `${scaffold.description} integradas desde pricing tecnico${bucket.provisional ? ' (provisional)' : ''}`,
+    unit: scaffold.unit,
     quantity: 1,
     commercialPrice,
     internalCost,
@@ -403,101 +379,34 @@ function projectGlobalSource(
 
 export function buildCommercialEstimateProjection(input: ProjectionInput): CommercialEstimateProjection {
   const pricingBuckets = aggregatePricingBuckets(input);
-  const lineBuckets = input.proposal.lines.map((line) => bucketFromProposalLine(line));
-  const matchedLineIndexesByBucket = new Map<IntegratedEstimateBucketCode, number[]>();
-
-  lineBuckets.forEach((bucketCode, index) => {
-    if (!bucketCode) return;
-    const existing = matchedLineIndexesByBucket.get(bucketCode) || [];
-    existing.push(index);
-    matchedLineIndexesByBucket.set(bucketCode, existing);
-  });
+  const legacyScaffold = buildLegacyStructureScaffold(input.proposal);
 
   const resultLines: GeneratedEstimateLine[] = [];
   const integratedBuckets: IntegratedEstimateCostBucket[] = [];
-  const integratedBucketKeys = new Set<IntegratedEstimateBucketCode>();
-  const globalCommercialFactor =
-    input.proposal.summary.internalCost > 0
-      ? input.proposal.summary.commercialSubtotal / input.proposal.summary.internalCost
-      : 1.24;
+  const consumedProposalLineIndexes = new Set<number>();
+  const globalCommercialFactor = legacyScaffold.globalCommercialFactor;
 
-  for (let index = 0; index < input.proposal.lines.length; index += 1) {
-    const line = input.proposal.lines[index];
-    const bucketCode = lineBuckets[index];
-
-    if (!bucketCode) {
-      resultLines.push(asParametricLine(line));
-      continue;
-    }
-
-    const matchedIndexes = matchedLineIndexesByBucket.get(bucketCode) || [];
-    const firstIndex = matchedIndexes[0];
-    const bucket = pricingBuckets.get(bucketCode);
-
-    if (!bucket) {
-      resultLines.push(asParametricLine(line, bucketCode));
-      continue;
-    }
-
-    if (index !== firstIndex) continue;
-
-    const matchedLines = matchedIndexes.map((matchedIndex) => input.proposal.lines[matchedIndex]);
+  for (const [bucketCode, bucket] of pricingBuckets.entries()) {
+    const legacyMatch = legacyScaffold.bucketMatches.get(bucketCode) || null;
+    const matchedLines = legacyMatch?.lines || [];
     const integratedLine = integrateBucketWithParametricLines(
       bucketCode,
       bucket,
       matchedLines,
+      legacyMatch,
       globalCommercialFactor
     );
     resultLines.push(integratedLine);
     integratedBuckets.push(bucket);
-    integratedBucketKeys.add(bucketCode);
+    legacyMatch?.lineIndexes.forEach((index) => consumedProposalLineIndexes.add(index));
   }
 
-  for (const [bucketCode, bucket] of pricingBuckets.entries()) {
-    if (integratedBucketKeys.has(bucketCode)) continue;
+  for (let index = 0; index < input.proposal.lines.length; index += 1) {
+    if (consumedProposalLineIndexes.has(index)) continue;
 
-    const fallbackInternalCost =
-      bucket.totalCost ?? round(bucket.materialCost + bucket.laborCost + bucket.indirectCost);
-    bucket.source =
-      bucket.priceStatus === 'PRICE_PENDING_VALIDATION' ? 'HYBRID' : 'RECIPE_PRICED';
-    bucket.provisional = bucket.source === 'HYBRID';
-
-    resultLines.push({
-      chapter: DEFAULT_BUCKET_CHAPTERS[bucketCode],
-      code: DEFAULT_BUCKET_CODES[bucketCode],
-      description: `${DEFAULT_BUCKET_LABELS[bucketCode]} integradas desde pricing tecnico${bucket.provisional ? ' (provisional)' : ''}`,
-      unit: 'lot',
-      quantity: 1,
-      commercialPrice: round(fallbackInternalCost * globalCommercialFactor),
-      internalCost: fallbackInternalCost,
-      laborHours: 0,
-      laborCost: bucket.laborCost,
-      materialCost: bucket.materialCost,
-      associatedCost: bucket.indirectCost,
-      kind: bucket.provisional ? 'PROVISIONAL' : 'DIRECT',
-      source: input.proposal.source,
-      typologyCode: input.proposal.typologyCode || null,
-      standardActivityCode: null,
-      productivityRateName: null,
-      measurementRule: null,
-      pricingRule: null,
-      appliedAssumptions: {
-        integrationBucket: bucketCode,
-        pricingLineIds: bucket.pricingLineIds,
-        recipeLineIds: bucket.recipeLineIds,
-        measurementLineIds: bucket.measurementLineIds,
-        supportedSolutionCodes: bucket.supportedSolutionCodes,
-        syntheticIntegratedLine: true,
-      },
-      economicStatus: buildEconomicStatus({
-        bucket,
-        priceSource:
-          bucket.priceStatus === 'PRICE_PENDING_VALIDATION'
-            ? 'MISSING'
-            : bucket.dominantPriceSource || 'CATALOG_REFERENCE',
-      }),
-    });
-    integratedBuckets.push(bucket);
+    const line = input.proposal.lines[index];
+    const match = matchLegacyProposalLineToBucket(line);
+    resultLines.push(asParametricLine(line, match?.bucketCode || null));
   }
 
   const updatedSummary = summarizeProposal(resultLines, input.proposal.summary);
@@ -533,6 +442,10 @@ export function buildCommercialEstimateProjection(input: ProjectionInput): Comme
       internalCost: line.internalCost,
       commercialPrice: line.commercialPrice,
       costSource: line.economicStatus.costSource,
+      generatedFrom:
+        integratedBuckets.find((bucket) => bucket.bucketCode === line.economicStatus.bucketCode)
+          ?.generatedFrom ||
+        (line.economicStatus.costSource === 'HYBRID' ? 'HYBRID' : 'LEGACY_FALLBACK'),
       supportedSolutionCodes:
         integratedBuckets.find((bucket) => bucket.bucketCode === line.economicStatus.bucketCode)?.supportedSolutionCodes || [],
       measurementLineIds:
@@ -614,6 +527,7 @@ export function applyCommercialEstimateProjectionToProposal(
       pricingRule: null,
       appliedAssumptions: {
         commercialProjection: true,
+        generatedFrom: line.generatedFrom,
         measurementLineIds: line.measurementLineIds.filter((id) => measurementLineIdSet.has(id)),
         recipeLineIds: line.recipeLineIds.filter((id) => recipeLineIdSet.has(id)),
         pricingLineIds: line.pricingLineIds.filter((id) => pricingLineIdSet.has(id)),

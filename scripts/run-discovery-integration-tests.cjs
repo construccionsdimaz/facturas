@@ -347,6 +347,11 @@ async function run() {
   assert.equal(parametricIntegrated.proposal.commercialEstimateProjection.source, 'PARAMETRIC_FALLBACK');
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.costSource === 'PARAMETRIC_MASTER'));
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.commercialPriceProvisional === false));
+  assert(
+    parametricIntegrated.proposal.commercialEstimateProjection.commercialLines.every(
+      (line) => line.generatedFrom === 'LEGACY_FALLBACK'
+    )
+  );
   const parametricReadiness = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'INCOMPLETE',
     technicalCoveragePercent: 0,
@@ -779,7 +784,10 @@ async function run() {
   assert(integratedTechnical.integratedCostBuckets.length > 0);
   assert(
     integratedTechnical.integratedCostBuckets.some(
-      (bucket) => bucket.bucketCode === 'ROOMS' && bucket.source === 'RECIPE_PRICED'
+      (bucket) =>
+        bucket.bucketCode === 'ROOMS' &&
+        bucket.source === 'RECIPE_PRICED' &&
+        bucket.legacyMatchStrategy === 'CANONICAL_CODE'
     )
   );
   assert(
@@ -789,7 +797,15 @@ async function run() {
   );
   assert(
     integratedTechnical.commercialEstimateProjection.commercialLines.some(
-      (line) => line.costSource === 'RECIPE_PRICED' && line.supportedSolutionCodes.length > 0
+      (line) =>
+        line.costSource === 'RECIPE_PRICED' &&
+        line.supportedSolutionCodes.length > 0 &&
+        line.generatedFrom === 'TECHNICAL'
+    )
+  );
+  assert(
+    integratedTechnical.commercialEstimateProjection.commercialLines.some(
+      (line) => line.code === 'INT-ROOMS'
     )
   );
   assert(
@@ -864,7 +880,18 @@ async function run() {
   assert.equal(integratedMixed.commercialEstimateProjection.source, 'HYBRID');
   assert(
     integratedMixed.integratedCostBuckets.some(
-      (bucket) => bucket.bucketCode === 'BATHS' && bucket.source === 'HYBRID'
+      (bucket) =>
+        bucket.bucketCode === 'BATHS' &&
+        bucket.source === 'HYBRID' &&
+        bucket.generatedFrom === 'HYBRID'
+    )
+  );
+  assert(
+    integratedMixed.commercialEstimateProjection.commercialLines.some(
+      (line) =>
+        line.generatedFrom === 'HYBRID' &&
+        line.provisional === true &&
+        line.pricingLineIds.length > 0
     )
   );
   assert(

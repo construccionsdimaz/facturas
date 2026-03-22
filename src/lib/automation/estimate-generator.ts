@@ -24,6 +24,9 @@ import {
 
 export type { AccessLevel, FinishLevel, ScopeType, SiteType, WorkType };
 export type EstimateGenerationInput = AutomationContext;
+export type LegacyEstimateCostingMode =
+  | 'MASTER_PARAMETRIC'
+  | 'FALLBACK_PARAMETRIC';
 
 export interface GeneratedEstimateLine {
   chapter: string;
@@ -65,6 +68,8 @@ export interface GeneratedEstimateProposal {
   lines: GeneratedEstimateLine[];
   summary: GeneratedEstimateSummary;
   notes: string[];
+  structureMode: 'LEGACY_STRUCTURE_BASE';
+  legacyCostingMode: LegacyEstimateCostingMode;
   typologyCode?: string | null;
   source: 'MASTER' | 'FALLBACK';
   seedVersion?: number | null;
@@ -181,6 +186,8 @@ function buildFallbackProposal(input: EstimateGenerationInput): GeneratedEstimat
       commercialTotal: Number((commercialSubtotal + vatAmount).toFixed(2)),
     },
     notes: ['No se encontro maestro tipologico aplicable. Se ha usado un fallback minimo.'],
+    structureMode: 'LEGACY_STRUCTURE_BASE',
+    legacyCostingMode: 'FALLBACK_PARAMETRIC',
     typologyCode: null,
     source: 'FALLBACK',
     seedVersion: AUTOMATION_SEED_VERSION,
@@ -225,6 +232,8 @@ export async function generateEstimateProposal(input: EstimateGenerationInput): 
       `Tipologia aplicada: ${typology.name}`,
       'La estructura base se ha generado desde maestros tipologicos, partidas maestras y rendimientos reutilizables.',
     ],
+    structureMode: 'LEGACY_STRUCTURE_BASE',
+    legacyCostingMode: 'MASTER_PARAMETRIC',
     typologyCode: typology.code,
     source: 'MASTER',
     seedVersion: AUTOMATION_SEED_VERSION,
