@@ -6,6 +6,7 @@ import styles from '@/app/invoices/new/page.module.css';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import { formatCurrency } from '@/lib/format';
 import AutoEstimateBuilder, { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from './AutoEstimateBuilder';
+import { applyEstimateReadinessOverride } from '@/lib/estimate/estimate-status';
 
 interface EstimateItem {
   id: string;
@@ -73,6 +74,28 @@ function estimateModeLabel(mode?: 'PARAMETRIC_PRELIMINARY' | 'MIXED' | 'RECIPE_P
       return 'Mixto';
     default:
       return 'Parametrico preliminar';
+  }
+}
+
+function readinessLabel(
+  readiness?:
+    | 'DRAFT'
+    | 'PARAMETRIC_PRELIMINARY'
+    | 'PROVISIONAL_REVIEW_REQUIRED'
+    | 'COMMERCIAL_READY'
+    | 'TECHNICALLY_CLOSED'
+) {
+  switch (readiness) {
+    case 'TECHNICALLY_CLOSED':
+      return 'Tecnicamente cerrado';
+    case 'COMMERCIAL_READY':
+      return 'Listo para emitir';
+    case 'PROVISIONAL_REVIEW_REQUIRED':
+      return 'Provisional con revision requerida';
+    case 'PARAMETRIC_PRELIMINARY':
+      return 'Preliminar parametrico';
+    default:
+      return 'Borrador';
   }
 }
 
@@ -421,6 +444,23 @@ function NewEstimateContent() {
     }
   };
 
+  const handleManualOverride = () => {
+    if (!internalProposal?.estimateStatus) return;
+    const reason = window.prompt('Motivo obligatorio para emitir igualmente este presupuesto:');
+    if (!reason?.trim()) return;
+
+    setInternalProposal((current) => {
+      if (!current?.estimateStatus) return current;
+      return {
+        ...current,
+        estimateStatus: applyEstimateReadinessOverride(current.estimateStatus, {
+          reason,
+          actor: 'Usuario actual',
+        }),
+      };
+    });
+  };
+
   return (
     <div className={styles.invoiceCreator}>
        {/* Hidden PDF Component */}
@@ -462,6 +502,18 @@ function NewEstimateContent() {
         </div>
         <div className={styles.actions + " no-print"}>
           {saveSuccess && <span style={{ color: '#10b981', marginRight: '16px', fontWeight: 600 }}>{saveSuccess}</span>}
+          {internalProposal?.estimateStatus &&
+            !internalProposal.estimateStatus.manualOverride?.applied &&
+            (internalProposal.estimateStatus.readiness === 'PARAMETRIC_PRELIMINARY' ||
+              internalProposal.estimateStatus.readiness === 'PROVISIONAL_REVIEW_REQUIRED') && (
+              <button
+                className="btn-secondary"
+                onClick={handleManualOverride}
+                type="button"
+              >
+                Emitir igualmente
+              </button>
+            )}
           <button 
             className={`btn-primary ${styles.saveBtn}`} 
             onClick={saveEstimate}
@@ -501,7 +553,17 @@ function NewEstimateContent() {
                 ) : null}
                 {internalProposal?.estimateStatus ? (
                   <div style={{ color: '#fcd34d' }}>
-                    Estado: {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Pendientes {internalProposal.estimateStatus.pendingValidationCount}
+                    Readiness: {readinessLabel(internalProposal.estimateStatus.readiness)} | Estado tecnico: {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Pendientes {internalProposal.estimateStatus.pendingValidationCount}
+                  </div>
+                ) : null}
+                {internalProposal?.estimateStatus?.readinessReasons?.length ? (
+                  <div style={{ color: '#fcd34d' }}>
+                    {internalProposal.estimateStatus.readinessReasons.join(' | ')}
+                  </div>
+                ) : null}
+                {internalProposal?.estimateStatus?.manualOverride?.applied ? (
+                  <div style={{ color: '#fca5a5' }}>
+                    Override manual: {internalProposal.estimateStatus.manualOverride.reason}
                   </div>
                 ) : null}
                 {discoveryError ? <div style={{ color: '#fca5a5' }}>{discoveryError}</div> : null}
@@ -524,8 +586,13 @@ function NewEstimateContent() {
                 <div>{invalidItems.length === 0 ? '✅ Partidas consistentes' : `⚠️ Hay ${invalidItems.length} partidas incompletas o inválidas`}</div>
                 <div>{internalProposal ? `✅ Propuesta interna conservada (${internalProposal.source}${internalProposal.typologyCode ? ` | ${internalProposal.typologyCode}` : ''})` : 'ℹ️ Puedes guardar sin propuesta automática, pero no tendrás análisis interno generado'}</div>
                 {internalProposal?.estimateStatus ? (
-                  <div style={{ color: internalProposal.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' ? '#fcd34d' : 'var(--text-secondary)' }}>
-                    {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Cobertura tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Lineas pendientes {internalProposal.estimateStatus.pendingValidationCount}
+                  <div style={{ color: internalProposal.estimateStatus.readiness === 'COMMERCIAL_READY' || internalProposal.estimateStatus.readiness === 'TECHNICALLY_CLOSED' ? 'var(--text-secondary)' : '#fcd34d' }}>
+                    {readinessLabel(internalProposal.estimateStatus.readiness)} | {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Cobertura tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Lineas pendientes {internalProposal.estimateStatus.pendingValidationCount}
+                  </div>
+                ) : null}
+                {internalProposal?.estimateStatus?.manualOverride?.applied ? (
+                  <div style={{ color: '#fca5a5' }}>
+                    Se ha aplicado override manual para permitir emision: {internalProposal.estimateStatus.manualOverride.reason}
                   </div>
                 ) : null}
               </div>

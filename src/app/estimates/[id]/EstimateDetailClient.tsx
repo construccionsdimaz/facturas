@@ -72,7 +72,23 @@ interface EstimateData {
 export default function EstimateDetailClient({ estimate }: { estimate: EstimateData }) {
   const [isConverting, setIsConverting] = useState(false);
   const [showConvertModal, setShowConvertModal] = useState(false);
+  const [isApplyingOverride, setIsApplyingOverride] = useState(false);
   const router = useRouter();
+
+  const readinessLabel = (readiness?: string) => {
+    switch (readiness) {
+      case 'TECHNICALLY_CLOSED':
+        return 'Tecnicamente cerrado';
+      case 'COMMERCIAL_READY':
+        return 'Listo para emitir';
+      case 'PROVISIONAL_REVIEW_REQUIRED':
+        return 'Provisional con revision requerida';
+      case 'PARAMETRIC_PRELIMINARY':
+        return 'Preliminar parametrico';
+      default:
+        return 'Borrador';
+    }
+  };
 
   const handlePrint = () => {
     window.open(`/estimates/${estimate.id}/print`, '_blank');
@@ -98,6 +114,31 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
       alert('Error: ' + error.message);
     } finally {
       setIsConverting(false);
+    }
+  };
+
+  const handleReadinessOverride = async () => {
+    const reason = window.prompt('Motivo obligatorio para emitir igualmente este presupuesto:');
+    if (!reason?.trim()) return;
+
+    setIsApplyingOverride(true);
+    try {
+      const res = await fetch(`/api/estimates/${estimate.id}/readiness-override`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'No se pudo registrar el override.');
+      }
+
+      router.refresh();
+    } catch (error: any) {
+      alert(error.message || 'No se pudo registrar el override.');
+    } finally {
+      setIsApplyingOverride(false);
     }
   };
 
@@ -134,6 +175,20 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             {isConverting ? 'Convirtiendo...' : '🔄 Convertir en Factura'}
           </button>
         )}
+
+        {parsedInternalNotes.estimateStatus &&
+          !parsedInternalNotes.estimateStatus.manualOverride?.applied &&
+          (parsedInternalNotes.estimateStatus.readiness === 'PARAMETRIC_PRELIMINARY' ||
+            parsedInternalNotes.estimateStatus.readiness === 'PROVISIONAL_REVIEW_REQUIRED') && (
+            <button
+              className="btn-secondary"
+              onClick={handleReadinessOverride}
+              disabled={isApplyingOverride}
+              style={{ padding: '8px 20px' }}
+            >
+              {isApplyingOverride ? 'Registrando override...' : 'Emitir igualmente'}
+            </button>
+          )}
       </div>
 
       <div className={`glass-panel`} style={{ padding: '24px', marginBottom: '40px' }}>
@@ -215,11 +270,21 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               }}
             >
               <div style={{ fontWeight: 700, marginBottom: '6px' }}>
-                Estado del estimate: {parsedInternalNotes.estimateStatus.estimateMode}
+                Readiness: {readinessLabel(parsedInternalNotes.estimateStatus.readiness)} | Estado tecnico: {parsedInternalNotes.estimateStatus.estimateMode}
               </div>
               <div style={{ fontSize: '13px' }}>
                 Cobertura tecnica {parsedInternalNotes.estimateStatus.technicalCoveragePercent}% | Receta {parsedInternalNotes.estimateStatus.recipeCoveragePercent}% | Precio {parsedInternalNotes.estimateStatus.priceCoveragePercent}% | Lineas pendientes {parsedInternalNotes.estimateStatus.pendingValidationCount}
               </div>
+              {parsedInternalNotes.estimateStatus.readinessReasons.length > 0 && (
+                <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                  {parsedInternalNotes.estimateStatus.readinessReasons.join(' | ')}
+                </div>
+              )}
+              {parsedInternalNotes.estimateStatus.manualOverride?.applied && (
+                <div style={{ fontSize: '13px', marginTop: '6px', fontWeight: 600 }}>
+                  Override manual: {parsedInternalNotes.estimateStatus.manualOverride.reason}
+                </div>
+              )}
             </div>
           )}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', marginBottom: '20px' }}>

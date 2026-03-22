@@ -35,6 +35,14 @@ interface EstimateData {
     recipeCoveragePercent: number;
     priceCoveragePercent: number;
     pendingValidationCount: number;
+    readiness: 'DRAFT' | 'PARAMETRIC_PRELIMINARY' | 'PROVISIONAL_REVIEW_REQUIRED' | 'COMMERCIAL_READY' | 'TECHNICALLY_CLOSED';
+    readinessReasons: string[];
+    manualOverride?: {
+      applied: boolean;
+      reason: string;
+      actor: string;
+      timestamp: string;
+    } | null;
   };
 }
 
@@ -51,6 +59,16 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
     chaptersMap[ch].push(item);
   });
   const chapterNames = Object.keys(chaptersMap).sort();
+  const readinessLabel =
+    data.estimateStatus?.readiness === 'TECHNICALLY_CLOSED'
+      ? 'Tecnicamente cerrado'
+      : data.estimateStatus?.readiness === 'COMMERCIAL_READY'
+        ? 'Listo para emitir'
+        : data.estimateStatus?.readiness === 'PROVISIONAL_REVIEW_REQUIRED'
+          ? 'Provisional con revision requerida'
+          : data.estimateStatus?.readiness === 'PARAMETRIC_PRELIMINARY'
+            ? 'Preliminar parametrico'
+            : 'Borrador';
 
   return (
     <div className={styles.pdfContainer} id="pdf-estimate-template">
@@ -128,14 +146,24 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: '4px' }}>
-            Estado tecnico del estimate: {data.estimateStatus.estimateMode}
+            Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
           </div>
           <div>
             Cobertura tecnica {data.estimateStatus.technicalCoveragePercent}% | Receta {data.estimateStatus.recipeCoveragePercent}% | Precio {data.estimateStatus.priceCoveragePercent}% | Lineas pendientes {data.estimateStatus.pendingValidationCount}
           </div>
+          {data.estimateStatus.readinessReasons?.length > 0 && (
+            <div style={{ marginTop: '6px' }}>
+              {data.estimateStatus.readinessReasons.join(' | ')}
+            </div>
+          )}
           {data.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' && (
             <div style={{ marginTop: '6px', fontWeight: 600 }}>
               Documento preliminar parametrico. No debe tratarse como presupuesto tecnico final cerrado.
+            </div>
+          )}
+          {data.estimateStatus.manualOverride?.applied && (
+            <div style={{ marginTop: '6px', fontWeight: 600 }}>
+              Override manual registrado: {data.estimateStatus.manualOverride.reason}
             </div>
           )}
         </div>

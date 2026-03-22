@@ -119,6 +119,21 @@ export default function AutoEstimateBuilder({
     }
   };
 
+  const readinessLabel = (readiness: Proposal['estimateStatus']['readiness']) => {
+    switch (readiness) {
+      case 'TECHNICALLY_CLOSED':
+        return 'Tecnicamente cerrado';
+      case 'COMMERCIAL_READY':
+        return 'Listo para emitir';
+      case 'PROVISIONAL_REVIEW_REQUIRED':
+        return 'Provisional con revision requerida';
+      case 'PARAMETRIC_PRELIMINARY':
+        return 'Preliminar parametrico';
+      default:
+        return 'Borrador';
+    }
+  };
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
@@ -332,11 +347,21 @@ export default function AutoEstimateBuilder({
             >
 	            <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Estado del estimate</div>
 	            <div style={{ fontWeight: 700 }}>
-	              {estimateModeLabel(proposal.estimateStatus.estimateMode)}
+	              {readinessLabel(proposal.estimateStatus.readiness)} | {estimateModeLabel(proposal.estimateStatus.estimateMode)}
 	            </div>
               <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
                 Cobertura tecnica {proposal.estimateStatus.technicalCoveragePercent}% | Receta {proposal.estimateStatus.recipeCoveragePercent}% | Precio {proposal.estimateStatus.priceCoveragePercent}% | Lineas pendientes {proposal.estimateStatus.pendingValidationCount}
               </div>
+              {proposal.estimateStatus.readinessReasons.length > 0 && (
+                <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  {proposal.estimateStatus.readinessReasons.join(' | ')}
+                </div>
+              )}
+              {proposal.estimateStatus.manualOverride?.applied && (
+                <div style={{ marginTop: '6px', fontSize: '13px', color: '#fca5a5', fontWeight: 600 }}>
+                  Override manual: {proposal.estimateStatus.manualOverride.reason}
+                </div>
+              )}
               {proposal.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' && (
                 <div style={{ marginTop: '8px', fontSize: '13px', color: '#fcd34d', fontWeight: 600 }}>
                   Esta propuesta no debe presentarse como presupuesto final cerrado. Falta especificacion tecnica o precio real suficiente.

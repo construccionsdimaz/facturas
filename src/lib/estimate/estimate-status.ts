@@ -7,6 +7,13 @@ export type EstimateMode =
   | 'MIXED'
   | 'RECIPE_PRICED';
 
+export type EstimateReadiness =
+  | 'DRAFT'
+  | 'PARAMETRIC_PRELIMINARY'
+  | 'PROVISIONAL_REVIEW_REQUIRED'
+  | 'COMMERCIAL_READY'
+  | 'TECHNICALLY_CLOSED';
+
 export type EstimateLineEconomicStatus =
   | 'PARAMETRIC_PRELIMINARY'
   | 'PRICE_PENDING_VALIDATION'
@@ -25,6 +32,23 @@ export type InternalCostSource =
   | 'PARAMETRIC_MASTER'
   | 'HYBRID';
 
+export type EstimateReadinessOverride = {
+  applied: boolean;
+  reason: string;
+  actor: string;
+  timestamp: string;
+  warningsAtOverride: string[];
+  previousReadiness: EstimateReadiness;
+};
+
+export type EstimateReadinessCapabilities = {
+  canEmitAsFinal: boolean;
+  canEmitAsProvisional: boolean;
+  canPrintAsPreliminary: boolean;
+  requiresManualReview: boolean;
+  isTechnicallyClosed: boolean;
+};
+
 export type EstimateStatusSnapshot = {
   technicalSpecStatus: TechnicalSpecStatus;
   estimateMode: EstimateMode;
@@ -32,6 +56,11 @@ export type EstimateStatusSnapshot = {
   recipeCoveragePercent: number;
   priceCoveragePercent: number;
   pendingValidationCount: number;
+  hasHybridBuckets: boolean;
+  readiness: EstimateReadiness;
+  readinessReasons: string[];
+  capabilities: EstimateReadinessCapabilities;
+  manualOverride: EstimateReadinessOverride | null;
 };
 
 export type EstimateLineEconomicSnapshot = {
@@ -55,6 +84,16 @@ type GenerationNotesPayload = {
 function clampPercent(value: number) {
   if (!Number.isFinite(value)) return 0;
   return Math.min(100, Math.max(0, Math.round(value)));
+}
+
+function defaultCapabilities(): EstimateReadinessCapabilities {
+  return {
+    canEmitAsFinal: false,
+    canEmitAsProvisional: false,
+    canPrintAsPreliminary: true,
+    requiresManualReview: true,
+    isTechnicallyClosed: false,
+  };
 }
 
 export function deriveEstimateMode({
@@ -96,14 +135,105 @@ export function deriveEstimateModeFromPricing(params: {
     return 'RECIPE_PRICED';
   }
 
-  if (
-    params.recipeCoveragePercent <= 0 ||
-    params.priceCoveragePercent < 50
-  ) {
+  if (params.recipeCoveragePercent <= 0 || params.priceCoveragePercent < 50) {
     return 'PARAMETRIC_PRELIMINARY';
   }
 
   return 'MIXED';
+}
+
+export function deriveEstimateReadiness(params: {
+  estimateMode: EstimateMode;
+  technicalSpecStatus: TechnicalSpecStatus;
+  technicalCoveragePercent: number;
+  recipeCoveragePercent: number;
+  priceCoveragePercent: number;
+  pendingValidationCount: number;
+  hasHybridBuckets: boolean;
+  manualOverride?: EstimateReadinessOverride | null;
+}): {
+  readiness: EstimateReadiness;
+  reasons: string[];
+  capabilities: EstimateReadinessCapabilities;
+} {
+  const reasons: string[] = [];
+  let readiness: EstimateReadiness = 'DRAFT';
+
+  if (
+    params.estimateMode === 'PARAMETRIC_PRELIMINARY' ||
+    params.technicalSpecStatus !== 'READY_FOR_MEASUREMENT' ||
+    params.technicalCoveragePercent < 50 ||
+    params.recipeCoveragePercent < 50 ||
+    params.priceCoveragePercent < 50
+  ) {
+    readiness = 'PARAMETRIC_PRELIMINARY';
+    if (params.estimateMode === 'PARAMETRIC_PRELIMINARY') {
+      reasons.push('El estimate sigue en modo parametrico preliminar.');
+    }
+    if (params.technicalSpecStatus !== 'READY_FOR_MEASUREMENT') {
+      reasons.push('La especificacion tecnica aun no esta lista para medicion completa.');
+    }
+    if (params.recipeCoveragePercent < 50 || params.priceCoveragePercent < 50) {
+      reasons.push('La cobertura de receta o precio aun es demasiado baja para cierre comercial.');
+    }
+  } else if (
+    params.technicalCoveragePercent === 100 &&
+    params.recipeCoveragePercent === 100 &&
+    params.priceCoveragePercent === 100 &&
+    params.pendingValidationCount === 0 &&
+    !params.hasHybridBuckets
+  ) {
+    readiness = 'TECHNICALLY_CLOSED';
+    reasons.push('El presupuesto esta tecnicamente cerrado sin pendientes de validacion.');
+  } else if (
+    params.pendingValidationCount === 0 &&
+    !params.hasHybridBuckets &&
+    params.technicalCoveragePercent >= 80 &&
+    params.recipeCoveragePercent >= 80 &&
+    params.priceCoveragePercent >= 90
+  ) {
+    readiness = 'COMMERCIAL_READY';
+    reasons.push('La cobertura actual permite emitir el presupuesto comercialmente.');
+  } else {
+    readiness = 'PROVISIONAL_REVIEW_REQUIRED';
+    if (params.hasHybridBuckets) {
+      reasons.push('Existen buckets HYBRID con mezcla tecnica y fallback parametrico.');
+    }
+    if (params.pendingValidationCount > 0) {
+      reasons.push('Hay lineas o buckets pendientes de validacion economica.');
+    }
+    if (params.priceCoveragePercent < 90 || params.recipeCoveragePercent < 80) {
+      reasons.push('La cobertura tecnica o economica aun requiere revision interna.');
+    }
+  }
+
+  if (reasons.length === 0) {
+    reasons.push('El presupuesto esta en revision.');
+  }
+
+  const capabilities: EstimateReadinessCapabilities = {
+    canEmitAsFinal:
+      readiness === 'COMMERCIAL_READY' || readiness === 'TECHNICALLY_CLOSED',
+    canEmitAsProvisional:
+      readiness === 'PROVISIONAL_REVIEW_REQUIRED' ||
+      readiness === 'COMMERCIAL_READY' ||
+      readiness === 'TECHNICALLY_CLOSED',
+    canPrintAsPreliminary: true,
+    requiresManualReview:
+      readiness === 'PARAMETRIC_PRELIMINARY' ||
+      readiness === 'PROVISIONAL_REVIEW_REQUIRED',
+    isTechnicallyClosed: readiness === 'TECHNICALLY_CLOSED',
+  };
+
+  if (params.manualOverride?.applied) {
+    reasons.push(
+      `Override manual aplicado por ${params.manualOverride.actor} el ${params.manualOverride.timestamp}.`
+    );
+    capabilities.canEmitAsFinal = true;
+    capabilities.canEmitAsProvisional = true;
+  }
+
+  return { readiness, reasons, capabilities };
 }
 
 export function buildEstimateStatusFromPipeline(params: {
@@ -112,6 +242,8 @@ export function buildEstimateStatusFromPipeline(params: {
   recipeCoveragePercent: number;
   priceCoveragePercent: number;
   pendingValidationCount: number;
+  hasHybridBuckets?: boolean;
+  manualOverride?: EstimateReadinessOverride | null;
 }): EstimateStatusSnapshot {
   const snapshot: EstimateStatusSnapshot = {
     technicalSpecStatus: params.technicalSpecStatus,
@@ -120,9 +252,18 @@ export function buildEstimateStatusFromPipeline(params: {
     recipeCoveragePercent: clampPercent(params.recipeCoveragePercent),
     priceCoveragePercent: clampPercent(params.priceCoveragePercent),
     pendingValidationCount: Math.max(0, Math.round(params.pendingValidationCount || 0)),
+    hasHybridBuckets: Boolean(params.hasHybridBuckets),
+    readiness: 'DRAFT',
+    readinessReasons: [],
+    capabilities: defaultCapabilities(),
+    manualOverride: params.manualOverride ?? null,
   };
 
   snapshot.estimateMode = deriveEstimateModeFromPricing(snapshot);
+  const readiness = deriveEstimateReadiness(snapshot);
+  snapshot.readiness = readiness.readiness;
+  snapshot.readinessReasons = readiness.reasons;
+  snapshot.capabilities = readiness.capabilities;
   return snapshot;
 }
 
@@ -130,19 +271,47 @@ export function buildSprintOneEstimateStatus(params: {
   lineCount: number;
   technicalSpecStatus?: TechnicalSpecStatus;
 }): EstimateStatusSnapshot {
-  const technicalSpecStatus = params.technicalSpecStatus ?? 'INCOMPLETE';
-  const snapshot: EstimateStatusSnapshot = {
-    technicalSpecStatus,
-    estimateMode: 'PARAMETRIC_PRELIMINARY',
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: params.technicalSpecStatus ?? 'INCOMPLETE',
     technicalCoveragePercent:
-      technicalSpecStatus === 'READY_FOR_MEASUREMENT' ? 100 : 0,
+      params.technicalSpecStatus === 'READY_FOR_MEASUREMENT' ? 100 : 0,
     recipeCoveragePercent: 0,
     priceCoveragePercent: 0,
     pendingValidationCount: Math.max(0, params.lineCount),
-  };
+    hasHybridBuckets: false,
+    manualOverride: null,
+  });
+}
 
-  snapshot.estimateMode = deriveEstimateMode(snapshot);
-  return snapshot;
+export function applyEstimateReadinessOverride(
+  snapshot: EstimateStatusSnapshot,
+  params: {
+    reason: string;
+    actor: string;
+    timestamp?: string;
+  }
+): EstimateStatusSnapshot {
+  const reason = params.reason.trim();
+  if (!reason) {
+    throw new Error('El motivo del override es obligatorio.');
+  }
+
+  return buildEstimateStatusFromPipeline({
+    technicalSpecStatus: snapshot.technicalSpecStatus,
+    technicalCoveragePercent: snapshot.technicalCoveragePercent,
+    recipeCoveragePercent: snapshot.recipeCoveragePercent,
+    priceCoveragePercent: snapshot.priceCoveragePercent,
+    pendingValidationCount: snapshot.pendingValidationCount,
+    hasHybridBuckets: snapshot.hasHybridBuckets,
+    manualOverride: {
+      applied: true,
+      reason,
+      actor: params.actor,
+      timestamp: params.timestamp || new Date().toISOString(),
+      warningsAtOverride: snapshot.readinessReasons,
+      previousReadiness: snapshot.readiness,
+    },
+  });
 }
 
 export function buildSprintOneLineEconomicStatus(): EstimateLineEconomicSnapshot {
@@ -175,6 +344,19 @@ export function serializeGenerationNotes(
   };
 }
 
+function coerceReadiness(value: unknown): EstimateReadiness {
+  switch (value) {
+    case 'PARAMETRIC_PRELIMINARY':
+    case 'PROVISIONAL_REVIEW_REQUIRED':
+    case 'COMMERCIAL_READY':
+    case 'TECHNICALLY_CLOSED':
+    case 'DRAFT':
+      return value;
+    default:
+      return 'DRAFT';
+  }
+}
+
 export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
   if (Array.isArray(value)) {
     return {
@@ -188,20 +370,47 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
     const notes = Array.isArray(record.notes)
       ? record.notes.filter((note): note is string => typeof note === 'string')
       : [];
+    const integratedCostBuckets = Array.isArray(record.integratedCostBuckets)
+      ? (record.integratedCostBuckets as IntegratedEstimateCostBucket[])
+      : [];
     const rawStatus = record.estimateStatus;
     if (rawStatus && typeof rawStatus === 'object') {
       const statusRecord = rawStatus as Record<string, unknown>;
-      const snapshot: EstimateStatusSnapshot = {
+      const manualOverrideRecord =
+        statusRecord.manualOverride && typeof statusRecord.manualOverride === 'object'
+          ? (statusRecord.manualOverride as Record<string, unknown>)
+          : null;
+      const manualOverride: EstimateReadinessOverride | null = manualOverrideRecord
+        ? {
+            applied: Boolean(manualOverrideRecord.applied),
+            reason:
+              typeof manualOverrideRecord.reason === 'string'
+                ? manualOverrideRecord.reason
+                : '',
+            actor:
+              typeof manualOverrideRecord.actor === 'string'
+                ? manualOverrideRecord.actor
+                : 'Usuario actual',
+            timestamp:
+              typeof manualOverrideRecord.timestamp === 'string'
+                ? manualOverrideRecord.timestamp
+                : new Date(0).toISOString(),
+            warningsAtOverride: Array.isArray(manualOverrideRecord.warningsAtOverride)
+              ? manualOverrideRecord.warningsAtOverride.filter(
+                  (item): item is string => typeof item === 'string'
+                )
+              : [],
+            previousReadiness: coerceReadiness(
+              manualOverrideRecord.previousReadiness
+            ),
+          }
+        : null;
+
+      const snapshot = buildEstimateStatusFromPipeline({
         technicalSpecStatus:
           statusRecord.technicalSpecStatus === 'READY_FOR_MEASUREMENT'
             ? 'READY_FOR_MEASUREMENT'
             : 'INCOMPLETE',
-        estimateMode:
-          statusRecord.estimateMode === 'RECIPE_PRICED'
-            ? 'RECIPE_PRICED'
-            : statusRecord.estimateMode === 'MIXED'
-              ? 'MIXED'
-              : 'PARAMETRIC_PRELIMINARY',
         technicalCoveragePercent: clampPercent(
           Number(statusRecord.technicalCoveragePercent)
         ),
@@ -215,23 +424,31 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
           0,
           Math.round(Number(statusRecord.pendingValidationCount) || 0)
         ),
-      };
+        hasHybridBuckets:
+          typeof statusRecord.hasHybridBuckets === 'boolean'
+            ? statusRecord.hasHybridBuckets
+            : integratedCostBuckets.some((bucket) => bucket.source === 'HYBRID'),
+        manualOverride,
+      });
+
+      snapshot.estimateMode =
+        statusRecord.estimateMode === 'RECIPE_PRICED'
+          ? 'RECIPE_PRICED'
+          : statusRecord.estimateMode === 'MIXED'
+            ? 'MIXED'
+            : snapshot.estimateMode;
 
       return {
         notes,
         estimateStatus: snapshot,
-        integratedCostBuckets: Array.isArray(record.integratedCostBuckets)
-          ? (record.integratedCostBuckets as IntegratedEstimateCostBucket[])
-          : [],
+        integratedCostBuckets,
       };
     }
 
     return {
       notes,
       estimateStatus: null,
-      integratedCostBuckets: Array.isArray(record.integratedCostBuckets)
-        ? (record.integratedCostBuckets as IntegratedEstimateCostBucket[])
-        : [],
+      integratedCostBuckets,
     };
   }
 

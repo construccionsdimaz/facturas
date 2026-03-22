@@ -38,6 +38,7 @@ async function run() {
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
   const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
+  const { applyEstimateReadinessOverride, buildEstimateStatusFromPipeline } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
@@ -335,6 +336,15 @@ async function run() {
   const parametricIntegrated = integratePricingIntoEstimateProposal(parametricProposal);
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.costSource === 'PARAMETRIC_MASTER'));
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.commercialPriceProvisional === false));
+  const parametricReadiness = buildEstimateStatusFromPipeline({
+    technicalSpecStatus: 'INCOMPLETE',
+    technicalCoveragePercent: 0,
+    recipeCoveragePercent: 0,
+    priceCoveragePercent: 0,
+    pendingValidationCount: parametricIntegrated.proposal.lines.length,
+    hasHybridBuckets: false,
+  });
+  assert.equal(parametricReadiness.readiness, 'PARAMETRIC_PRELIMINARY');
 
   const measured = createEmptyDiscoverySessionData('COLIVING');
   measured.modelingStrategy = 'STRUCTURED_REPETITIVE';
@@ -765,6 +775,24 @@ async function run() {
       .filter((line) => line.economicStatus.costSource === 'RECIPE_PRICED')
       .every((line) => line.economicStatus.commercialPriceProvisional === false)
   );
+  const commercialReadyStatus = buildEstimateStatusFromPipeline({
+    technicalSpecStatus: 'READY_FOR_MEASUREMENT',
+    technicalCoveragePercent: 90,
+    recipeCoveragePercent: 90,
+    priceCoveragePercent: 100,
+    pendingValidationCount: 0,
+    hasHybridBuckets: false,
+  });
+  assert.equal(commercialReadyStatus.readiness, 'COMMERCIAL_READY');
+  const technicallyClosedStatus = buildEstimateStatusFromPipeline({
+    technicalSpecStatus: 'READY_FOR_MEASUREMENT',
+    technicalCoveragePercent: 100,
+    recipeCoveragePercent: 100,
+    priceCoveragePercent: 100,
+    pendingValidationCount: 0,
+    hasHybridBuckets: false,
+  });
+  assert.equal(technicallyClosedStatus.readiness, 'TECHNICALLY_CLOSED');
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
   assert(
@@ -782,6 +810,24 @@ async function run() {
         line.kind === 'PROVISIONAL'
     )
   );
+  const provisionalStatus = buildEstimateStatusFromPipeline({
+    technicalSpecStatus: 'READY_FOR_MEASUREMENT',
+    technicalCoveragePercent: 95,
+    recipeCoveragePercent: 100,
+    priceCoveragePercent: 60,
+    pendingValidationCount: 1,
+    hasHybridBuckets: true,
+  });
+  assert.equal(provisionalStatus.readiness, 'PROVISIONAL_REVIEW_REQUIRED');
+  const overriddenStatus = applyEstimateReadinessOverride(provisionalStatus, {
+    reason: 'Validado manualmente para envio al cliente',
+    actor: 'Admin',
+    timestamp: '2026-03-22T10:00:00.000Z',
+  });
+  assert.equal(overriddenStatus.readiness, 'PROVISIONAL_REVIEW_REQUIRED');
+  assert.equal(overriddenStatus.capabilities.canEmitAsFinal, true);
+  assert.equal(overriddenStatus.manualOverride.applied, true);
+  assert.equal(overriddenStatus.manualOverride.reason, 'Validado manualmente para envio al cliente');
 
   console.log('Discovery integration tests passed.');
 }

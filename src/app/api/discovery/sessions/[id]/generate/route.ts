@@ -92,6 +92,8 @@ export async function POST(
         derivedInput.pricingResult?.coverage.priceCoveragePercent || 0,
       pendingValidationCount:
         derivedInput.pricingResult?.coverage.pendingValidationCount || 0,
+      hasHybridBuckets:
+        proposal.integratedCostBuckets?.some((bucket) => bucket.source === 'HYBRID') || false,
     });
 
     if (derivedInput.pricingResult?.estimateMode === 'PARAMETRIC_PRELIMINARY') {

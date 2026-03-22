@@ -32,6 +32,16 @@ export default function PrintEstimatePage() {
   if (loading) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Cargando presupuesto para imprimir...</div>;
   if (!estimate) return <div style={{ padding: '40px', textAlign: 'center', background: 'white', color: 'black', minHeight: '100vh' }}>Presupuesto no encontrado.</div>;
   const parsedGenerationNotes = parseGenerationNotes(estimate.internalAnalysis?.generationNotes);
+  const readinessLabel =
+    parsedGenerationNotes.estimateStatus?.readiness === 'TECHNICALLY_CLOSED'
+      ? 'Presupuesto tecnicamente cerrado'
+      : parsedGenerationNotes.estimateStatus?.readiness === 'COMMERCIAL_READY'
+        ? 'Presupuesto listo para emitir'
+        : parsedGenerationNotes.estimateStatus?.readiness === 'PROVISIONAL_REVIEW_REQUIRED'
+          ? 'Presupuesto provisional'
+          : parsedGenerationNotes.estimateStatus?.readiness === 'PARAMETRIC_PRELIMINARY'
+            ? 'Presupuesto preliminar'
+            : 'Presupuesto';
 
   return (
     <div className="print-root" style={{ background: 'white' }}>
@@ -50,7 +60,7 @@ export default function PrintEstimatePage() {
           className="btn-primary"
           style={{ padding: '12px 32px', fontSize: '16px' }}
         >
-          🖨️ Confirmar e Imprimir Presupuesto
+          🖨️ Imprimir: {readinessLabel}
         </button>
       </div>
       <div className={styles.printWrapper}>
