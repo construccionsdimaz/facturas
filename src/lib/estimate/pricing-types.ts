@@ -70,6 +70,9 @@ export type PricingLabor = {
     reason: string;
   }>;
   assumptions?: string[];
+  policySource?: 'DEFAULT' | 'PROJECT_OVERRIDE' | null;
+  policyFamilyCode?: string | null;
+  appliedPolicyOverrides?: string[];
   unitCost?: number | null;
   totalCost?: number | null;
   currency: 'EUR';

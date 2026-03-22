@@ -2,6 +2,7 @@ import type {
   ResolvedSpecSourceLevel,
   VerticalSolutionCode,
 } from '@/lib/discovery/technical-spec-types';
+import type { ProductivityFamilyCode } from './project-productivity-policy';
 
 export const RECIPE_CODE_CATALOG = [
   'RECIPE_ROOM_STD_COLIVING_BASIC_M2',
@@ -294,6 +295,9 @@ export type RecipeLabor = {
     reason: string;
   }>;
   assumptions?: string[];
+  policySource?: 'DEFAULT' | 'PROJECT_OVERRIDE' | null;
+  policyFamilyCode?: string | null;
+  appliedPolicyOverrides?: string[];
 };
 
 export type RecipeLine = {

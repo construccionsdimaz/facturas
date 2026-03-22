@@ -12,12 +12,12 @@ import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-
 import { deriveActivityDurationFromRecipeLine } from '@/lib/estimate/labor-productivity';
 import type { MeasurementLine, MeasurementResult } from '@/lib/estimate/measurement-types';
 import type { RecipeLine, RecipeResult } from '@/lib/estimate/recipe-types';
-import type { ExecutionContext } from '@/lib/discovery/types';
 import type {
   ResolvedSpec,
   ResolvedSpecSourceLevel,
   VerticalSolutionCode,
 } from '@/lib/discovery/technical-spec-types';
+import type { ProjectProductivityPolicy } from '@/lib/estimate/project-productivity-policy';
 
 export type PlanningProjectionSource =
   | 'CANONICAL_PIPELINE'
@@ -101,6 +101,7 @@ type CanonicalPlanningInput = PlanningGenerationInput & {
   recipeResult?: RecipeResult | null;
   commercialEstimateProjection?: CommercialEstimateProjection | null;
   commercialRuntimeOutput?: CommercialEstimateRuntimeOutput | null;
+  projectProductivityPolicy?: ProjectProductivityPolicy | null;
 };
 
 const CANONICAL_WBS: Array<{

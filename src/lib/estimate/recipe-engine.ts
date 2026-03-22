@@ -1,5 +1,6 @@
 import type { ExecutionContext } from '@/lib/discovery/types';
 import type { VerticalSolutionCode } from '@/lib/discovery/technical-spec-types';
+import type { ProjectProductivityPolicy } from './project-productivity-policy';
 import { resolveLaborProductivity } from './labor-productivity';
 import type { MeasurementLine, MeasurementResult } from './measurement-types';
 import type {
@@ -873,7 +874,8 @@ function scaleLabor(
   template: RecipeTemplate,
   quantity: number,
   measurementLine: MeasurementLine,
-  executionContext: ExecutionContext
+  executionContext: ExecutionContext,
+  projectPolicy?: ProjectProductivityPolicy | null
 ): RecipeLabor[] {
   const space =
     executionContext.resolvedSpaces.find((item) => item.spaceId === measurementLine.spaceId) ||
@@ -885,7 +887,8 @@ function scaleLabor(
       quantity,
       item.quantityPerUnit,
       executionContext,
-      space
+      space,
+      projectPolicy
     );
 
     return {
@@ -903,6 +906,9 @@ function scaleLabor(
       adjustedCrewDays: productivity.adjustedCrewDays,
       productivityFactors: productivity.factors,
       assumptions: productivity.assumptions,
+      policySource: productivity.policySource,
+      policyFamilyCode: productivity.policyFamilyCode,
+      appliedPolicyOverrides: productivity.appliedPolicyOverrides,
     };
   });
 }
@@ -915,7 +921,8 @@ function toRecipeStatus(line: MeasurementLine): RecipeStatus {
 
 export function buildRecipeResult(
   measurementResult: MeasurementResult | undefined,
-  executionContext: ExecutionContext
+  executionContext: ExecutionContext,
+  projectPolicy?: ProjectProductivityPolicy | null
 ): RecipeResult {
   if (!measurementResult) {
     return {
@@ -993,7 +1000,7 @@ export function buildRecipeResult(
       labor:
         status === 'RECIPE_MISSING'
           ? []
-          : scaleLabor(template, measurementLine.quantity, measurementLine, executionContext),
+          : scaleLabor(template, measurementLine.quantity, measurementLine, executionContext, projectPolicy),
       wasteFactor: template.wasteFactor ?? null,
       indirectFactor: template.indirectFactor ?? null,
       sourceLevel: measurementLine.sourceLevel,

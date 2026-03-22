@@ -2,6 +2,12 @@ import type { ExecutionContext, ResolvedSpace } from '@/lib/discovery/types';
 import type { VerticalSolutionCode } from '@/lib/discovery/technical-spec-types';
 import type { MeasurementLine } from './measurement-types';
 import type { RecipeLaborCode, RecipeLine } from './recipe-types';
+import {
+  resolveProductivityPolicyForSolution,
+  type ProjectProductivityPolicy,
+  type ProductivityPolicyApplication,
+  type ProductivityFamilyCode,
+} from './project-productivity-policy';
 
 export const LABOR_TRADE_CODE_CATALOG = [
   'OFICIO_ALBANIL',
@@ -72,6 +78,9 @@ export type LaborProductivityResolution = {
   source: ProductivitySource;
   factors: LaborProductivityFactor[];
   assumptions: string[];
+  policySource: 'DEFAULT' | 'PROJECT_OVERRIDE';
+  policyFamilyCode: ProductivityFamilyCode;
+  appliedPolicyOverrides: string[];
 };
 
 type ProfileSeed = Omit<ProductivityProfile, 'profileCode'>;
@@ -204,35 +213,51 @@ export function resolveLaborProductivity(
   baseHoursPerUnit: number,
   executionContext: ExecutionContext,
   space: ResolvedSpace | null,
+  projectProductivityPolicy?: ProjectProductivityPolicy | null,
 ): LaborProductivityResolution {
+  const policyApp = resolveProductivityPolicyForSolution(solutionCode, projectProductivityPolicy);
   const profile = PROFILE_BY_LABOR[laborCode];
+
   if (!profile) {
+    const fallbackHours = baseHoursPerUnit * policyApp.combinedPolicyMultiplier;
     return {
       tradeCode: 'OFICIO_TECNICO_MULTI',
-      crewCode: 'CREW_GENERAL_INTERIORS',
+      crewCode: (policyApp.forcedCrewCode as CrewCode) || 'CREW_GENERAL_INTERIORS',
       productivityProfileCode: `FALLBACK_${laborCode}`,
       baseUnit: 'ud',
       baseOutputPerDay: 1,
       baseHoursPerUnit,
-      adjustedHoursPerUnit: baseHoursPerUnit,
+      adjustedHoursPerUnit: round(fallbackHours),
       adjustedQuantity: round(quantity),
-      adjustedCrewDays: round((baseHoursPerUnit * quantity) / 8),
+      adjustedCrewDays: round((fallbackHours * quantity) / 8),
       source: 'FALLBACK',
       factors: [{ code: 'FALLBACK_REFERENCE', multiplier: 1, reason: 'Sin perfil productivo especifico; se conserva referencia base.' }],
       assumptions: [`No existe productivity profile especifico para ${laborCode}; se usa fallback de referencia.`],
+      policySource: policyApp.policySource,
+      policyFamilyCode: policyApp.familyCode,
+      appliedPolicyOverrides: policyApp.appliedPolicyOverrides,
     };
   }
 
+  // Resolve effective crew and profile, respecting policy overrides
+  const effectiveCrewCode = (policyApp.forcedCrewCode as CrewCode) || profile.crewCode;
+  const effectiveProfileCode = policyApp.forcedProfileCode || `${solutionCode}_${laborCode}`;
+
   const factors = buildFactors(executionContext, space, solutionCode);
   const factorMultiplier = factors.reduce((acc, factor) => acc * factor.multiplier, 1);
-  const adjustedHoursPerUnit = profile.baseHoursPerUnit * factorMultiplier;
+  const adjustedHoursPerUnit = profile.baseHoursPerUnit * factorMultiplier * policyApp.combinedPolicyMultiplier;
   const adjustedQuantity = round(quantity);
   const adjustedCrewDays = round((adjustedHoursPerUnit * quantity) / Math.max(profile.crewSize * 8, 0.001));
 
+  const allAssumptions = factors.length > 0 ? factors.map((factor) => factor.reason) : [];
+  if (policyApp.appliedPolicyOverrides.length > 0) {
+    allAssumptions.push(...policyApp.appliedPolicyOverrides);
+  }
+
   return {
     tradeCode: profile.tradeCode,
-    crewCode: profile.crewCode,
-    productivityProfileCode: `${solutionCode}_${laborCode}`,
+    crewCode: effectiveCrewCode,
+    productivityProfileCode: effectiveProfileCode,
     baseUnit: profile.baseUnit,
     baseOutputPerDay: profile.baseOutputPerDay,
     baseHoursPerUnit: profile.baseHoursPerUnit,
@@ -241,7 +266,10 @@ export function resolveLaborProductivity(
     adjustedCrewDays,
     source: factors.length > 0 ? 'PROFILE' : 'REFERENCE',
     factors,
-    assumptions: factors.length > 0 ? factors.map((factor) => factor.reason) : [],
+    assumptions: allAssumptions,
+    policySource: policyApp.policySource,
+    policyFamilyCode: policyApp.familyCode,
+    appliedPolicyOverrides: policyApp.appliedPolicyOverrides,
   };
 }
 

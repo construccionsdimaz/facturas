@@ -23,6 +23,7 @@ import ProjectProcurementTab from './tabs/ProjectProcurementTab';
 import ProjectBaselineTab from './tabs/ProjectBaselineTab';
 import ProjectDashboardsTab from './tabs/ProjectDashboardsTab';
 import ProjectLearningTab from './tabs/ProjectLearningTab';
+import ProjectProductivityTab from './tabs/ProjectProductivityTab';
 
 interface ProjectDetailClientProps {
   project: {

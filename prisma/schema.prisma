@@ -336,6 +336,8 @@ model Project {
   status             String    @default("ACTIVE") // ACTIVE, COMPLETED
   sourcingPolicy     Json?
   sourcingPolicyUpdatedAt DateTime?
+  productivityPolicy     Json?
+  productivityPolicyUpdatedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -369,6 +371,7 @@ model Project {
   supplies     ProjectSupply[]
   baselines    ProjectBaseline[]
   sourcingPolicyChanges ProjectSourcingPolicyChange[]
+  productivityPolicyChanges ProjectProductivityPolicyChange[]
   changeRequests ProjectChangeRequest[]
   learningDeviations LearningDeviation[]
   recalibrationSuggestions RecalibrationSuggestion[]
@@ -383,6 +386,17 @@ model ProjectSourcingPolicyChange {
   previousPolicy Json?
   newPolicy      Json
   summaryOfChanges String? @db.Text
+}
+
+model ProjectProductivityPolicyChange {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changedAt        DateTime @default(now())
+  changedBy        String?
+  previousPolicy   Json?
+  newPolicy        Json
+  summaryOfChanges String?  @db.Text
 }
 
 model ProjectTypology {
