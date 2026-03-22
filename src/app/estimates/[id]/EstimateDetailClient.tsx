@@ -270,6 +270,22 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             </div>
           )}
 
+          {parsedInternalNotes.integratedCostBuckets && parsedInternalNotes.integratedCostBuckets.length > 0 && (
+            <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
+              {parsedInternalNotes.integratedCostBuckets.map((bucket) => (
+                <div key={bucket.bucketCode} className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontWeight: 700 }}>{bucket.bucketCode}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                    {bucket.source} | {bucket.priceStatus} | Receta {bucket.recipeCoveragePercent}% | Precio {bucket.priceCoveragePercent}%
+                  </div>
+                  <div style={{ marginTop: '4px', fontSize: '13px' }}>
+                    Mat {formatCurrency(bucket.materialCost)} | MO {formatCurrency(bucket.laborCost)} | Asoc {formatCurrency(bucket.indirectCost)} | Total {bucket.totalCost == null ? 'Pendiente' : formatCurrency(bucket.totalCost)}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
           <div style={{ display: 'grid', gap: '8px' }}>
             {estimate.internalAnalysis.lines.map((line, index) => {
               const lineEconomicStatus = parseLineEconomicStatus(line.appliedAssumptions);
@@ -287,8 +303,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                     </div>
                     {lineEconomicStatus && (
                       <div style={{ fontSize: '12px', color: '#fcd34d', marginTop: '6px' }}>
-                        {lineEconomicStatus.economicStatus} | {lineEconomicStatus.priceSource}
+                        {lineEconomicStatus.economicStatus} | {lineEconomicStatus.priceSource} | {lineEconomicStatus.costSource}
                         {lineEconomicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
+                        {lineEconomicStatus.bucketCode ? ` | Bucket ${lineEconomicStatus.bucketCode}` : ''}
                       </div>
                     )}
                   </div>

@@ -6,6 +6,7 @@ import { buildDiscoverySummary } from '@/lib/discovery/summary';
 import { generateEstimateProposal } from '@/lib/automation/estimate-generator';
 import { buildPricingResult } from '@/lib/estimate/pricing-engine';
 import { buildEstimateStatusFromPipeline } from '@/lib/estimate/estimate-status';
+import { integratePricingIntoEstimateProposal } from '@/lib/estimate/estimate-integration';
 
 export async function POST(
   request: Request,
@@ -57,7 +58,7 @@ export async function POST(
 
     derivedInput.pricingResult = pricingResult;
 
-    const proposal = await generateEstimateProposal({
+    const parametricProposal = await generateEstimateProposal({
       workType: derivedInput.workType,
       siteType: derivedInput.siteType,
       scopeType: derivedInput.scopeType,
@@ -74,6 +75,11 @@ export async function POST(
       hasElevator: Boolean(derivedInput.hasElevator),
       structuralWorks: Boolean(derivedInput.structuralWorks),
     });
+
+    const { proposal } = integratePricingIntoEstimateProposal(
+      parametricProposal,
+      derivedInput.pricingResult
+    );
 
     proposal.estimateStatus = buildEstimateStatusFromPipeline({
       technicalSpecStatus:
@@ -95,6 +101,10 @@ export async function POST(
     } else if (derivedInput.pricingResult?.estimateMode === 'MIXED') {
       proposal.notes.push(
         'Pricing mixto: parte del estimate ya viene de recetas valoradas y parte sigue pendiente de validacion.'
+      );
+    } else {
+      proposal.notes.push(
+        'La propuesta integra buckets tecnicos valorados desde recipe + pricing para las familias cubiertas del vertical MVP.'
       );
     }
 

@@ -6,6 +6,7 @@ import type {
   EstimateLineEconomicSnapshot,
   EstimateStatusSnapshot,
 } from '@/lib/estimate/estimate-status';
+import type { IntegratedEstimateCostBucket } from '@/lib/estimate/estimate-integration';
 
 export type ProposalLine = {
   chapter: string;
@@ -49,6 +50,7 @@ export type Proposal = {
   source: 'MASTER' | 'FALLBACK';
   seedVersion?: number | null;
   estimateStatus: EstimateStatusSnapshot;
+  integratedCostBuckets?: IntegratedEstimateCostBucket[];
 };
 
 export type EstimateItem = {
@@ -380,7 +382,7 @@ export default function AutoEstimateBuilder({
 	                      <div style={{ fontWeight: 600 }}>{line.chapter}</div>
 	                      <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{line.description}</div>
                         <div style={{ marginTop: '6px', fontSize: '12px', color: '#fcd34d' }}>
-                          {line.economicStatus.economicStatus} | {line.economicStatus.priceSource}
+                          {line.economicStatus.economicStatus} | {line.economicStatus.priceSource} | {line.economicStatus.costSource}
                           {line.economicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
                         </div>
 	                    </div>
@@ -395,6 +397,25 @@ export default function AutoEstimateBuilder({
               ))}
             </div>
           </div>
+
+          {proposal.integratedCostBuckets && proposal.integratedCostBuckets.length > 0 && (
+            <div style={{ marginTop: '20px' }}>
+              <h4 style={{ marginBottom: '8px' }}>Buckets tecnicos integrados</h4>
+              <div style={{ display: 'grid', gap: '8px' }}>
+                {proposal.integratedCostBuckets.map((bucket) => (
+                  <div key={bucket.bucketCode} className="glass-panel" style={{ padding: '12px' }}>
+                    <div style={{ fontWeight: 600 }}>{bucket.bucketCode}</div>
+                    <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                      {bucket.source} | {bucket.priceStatus} | Receta {bucket.recipeCoveragePercent}% | Precio {bucket.priceCoveragePercent}%
+                    </div>
+                    <div style={{ marginTop: '4px', fontSize: '13px' }}>
+                      Mat {formatCurrency(bucket.materialCost)} | MO {formatCurrency(bucket.laborCost)} | Asoc {formatCurrency(bucket.indirectCost)} | Total {bucket.totalCost == null ? 'Pendiente' : formatCurrency(bucket.totalCost)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

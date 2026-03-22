@@ -1,3 +1,5 @@
+import type { IntegratedEstimateCostBucket } from './estimate-integration';
+
 export type TechnicalSpecStatus = 'INCOMPLETE' | 'READY_FOR_MEASUREMENT';
 
 export type EstimateMode =
@@ -18,6 +20,11 @@ export type EstimatePriceSource =
   | 'MANUAL_OVERRIDE'
   | 'MISSING';
 
+export type InternalCostSource =
+  | 'RECIPE_PRICED'
+  | 'PARAMETRIC_MASTER'
+  | 'HYBRID';
+
 export type EstimateStatusSnapshot = {
   technicalSpecStatus: TechnicalSpecStatus;
   estimateMode: EstimateMode;
@@ -31,11 +38,17 @@ export type EstimateLineEconomicSnapshot = {
   economicStatus: EstimateLineEconomicStatus;
   priceSource: EstimatePriceSource;
   pendingValidation: boolean;
+  costSource: InternalCostSource;
+  priceStatus?: 'PRICE_CONFIRMED' | 'PRICE_INFERRED' | 'PRICE_PENDING_VALIDATION';
+  recipeCoverage?: number;
+  priceCoverage?: number;
+  bucketCode?: string | null;
 };
 
 type GenerationNotesPayload = {
   notes: string[];
   estimateStatus: EstimateStatusSnapshot | null;
+  integratedCostBuckets?: IntegratedEstimateCostBucket[];
 };
 
 function clampPercent(value: number) {
@@ -136,18 +149,27 @@ export function buildSprintOneLineEconomicStatus(): EstimateLineEconomicSnapshot
     economicStatus: 'PARAMETRIC_PRELIMINARY',
     priceSource: 'PARAMETRIC_REFERENCE',
     pendingValidation: true,
+    costSource: 'PARAMETRIC_MASTER',
+    priceStatus: 'PRICE_PENDING_VALIDATION',
+    recipeCoverage: 0,
+    priceCoverage: 0,
+    bucketCode: null,
   };
 }
 
 export function serializeGenerationNotes(
   notes: string[] | null | undefined,
-  estimateStatus: EstimateStatusSnapshot | null | undefined
+  estimateStatus: EstimateStatusSnapshot | null | undefined,
+  integratedCostBuckets?: IntegratedEstimateCostBucket[] | null | undefined
 ): GenerationNotesPayload {
   return {
     notes: Array.isArray(notes)
       ? notes.filter((note): note is string => typeof note === 'string')
       : [],
     estimateStatus: estimateStatus ?? null,
+    integratedCostBuckets: Array.isArray(integratedCostBuckets)
+      ? integratedCostBuckets
+      : [],
   };
 }
 
@@ -196,18 +218,25 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
       return {
         notes,
         estimateStatus: snapshot,
+        integratedCostBuckets: Array.isArray(record.integratedCostBuckets)
+          ? (record.integratedCostBuckets as IntegratedEstimateCostBucket[])
+          : [],
       };
     }
 
     return {
       notes,
       estimateStatus: null,
+      integratedCostBuckets: Array.isArray(record.integratedCostBuckets)
+        ? (record.integratedCostBuckets as IntegratedEstimateCostBucket[])
+        : [],
     };
   }
 
   return {
     notes: [],
     estimateStatus: null,
+    integratedCostBuckets: [],
   };
 }
 
@@ -246,5 +275,18 @@ export function parseLineEconomicStatus(
         ? (economic.priceSource as EstimatePriceSource)
         : 'PARAMETRIC_REFERENCE',
     pendingValidation: Boolean(economic.pendingValidation),
+    costSource:
+      economic.costSource === 'RECIPE_PRICED' || economic.costSource === 'HYBRID'
+        ? (economic.costSource as InternalCostSource)
+        : 'PARAMETRIC_MASTER',
+    priceStatus:
+      economic.priceStatus === 'PRICE_CONFIRMED' ||
+      economic.priceStatus === 'PRICE_INFERRED' ||
+      economic.priceStatus === 'PRICE_PENDING_VALIDATION'
+        ? economic.priceStatus
+        : 'PRICE_PENDING_VALIDATION',
+    recipeCoverage: clampPercent(Number(economic.recipeCoverage)),
+    priceCoverage: clampPercent(Number(economic.priceCoverage)),
+    bucketCode: typeof economic.bucketCode === 'string' ? economic.bucketCode : null,
   };
 }

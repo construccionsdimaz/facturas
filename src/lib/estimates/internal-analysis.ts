@@ -6,6 +6,7 @@ import {
   type EstimateLineEconomicSnapshot,
   type EstimateStatusSnapshot,
 } from '@/lib/estimate/estimate-status';
+import type { IntegratedEstimateCostBucket } from '@/lib/estimate/estimate-integration';
 
 export type InternalAnalysisLineInput = {
   chapter: string;
@@ -48,6 +49,7 @@ export type EstimateInternalAnalysisInput = {
   seedVersion?: number | null;
   notes?: string[];
   estimateStatus?: EstimateStatusSnapshot | null;
+  integratedCostBuckets?: IntegratedEstimateCostBucket[];
   summary: InternalAnalysisSummaryInput;
   lines: InternalAnalysisLineInput[];
 };
@@ -116,6 +118,7 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
     estimateStatus: parsedNotes.estimateStatus ?? (input.estimateStatus && typeof input.estimateStatus === 'object'
       ? (input.estimateStatus as EstimateStatusSnapshot)
       : null),
+    integratedCostBuckets: parsedNotes.integratedCostBuckets,
     summary,
     lines,
   };
@@ -135,7 +138,7 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
     commercialSubtotal: input.summary.commercialSubtotal,
     vatAmount: input.summary.vatAmount,
     commercialTotal: input.summary.commercialTotal,
-    generationNotes: serializeGenerationNotes(input.notes, input.estimateStatus),
+    generationNotes: serializeGenerationNotes(input.notes, input.estimateStatus, input.integratedCostBuckets),
     lines: {
       create: input.lines.map((line) => ({
         chapter: line.chapter,
@@ -160,6 +163,11 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
           economicStatus: 'PARAMETRIC_PRELIMINARY',
           priceSource: 'PARAMETRIC_REFERENCE',
           pendingValidation: true,
+          costSource: 'PARAMETRIC_MASTER',
+          priceStatus: 'PRICE_PENDING_VALIDATION',
+          recipeCoverage: 0,
+          priceCoverage: 0,
+          bucketCode: null,
         }),
       })),
     },

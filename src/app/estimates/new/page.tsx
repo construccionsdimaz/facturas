@@ -393,6 +393,7 @@ function NewEstimateContent() {
           seedVersion: internalProposal.seedVersion ?? null,
           notes: internalProposal.notes,
           estimateStatus: internalProposal.estimateStatus,
+          integratedCostBuckets: internalProposal.integratedCostBuckets || [],
           summary: internalProposal.summary,
           lines: internalProposal.lines,
         } : undefined,

@@ -37,6 +37,7 @@ async function run() {
   const { deriveInputFromSession } = require(path.join(srcRoot, 'lib/discovery/derive-input.ts'));
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
   const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
+  const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
@@ -314,6 +315,25 @@ async function run() {
   });
   assert.equal(fallbackContext.mode, 'SIMPLE_AREA_BASED');
   assert(fallbackContext.resolvedSpaces.length >= 1);
+  const parametricProposal = await generateEstimateProposal({
+    workType: 'ADECUACION_LOCAL',
+    siteType: 'LOCAL',
+    scopeType: 'ADECUACION',
+    area: 90,
+    works: 'adecuacion, pintura, suelos',
+    finishLevel: 'MEDIO',
+    accessLevel: 'NORMAL',
+    conditions: '',
+    bathrooms: 1,
+    kitchens: 0,
+    rooms: 2,
+    units: 1,
+    floors: 1,
+    hasElevator: true,
+    structuralWorks: false,
+  });
+  const parametricIntegrated = integratePricingIntoEstimateProposal(parametricProposal);
+  assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.costSource === 'PARAMETRIC_MASTER'));
 
   const measured = createEmptyDiscoverySessionData('COLIVING');
   measured.modelingStrategy = 'STRUCTURED_REPETITIVE';
@@ -709,6 +729,51 @@ async function run() {
   assert.equal(inferredPricing.coverage.pendingValidationCount, 0);
   assert(bathAdaptedPricing.coverage.pendingValidationCount > 0);
   assert.equal(bathAdaptedPricing.estimateMode, 'MIXED');
+
+  const technicalProposal = await generateEstimateProposal({
+    workType: measuredInput.workType,
+    siteType: measuredInput.siteType,
+    scopeType: measuredInput.scopeType,
+    area: measuredInput.area,
+    works: measuredInput.worksText,
+    finishLevel: measuredInput.finishLevel,
+    accessLevel: measuredInput.accessLevel,
+    conditions: measuredInput.conditions,
+    bathrooms: measuredInput.bathrooms,
+    kitchens: measuredInput.kitchens,
+    rooms: measuredInput.rooms,
+    units: measuredInput.units,
+    floors: measuredInput.floors,
+    hasElevator: measuredInput.hasElevator,
+    structuralWorks: measuredInput.structuralWorks,
+  });
+  const integratedTechnical = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).proposal;
+  assert(integratedTechnical.integratedCostBuckets.length > 0);
+  assert(
+    integratedTechnical.integratedCostBuckets.some(
+      (bucket) => bucket.bucketCode === 'ROOMS' && bucket.source === 'RECIPE_PRICED'
+    )
+  );
+  assert(
+    integratedTechnical.lines.some(
+      (line) => line.economicStatus.costSource === 'RECIPE_PRICED'
+    )
+  );
+
+  const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
+  assert(
+    integratedMixed.integratedCostBuckets.some(
+      (bucket) => bucket.bucketCode === 'BATHS' && bucket.source === 'HYBRID'
+    )
+  );
+  assert(
+    integratedMixed.lines.some(
+      (line) =>
+        line.economicStatus.bucketCode === 'BATHS' &&
+        line.economicStatus.costSource === 'HYBRID' &&
+        line.economicStatus.pendingValidation === true
+    )
+  );
 
   console.log('Discovery integration tests passed.');
 }
