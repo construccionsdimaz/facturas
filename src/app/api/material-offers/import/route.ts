@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { csvRowsToOfferPayloads, intakeSupplierOffer } from '@/lib/procurement/offer-intake';
+import { csvRowsToOfferPayloads, intakeSupplierOffer, previewOfferCsvImport } from '@/lib/procurement/offer-intake';
 
 export async function POST(request: Request) {
   try {
@@ -10,6 +10,7 @@ export async function POST(request: Request) {
     }
 
     const rows = csvRowsToOfferPayloads(csvText);
+    const preview = await previewOfferCsvImport(csvText);
     const results = [];
 
     for (const row of rows) {
@@ -44,6 +45,11 @@ export async function POST(request: Request) {
       updated: results.filter((row) => row.status === 'UPDATED').length,
       duplicates: results.filter((row) => row.status === 'DUPLICATE_SKIPPED').length,
       needsReview: results.filter((row) => row.mappingStatus === 'NEEDS_REVIEW').length,
+      previewSummary: {
+        readyToCreate: preview.readyToCreate,
+        duplicateCount: preview.duplicateCount,
+        invalidCount: preview.invalidCount,
+      },
       results,
     });
   } catch (error) {

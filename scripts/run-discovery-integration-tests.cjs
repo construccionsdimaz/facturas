@@ -65,8 +65,13 @@ async function run() {
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const {
+    applyBulkOfferAction,
+    buildOfferCatalogMetrics,
+    buildOfferReviewQueue,
     csvRowsToOfferPayloads,
+    findDuplicateOfferCandidates,
     intakeSupplierOffer,
+    previewOfferCsvImport,
   } = require(path.join(srcRoot, 'lib/procurement/offer-intake.ts'));
   const {
     resolveRecipeMaterialSourcing,
@@ -2244,6 +2249,144 @@ async function run() {
   });
   assert.equal(csvReviewResult.mappingStatus, 'NEEDS_REVIEW');
 
+  const candidateOfferResult = await intakeSupplierOffer({
+    payload: {
+      supplierId: harnessSupplier.id,
+      supplierProductName: 'Revestimiento vertical ceramico estandar',
+      supplierProductRef: `CAND-${uniqueSuffix}`,
+      unit: 'm2',
+      unitCost: 12.6,
+      leadTimeDays: 5,
+      status: 'ACTIVA',
+    },
+    source: 'MANUAL',
+    updateExisting: true,
+  });
+  assert.equal(candidateOfferResult.mappingStatus, 'MATCHED_BY_NAME_CANDIDATE');
+
+  const csvPreview = await previewOfferCsvImport([
+    'supplier,material/procurement code,product name,reference,warehouse,unit,unit cost,lead time,status,preferred,valid until',
+    `${harnessSupplier.name},ACA-WALL-STD,Alicatado mural operativo ${uniqueSuffix},MANUAL-${uniqueSuffix},Barcelona centro,m2,12.34,4,ACTIVA,no,2026-12-31`,
+    `${harnessSupplier.name},,Revestimiento vertical ceramico estandar,PREVIEW-CAND-${uniqueSuffix},Barcelona centro,m2,12.8,5,ACTIVA,no,`,
+    `${harnessSupplier.name},,Producto ambiguo ${uniqueSuffix},PREVIEW-REVIEW-${uniqueSuffix},Barcelona centro,ud,33,7,ACTIVA,no,`,
+  ].join('\n'));
+  assert.equal(csvPreview.totalRows, 3);
+  assert.equal(csvPreview.duplicateCount, 1);
+  assert.equal(csvPreview.needsReview, 1);
+  assert(csvPreview.readyToCreate >= 1);
+
+  const reviewQueueBeforeResolution = await buildOfferReviewQueue();
+  const queuedReviewOffer = reviewQueueBeforeResolution.find((row) => row.supplierProductRef === `CSV-REVIEW-${uniqueSuffix}`);
+  assert(queuedReviewOffer);
+  assert.equal(queuedReviewOffer.mappingStatus, 'NEEDS_REVIEW');
+  const queuedCandidateOffer = reviewQueueBeforeResolution.find((row) => row.supplierProductRef === `CAND-${uniqueSuffix}`);
+  assert(queuedCandidateOffer);
+  assert.equal(queuedCandidateOffer.mappingStatus, 'MATCHED_BY_NAME_CANDIDATE');
+  assert(queuedCandidateOffer.candidates.length > 0);
+
+  const catalogMetricsBeforeResolution = await buildOfferCatalogMetrics();
+  assert(catalogMetricsBeforeResolution.reviewQueueCount >= 2);
+  assert(catalogMetricsBeforeResolution.needsReviewCount >= 1);
+  assert(
+    catalogMetricsBeforeResolution.familyBreakdown.some(
+      (family) => family.family === 'CERAMICS' && family.totalOffers > 0
+    )
+  );
+
+  const candidateTargetMaterial = queuedCandidateOffer.candidates[0];
+  assert(candidateTargetMaterial);
+  const confirmCandidateResult = await applyBulkOfferAction({
+    action: 'CONFIRM_CANDIDATE',
+    offerIds: [queuedCandidateOffer.id],
+    materialId: candidateTargetMaterial.materialId,
+  });
+  assert.equal(confirmCandidateResult.processedCount, 1);
+
+  const assignReviewResult = await applyBulkOfferAction({
+    action: 'ASSIGN_MATERIAL',
+    offerIds: [queuedReviewOffer.id],
+    materialId: candidateTargetMaterial.materialId,
+    activate: true,
+  });
+  assert.equal(assignReviewResult.processedCount, 1);
+
+  const resolvedReviewOffer = await db.supplierMaterialOffer.findUnique({
+    where: { id: queuedReviewOffer.id },
+  });
+  assert(resolvedReviewOffer);
+  assert.equal(resolvedReviewOffer.mappingStatus, 'MATCHED_DIRECT');
+  assert.equal(resolvedReviewOffer.isActive, true);
+  assert.equal(resolvedReviewOffer.procurementMaterialCode, 'ACA-WALL-STD');
+
+  const dedupeBaseOffer = await intakeSupplierOffer({
+    payload: {
+      supplierId: harnessSupplier.id,
+      procurementMaterialCode: 'ACA-WALL-STD',
+      supplierProductName: `Duplicado base ${uniqueSuffix}`,
+      supplierProductRef: `DEDUP-A-${uniqueSuffix}`,
+      warehouseLabel: 'Barcelona centro',
+      unit: 'm2',
+      unitCost: 12.5,
+      leadTimeDays: 4,
+      status: 'ACTIVA',
+    },
+    source: 'MANUAL',
+    updateExisting: true,
+  });
+  const dedupePeerOffer = await intakeSupplierOffer({
+    payload: {
+      supplierId: harnessSupplier.id,
+      procurementMaterialCode: 'ACA-WALL-STD',
+      supplierProductName: `Duplicado base ${uniqueSuffix}`,
+      supplierProductRef: `DEDUP-B-${uniqueSuffix}`,
+      warehouseLabel: 'Barcelona centro',
+      unit: 'm2',
+      unitCost: 12.55,
+      leadTimeDays: 4,
+      status: 'ACTIVA',
+    },
+    source: 'MANUAL',
+    updateExisting: true,
+  });
+  assert.equal(dedupeBaseOffer.mappingStatus, 'MATCHED_BY_CODE');
+  assert.equal(dedupePeerOffer.mappingStatus, 'MATCHED_BY_CODE');
+
+  const dedupeBaseRow = await db.supplierMaterialOffer.findFirst({
+    where: { supplierProductRef: `DEDUP-A-${uniqueSuffix}` },
+  });
+  const dedupePeerRow = await db.supplierMaterialOffer.findFirst({
+    where: { supplierProductRef: `DEDUP-B-${uniqueSuffix}` },
+  });
+  assert(dedupeBaseRow);
+  assert(dedupePeerRow);
+
+  const duplicateCandidates = await findDuplicateOfferCandidates({
+    offerId: dedupePeerRow.id,
+    supplierId: dedupePeerRow.supplierId,
+    materialId: dedupePeerRow.materialId,
+    procurementMaterialCode: dedupePeerRow.procurementMaterialCode,
+    supplierProductRef: dedupePeerRow.supplierProductRef,
+    supplierProductName: dedupePeerRow.supplierProductName,
+    unit: dedupePeerRow.unit,
+    warehouseLabel: dedupePeerRow.warehouseLabel,
+  });
+  assert(
+    duplicateCandidates.some((candidate) => candidate.offerId === dedupeBaseRow.id)
+  );
+
+  const dedupeResult = await applyBulkOfferAction({
+    action: 'DEDUPLICATE_KEEP',
+    offerIds: [dedupeBaseRow.id, dedupePeerRow.id],
+    keepOfferId: dedupeBaseRow.id,
+  });
+  assert.equal(dedupeResult.processedCount, 1);
+  const dedupedPeerRow = await db.supplierMaterialOffer.findUnique({
+    where: { id: dedupePeerRow.id },
+  });
+  assert(dedupedPeerRow);
+  assert.equal(dedupedPeerRow.mappingStatus, 'DUPLICATE_SKIPPED');
+  assert.equal(dedupedPeerRow.isActive, false);
+
   const importedOffer = await db.supplierMaterialOffer.findFirst({
     where: { supplierProductRef: `MANUAL-${uniqueSuffix}` },
     include: {
@@ -2251,6 +2394,14 @@ async function run() {
     },
   });
   assert(importedOffer);
+  const queueAfterResolution = await buildOfferReviewQueue();
+  assert(
+    !queueAfterResolution.some((row) => row.id === queuedReviewOffer.id)
+  );
+  const catalogMetricsAfterResolution = await buildOfferCatalogMetrics();
+  assert(catalogMetricsAfterResolution.mappedOffers >= catalogMetricsBeforeResolution.mappedOffers + 2);
+  assert(catalogMetricsAfterResolution.reviewQueueCount <= catalogMetricsBeforeResolution.reviewQueueCount);
+
   const dbDrivenPricing = await buildPricingResult(
     measuredInput.recipeResult,
     measuredInput.executionContext,
@@ -2271,6 +2422,21 @@ async function run() {
               unit: importedOffer.unit,
               leadTimeDays: importedOffer.leadTimeDays,
               isPreferred: importedOffer.isPreferred,
+              supplier: importedOffer.supplier
+                ? {
+                    id: importedOffer.supplier.id,
+                    name: importedOffer.supplier.name,
+                    address: importedOffer.supplier.address || null,
+                  }
+                : null,
+            },
+            {
+              id: resolvedReviewOffer.id,
+              supplierId: resolvedReviewOffer.supplierId,
+              unitCost: resolvedReviewOffer.unitCost,
+              unit: resolvedReviewOffer.unit,
+              leadTimeDays: resolvedReviewOffer.leadTimeDays,
+              isPreferred: resolvedReviewOffer.isPreferred,
               supplier: importedOffer.supplier
                 ? {
                     id: importedOffer.supplier.id,
@@ -2926,6 +3092,15 @@ async function run() {
           parametricReferenceLines: inferredPricing.coverage.parametricReferenceLines,
           focusFamilySupplierOfferLines: sourcingFocusSupplierOfferLines,
           focusFamilyInferredOnlyLines: sourcingFocusInferredOnlyLines,
+        },
+        offerReviewOpsStats: {
+          reviewQueueBeforeResolution: catalogMetricsBeforeResolution.reviewQueueCount,
+          reviewQueueAfterResolution: catalogMetricsAfterResolution.reviewQueueCount,
+          mappedOffersBeforeResolution: catalogMetricsBeforeResolution.mappedOffers,
+          mappedOffersAfterResolution: catalogMetricsAfterResolution.mappedOffers,
+          csvPreviewReadyToCreate: csvPreview.readyToCreate,
+          csvPreviewNeedsReview: csvPreview.needsReview,
+          csvPreviewDuplicateCount: csvPreview.duplicateCount,
         },
       },
       null,
