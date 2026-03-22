@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
+import { resolveProjectLaborRatePolicy } from '@/lib/estimate/project-labor-rate-policy';
 import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
 import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
 
@@ -74,6 +75,9 @@ export async function POST(
       executionContext: derivedInput?.executionContext || null,
       projectPolicy: project?.sourcingPolicy,
     });
+    const resolvedLaborRatePolicy = resolveProjectLaborRatePolicy({
+      projectPolicy: project?.laborRatePolicy,
+    });
     const procurementProjection =
       derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
         ? await buildProcurementProjection({
@@ -107,6 +111,7 @@ export async function POST(
       commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
       commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
       sourcingPolicy: resolvedSourcingPolicy,
+      laborRatePolicy: resolvedLaborRatePolicy,
       procurementProjection,
       activities: activities.map((a: any) => ({
         id: a.id,

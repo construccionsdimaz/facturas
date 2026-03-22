@@ -10,6 +10,7 @@ import type {
   SourcingOfferSummary,
   SourcingSelectionReasonCode,
 } from '@/lib/procurement/material-resolution';
+import type { ProjectLaborRatePolicy } from './project-labor-rate-policy';
 import type { RecipeLaborCode, RecipeMaterialCode } from './recipe-types';
 
 export type PriceStatus =
@@ -41,6 +42,13 @@ export type PricingCoverageFamilyCode =
 
 export type PricingWeakness = 'NONE' | 'MATERIAL' | 'LABOR' | 'MIXED';
 
+export type LaborRateSource =
+  | 'DEFAULT_RATE'
+  | 'PROJECT_OVERRIDE'
+  | 'PARAMETRIC_REFERENCE'
+  | 'MANUAL_OVERRIDE'
+  | 'MISSING';
+
 export type PricingLineCoverage = {
   familyCode: PricingCoverageFamilyCode;
   dominantMaterialSource: PriceSource;
@@ -67,6 +75,11 @@ export type PricingFamilyCoverage = {
   materialWeakLines: number;
   laborWeakLines: number;
   mixedWeakLines: number;
+  defaultRateLaborLines: number;
+  projectOverrideLaborLines: number;
+  parametricLaborLines: number;
+  manualOverrideLaborLines: number;
+  missingLaborLines: number;
   materialCostTotal: number;
   laborCostTotal: number;
   indirectCostTotal: number;
@@ -76,6 +89,7 @@ export type PricingFamilyCoverage = {
   pendingCoveragePercent: number;
   materialSharePercent: number;
   laborSharePercent: number;
+  governedLaborCoveragePercent: number;
   weakness: PricingWeakness;
 };
 
@@ -90,6 +104,11 @@ export type PricingCoverageMetrics = {
   catalogReferenceLines: number;
   parametricReferenceLines: number;
   missingLines: number;
+  defaultRateLaborLines: number;
+  projectOverrideLaborLines: number;
+  parametricLaborLines: number;
+  manualOverrideLaborLines: number;
+  missingLaborLines: number;
   materialCostTotal: number;
   laborCostTotal: number;
   indirectCostTotal: number;
@@ -155,6 +174,13 @@ export type PricingLabor = {
   policySource?: 'DEFAULT' | 'PROJECT_OVERRIDE' | null;
   policyFamilyCode?: string | null;
   appliedPolicyOverrides?: string[];
+  rateSource?: LaborRateSource | null;
+  rateSourceDetail?: string | null;
+  defaultHourlyRate?: number | null;
+  appliedHourlyRate?: number | null;
+  laborRateFamilyCode?: string | null;
+  projectLaborRatePolicySnapshotApplied?: ProjectLaborRatePolicy | null;
+  rateOverridesApplied?: string[];
   unitCost?: number | null;
   totalCost?: number | null;
   currency: 'EUR';
@@ -182,6 +208,7 @@ export type PricingResult = {
   status: 'READY' | 'PARTIAL' | 'BLOCKED';
   lines: PricingLine[];
   sourcingPolicy: ProjectSourcingPolicy;
+  laborRatePolicy?: ProjectLaborRatePolicy | null;
   coverage: {
     confirmedLines: number;
     inferredLines: number;
@@ -193,6 +220,11 @@ export type PricingResult = {
     catalogReferenceLines: number;
     parametricReferenceLines: number;
     missingLines: number;
+    defaultRateLaborLines: number;
+    projectOverrideLaborLines: number;
+    parametricLaborLines: number;
+    manualOverrideLaborLines: number;
+    missingLaborLines: number;
   };
   metrics: PricingCoverageMetrics;
   estimateMode: 'PARAMETRIC_PRELIMINARY' | 'RECIPE_PRICED' | 'MIXED';
@@ -237,5 +269,6 @@ export type PricingEngineOptions = {
   preferredSuppliersOverride?: Record<string, { id: string; name: string }>;
   sourcingStrategy?: SourcingStrategy;
   sourcingPolicyOverride?: Partial<ProjectSourcingPolicy>;
+  laborRatePolicyOverride?: Partial<ProjectLaborRatePolicy>;
   referenceDate?: Date;
 };

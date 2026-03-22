@@ -659,6 +659,14 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Catalog/parametrico</div>
                   <strong>{economicCoverage.catalogReferenceLines + economicCoverage.parametricReferenceLines}</strong>
                 </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Labor gobernada</div>
+                  <strong>{economicCoverage.defaultRateLaborLines + economicCoverage.projectOverrideLaborLines + economicCoverage.manualOverrideLaborLines}</strong>
+                </div>
+                <div className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Labor parametrica/faltante</div>
+                  <strong>{economicCoverage.parametricLaborLines + economicCoverage.missingLaborLines}</strong>
+                </div>
               </div>
 
               <div className="glass-panel" style={{ padding: '12px' }}>
@@ -677,6 +685,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                       </div>
                       <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                         Mat {formatCurrency(family.materialCostTotal)} ({family.materialSharePercent}%) | MO {formatCurrency(family.laborCostTotal)} ({family.laborSharePercent}%)
+                      </div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                        MO gobernada {family.governedLaborCoveragePercent}% | Override proyecto {family.projectOverrideLaborLines} | Default {family.defaultRateLaborLines} | Parametrica {family.parametricLaborLines}
                       </div>
                     </div>
                   ))}

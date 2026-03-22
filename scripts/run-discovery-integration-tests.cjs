@@ -84,6 +84,10 @@ async function run() {
   } = require(path.join(srcRoot, 'lib/procurement/material-resolution.ts'));
   const { resolveProjectSourcingPolicy } = require(path.join(srcRoot, 'lib/procurement/project-sourcing-policy.ts'));
   const { summarizeProjectSourcingPolicyChange } = require(path.join(srcRoot, 'lib/procurement/project-sourcing-policy.ts'));
+  const {
+    resolveProjectLaborRatePolicy,
+    summarizeProjectLaborRatePolicyChange,
+  } = require(path.join(srcRoot, 'lib/estimate/project-labor-rate-policy.ts'));
   const { buildProcurementProjection } = require(path.join(srcRoot, 'lib/procurement/procurement-projection.ts'));
   const { buildControlProjection } = require(path.join(srcRoot, 'lib/control/control-projection.ts'));
   const {
@@ -1249,6 +1253,7 @@ async function run() {
   assert(partitionPricingLine.laborPricing.some((labor) => (labor.adjustedCrewDays || 0) > 0));
   assert(partitionPricingLine.laborPricing.some((labor) => !!labor.productivityProfileCode));
   assert(partitionPricingLine.laborPricing.some((labor) => labor.priceSource === 'CATALOG_REFERENCE'));
+  assert(partitionPricingLine.laborPricing.some((labor) => labor.rateSource === 'DEFAULT_RATE'));
   assert(partitionPricingLine.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER'));
   assert(['MATERIAL', 'MIXED'].includes(partitionPricingLine.coverage.weakness));
   const wetPricingLine = inferredPricing.lines.find((line) => line.solutionCode === 'PLUMBING_WET_ROOM_PLUS');
@@ -1442,9 +1447,70 @@ async function run() {
   assert(partitionFamilyMetrics.realOfferCoveragePercent > 0);
   assert(wallFinishesFamilyMetrics.realOfferCoveragePercent > 0);
   assert(kitchenettesFamilyMetrics.realOfferCoveragePercent > 0);
+  assert(partitionFamilyMetrics.governedLaborCoveragePercent > 0);
   assert(inferredPricing.metrics.materialCostTotal > 0);
   assert(inferredPricing.metrics.laborCostTotal > 0);
+  assert(inferredPricing.metrics.defaultRateLaborLines > 0);
   assert(inferredPricing.metrics.weakFamilies.length > 0);
+
+  const resolvedLaborRatePolicy = resolveProjectLaborRatePolicy({
+    projectPolicy: {
+      globalLaborMultiplier: 1.08,
+      overridesByFamily: {
+        PARTITIONS: {
+          rateMultiplier: 1.12,
+        },
+        PLUMBING: {
+          hourlyRate: 37.5,
+        },
+      },
+      tradeOverrides: {
+        OFICIO_PLADUR: {
+          hourlyRate: 33.4,
+        },
+      },
+      updatedAt: '2026-03-22T10:00:00.000Z',
+    },
+  });
+  assert.equal(resolvedLaborRatePolicy.source, 'PROJECT_OVERRIDE');
+  assert.equal(
+    summarizeProjectLaborRatePolicyChange({
+      previousPolicy: null,
+      newPolicy: resolvedLaborRatePolicy.policy,
+    }),
+    'Se crea un override de rates laborales para la obra.',
+  );
+
+  const overrideLaborPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: pricingLookupOverride,
+      preferredSuppliersOverride,
+      laborRatePolicyOverride: resolvedLaborRatePolicy.policy,
+    }
+  );
+  const overridePartitionLine = overrideLaborPricing.lines.find((line) => line.solutionCode === 'PARTITION_PLADUR_STD');
+  assert(overridePartitionLine);
+  const overridePartitionLabor = overridePartitionLine.laborPricing.find((labor) => labor.tradeCode === 'OFICIO_PLADUR');
+  assert(overridePartitionLabor);
+  assert.equal(overridePartitionLabor.rateSource, 'PROJECT_OVERRIDE');
+  assert((overridePartitionLabor.unitCost || 0) > 30);
+
+  const overrideWetLine = overrideLaborPricing.lines.find((line) => line.solutionCode === 'PLUMBING_WET_ROOM_PLUS');
+  assert(overrideWetLine);
+  const overrideWetLabor = overrideWetLine.laborPricing.find((labor) => labor.tradeCode === 'OFICIO_FONTANERO');
+  assert(overrideWetLabor);
+  assert.equal(overrideWetLabor.rateSource, 'PROJECT_OVERRIDE');
+  assert.equal(overrideWetLabor.unitCost, 37.5);
+
+  const overridePartitionsFamilyMetrics = overrideLaborPricing.metrics.familyMetrics.find((family) => family.familyCode === 'PARTITIONS');
+  const overrideBathFamilyMetrics = overrideLaborPricing.metrics.familyMetrics.find((family) => family.familyCode === 'BATHS');
+  assert(overridePartitionsFamilyMetrics);
+  assert(overrideBathFamilyMetrics);
+  assert(overridePartitionsFamilyMetrics.projectOverrideLaborLines > 0);
+  assert(overrideBathFamilyMetrics.projectOverrideLaborLines > 0);
+  assert(overrideLaborPricing.metrics.projectOverrideLaborLines > 0);
 
   const multiOfferCeramicLookup = {
     ...pricingLookupOverride,
@@ -2034,6 +2100,7 @@ async function run() {
   });
   const integratedTechnical = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).proposal;
   const integratedTechnicalRuntime = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).runtimeOutput;
+  const integratedOverrideRuntime = integratePricingIntoEstimateProposal(technicalProposal, overrideLaborPricing).runtimeOutput;
   const canonicalPlanningProjection = await buildPlanningProjection({
     name: 'Canonical planning test',
     siteType: measuredInput.siteType,
@@ -2064,8 +2131,10 @@ async function run() {
     recipeResult: measuredInput.recipeResult,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
     commercialRuntimeOutput: integratedTechnicalRuntime,
+    projectLaborRatePolicy: resolvedLaborRatePolicy,
   });
   assert(['CANONICAL_PIPELINE', 'HYBRID'].includes(canonicalPlanningProjection.source));
+  assert.equal(canonicalPlanningProjection.laborRatePolicySource, 'PROJECT_OVERRIDE');
   assert(canonicalPlanningProjection.activities.some((activity) => activity.generatedFrom === 'CANONICAL_PIPELINE'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'bath-1'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'kit-1'));
@@ -2566,7 +2635,7 @@ async function run() {
     )
   );
   const canonicalControlProjection = buildControlProjection({
-    commercialRuntimeOutput: integratedTechnicalRuntime,
+    commercialRuntimeOutput: integratedOverrideRuntime,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
     planningProjection: canonicalPlanningProjection,
     procurementProjection: canonicalProcurementProjection,
@@ -2574,6 +2643,7 @@ async function run() {
       planningProjection: canonicalPlanningProjection,
       procurementProjection: canonicalProcurementProjection,
     },
+    laborRatePolicy: resolvedLaborRatePolicy,
     activities: [
       {
         id: 'act-bath',
@@ -2657,6 +2727,12 @@ async function run() {
   });
   assert.equal(canonicalControlProjection.source, 'CANONICAL_BASELINE');
   assert((canonicalControlProjection.baselineEstimate.laborCost || 0) > 0);
+  assert(
+    canonicalControlProjection.assumptions.some((entry) => entry.includes('policy laboral de proyecto'))
+  );
+  assert(
+    (canonicalControlProjection.baselineEstimate.pricingCoverage?.projectOverrideLaborLines || 0) > 0
+  );
   assert(canonicalControlProjection.baselineEstimate.pricingCoverage);
   assert(
     canonicalControlProjection.baselineEstimate.pricingCoverage.familyMetrics.some(
@@ -3284,6 +3360,18 @@ async function run() {
               materialSharePercent: family.materialSharePercent,
               laborSharePercent: family.laborSharePercent,
             })),
+        },
+        laborGovernanceStats: {
+          defaultRateLaborLines: inferredPricing.metrics.defaultRateLaborLines,
+          projectOverrideLaborLines: overrideLaborPricing.metrics.projectOverrideLaborLines,
+          parametricLaborLines: inferredPricing.metrics.parametricLaborLines,
+          manualOverrideLaborLines: inferredPricing.metrics.manualOverrideLaborLines,
+          partitionOverrideRate: overridePartitionLabor.unitCost,
+          wetOverrideRate: overrideWetLabor.unitCost,
+          planningLaborRatePolicySource: canonicalPlanningProjection.laborRatePolicySource,
+          controlLaborWeaknessWarning: canonicalControlProjection.warnings.find((entry) =>
+            entry.includes('baseline laboral')
+          ) || null,
         },
         offerReviewOpsStats: {
           reviewQueueBeforeResolution: catalogMetricsBeforeResolution.reviewQueueCount,

@@ -114,6 +114,7 @@ export function buildCommercialEstimateRuntimeOutput(params: {
   baseProposal?: GeneratedEstimateProposal | null;
 }): CommercialEstimateRuntimeOutput {
   const { projection, baseProposal } = params;
+  const economicCoverage = buildPricingCoverageMetrics(projection.pricingLines);
   const chapters = Array.from(
     new Set(projection.commercialLines.map((line) => line.chapter))
   );
@@ -139,6 +140,10 @@ export function buildCommercialEstimateRuntimeOutput(params: {
     projection.summary.commercialTotal != null
       ? projection.summary.commercialTotal
       : round((commercialSubtotal || 0) + vatAmount);
+  const laborWeakFamilies = economicCoverage.familyMetrics
+    .filter((family) => family.weakness === 'LABOR' || family.weakness === 'MIXED')
+    .slice(0, 4)
+    .map((family) => `${family.label} (${family.governedLaborCoveragePercent}% gobernado)`);
 
   return {
     status: projection.status,
@@ -160,8 +165,17 @@ export function buildCommercialEstimateRuntimeOutput(params: {
       vatAmount,
       commercialTotal,
     },
-    economicCoverage: buildPricingCoverageMetrics(projection.pricingLines),
-    warnings: projection.warnings,
+    economicCoverage,
+    warnings: Array.from(
+      new Set([
+        ...projection.warnings,
+        ...(laborWeakFamilies.length > 0
+          ? [
+              `Cobertura laboral todavía débil en: ${laborWeakFamilies.join(', ')}.`,
+            ]
+          : []),
+      ]),
+    ),
     assumptions: projection.assumptions,
     legacyAdapter: {
       required:

@@ -25,6 +25,7 @@ import ProjectDashboardsTab from './tabs/ProjectDashboardsTab';
 import ProjectLearningTab from './tabs/ProjectLearningTab';
 import ProjectProductivityTab from './tabs/ProjectProductivityTab';
 import ProjectProductionTab from './tabs/ProjectProductionTab';
+import ProjectLaborRatesTab from './tabs/ProjectLaborRatesTab';
 
 interface ProjectDetailClientProps {
   project: {
@@ -60,7 +61,7 @@ export default function ProjectDetailClient({ project: initialProject, clients }
   const router = useRouter();
   const [project, setProject] = useState(initialProject);
   const [localClients, setLocalClients] = useState(clients);
-  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'dashboards' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'produccion'>(
+  const [activeTab, setActiveTab] = useState<'setup' | 'ubicaciones' | 'wbs' | 'schedule' | 'weekly' | 'tracking' | 'restrictions' | 'procurement' | 'baseline' | 'dashboards' | 'budget' | 'expenses' | 'analysis' | 'invoices' | 'estimates' | 'certifications' | 'diario' | 'documents' | 'produccion' | 'labor'>(
     initialProject.setupStatus === 'INCOMPLETE' ? 'setup' : 'dashboards'
   );
   
@@ -1111,6 +1112,19 @@ export default function ProjectDetailClient({ project: initialProject, clients }
             📋 Baseline/Cambios
           </button>
           <button
+            onClick={() => setActiveTab('labor')}
+            style={{
+              padding: '16px 24px',
+              color: activeTab === 'labor' ? 'var(--accent-primary)' : 'var(--text-muted)',
+              borderBottom: activeTab === 'labor' ? '2px solid var(--accent-primary)' : 'none',
+              background: 'none',
+              fontWeight: '600',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            Mano de Obra
+          </button>
+          <button
             onClick={() => setActiveTab('dashboards')}
             style={{
               padding: '16px 24px',
@@ -1178,6 +1192,9 @@ export default function ProjectDetailClient({ project: initialProject, clients }
           )}
           {activeTab === 'baseline' && (
             <ProjectBaselineTab projectId={project.id} />
+          )}
+          {activeTab === 'labor' && (
+            <ProjectLaborRatesTab projectId={project.id} />
           )}
           {activeTab === 'dashboards' && (
             <ProjectDashboardsTab projectId={project.id} />

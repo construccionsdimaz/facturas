@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
+import { resolveProjectLaborRatePolicy } from '@/lib/estimate/project-labor-rate-policy';
 import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
 import { buildControlProjection } from '@/lib/control/control-projection';
 import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
@@ -63,6 +64,9 @@ export async function GET(
       executionContext: derivedInput?.executionContext || null,
       projectPolicy: project.sourcingPolicy,
     });
+    const resolvedLaborRatePolicy = resolveProjectLaborRatePolicy({
+      projectPolicy: project.laborRatePolicy,
+    });
     const procurementProjection =
       derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
         ? await buildProcurementProjection({
@@ -92,6 +96,7 @@ export async function GET(
       planningProjection: (latestBaseline?.snapshotData as any)?.planningProjection || null,
       procurementProjection,
       baselineSnapshot: latestBaseline?.snapshotData || null,
+      laborRatePolicy: resolvedLaborRatePolicy,
       activities: project.activities,
       supplies: project.supplies,
       expenses: project.expenses,
@@ -101,6 +106,7 @@ export async function GET(
     return NextResponse.json({
       source: controlProjection.source,
       sourcingPolicy: resolvedSourcingPolicy,
+      laborRatePolicy: resolvedLaborRatePolicy,
       controlProjection,
     });
   } catch (error) {

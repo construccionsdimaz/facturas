@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import type { DerivedInput } from '@/lib/discovery/types';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
+import { resolveProjectLaborRatePolicy } from '@/lib/estimate/project-labor-rate-policy';
 import { buildPlanningProjection } from '@/lib/planning/planning-projection';
 import {
   getDefaultProjectCalendarData,
@@ -188,6 +189,9 @@ export async function POST(
           commercialRuntimeOutput: null,
           commercialEstimateProjection: null,
         };
+    const resolvedLaborRatePolicy = resolveProjectLaborRatePolicy({
+      projectPolicy: (project as any).laborRatePolicy,
+    });
 
     const planningProjection = await buildPlanningProjection({
       name: project.name,
@@ -221,6 +225,7 @@ export async function POST(
       recipeResult: discoveryDerivedInput?.recipeResult,
       commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
       commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
+      projectLaborRatePolicy: resolvedLaborRatePolicy,
     });
     const blueprint = planningProjection.blueprint;
 

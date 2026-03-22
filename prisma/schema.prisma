@@ -338,6 +338,8 @@ model Project {
   sourcingPolicyUpdatedAt DateTime?
   productivityPolicy     Json?
   productivityPolicyUpdatedAt DateTime?
+  laborRatePolicy        Json?
+  laborRatePolicyUpdatedAt DateTime?
 
   productionLogs     ProjectProductionLog[]
 
@@ -375,6 +377,7 @@ model Project {
   baselines    ProjectBaseline[]
   sourcingPolicyChanges ProjectSourcingPolicyChange[]
   productivityPolicyChanges ProjectProductivityPolicyChange[]
+  laborRatePolicyChanges ProjectLaborRatePolicyChange[]
   changeRequests ProjectChangeRequest[]
   learningDeviations LearningDeviation[]
   recalibrationSuggestions RecalibrationSuggestion[]
@@ -392,6 +395,17 @@ model ProjectSourcingPolicyChange {
 }
 
 model ProjectProductivityPolicyChange {
+  id               String   @id @default(cuid())
+  projectId        String
+  project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  changedAt        DateTime @default(now())
+  changedBy        String?
+  previousPolicy   Json?
+  newPolicy        Json
+  summaryOfChanges String?  @db.Text
+}
+
+model ProjectLaborRatePolicyChange {
   id               String   @id @default(cuid())
   projectId        String
   project          Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)

@@ -1,6 +1,7 @@
 import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
 import type { PricingCoverageMetrics } from '@/lib/estimate/pricing-types';
+import type { ResolvedProjectLaborRatePolicy } from '@/lib/estimate/project-labor-rate-policy';
 import type { PlanningProjection } from '@/lib/planning/planning-projection';
 import type { ProcurementProjection } from '@/lib/procurement/procurement-projection';
 import { buildPricingCoverageMetrics } from '@/lib/estimate/pricing-coverage';
@@ -121,6 +122,7 @@ type ControlProjectionInput = {
   commercialEstimateProjection?: CommercialEstimateProjection | null;
   planningProjection?: PlanningProjection | null;
   procurementProjection?: ProcurementProjection | null;
+  laborRatePolicy?: ResolvedProjectLaborRatePolicy | null;
   baselineSnapshot?: any;
   activities?: Array<{
     id: string;
@@ -1015,12 +1017,29 @@ export function buildControlProjection(input: ControlProjectionInput): ControlPr
   if (!hasCanonicalProcurement) {
     warnings.push('La baseline procurement no esta completamente soportada por ProcurementProjection persistida.');
   }
+  if (input.laborRatePolicy?.source === 'PROJECT_OVERRIDE') {
+    assumptions.push('La baseline economica aplica una policy laboral de proyecto sobre los rates canónicos.');
+  }
   if (baselineEstimate.pricingCoverage?.weakFamilies.length) {
     warnings.push(
       `La baseline economica mantiene familias debiles de pricing: ${baselineEstimate.pricingCoverage.weakFamilies
         .slice(0, 4)
         .map((family) => family.label)
         .join(', ')}.`
+    );
+  }
+  const laborWeakFamilies =
+    baselineEstimate.pricingCoverage?.familyMetrics
+      .filter(
+        (family) =>
+          family.weakness === 'LABOR' || family.weakness === 'MIXED',
+      )
+      .slice(0, 4) || [];
+  if (laborWeakFamilies.length > 0) {
+    warnings.push(
+      `La baseline laboral sigue debil en: ${laborWeakFamilies
+        .map((family) => `${family.label} (${family.governedLaborCoveragePercent}% gobernado)`)
+        .join(', ')}.`,
     );
   }
   if ((input.expenses || []).length === 0) {

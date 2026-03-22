@@ -1,4 +1,5 @@
 import type {
+  LaborRateSource,
   PriceSource,
   PriceStatus,
   PricingCoverageFamilyCode,
@@ -49,6 +50,21 @@ function dominantSource(sources: PriceSource[]): PriceSource {
   return 'MISSING';
 }
 
+const LABOR_RATE_SOURCE_PRIORITY: LaborRateSource[] = [
+  'MANUAL_OVERRIDE',
+  'PROJECT_OVERRIDE',
+  'DEFAULT_RATE',
+  'PARAMETRIC_REFERENCE',
+  'MISSING',
+];
+
+function dominantLaborRateSource(sources: LaborRateSource[]): LaborRateSource {
+  for (const source of LABOR_RATE_SOURCE_PRIORITY) {
+    if (sources.includes(source)) return source;
+  }
+  return 'MISSING';
+}
+
 function aggregateStatus(statuses: PriceStatus[]): PriceStatus {
   if (statuses.some((status) => status === 'PRICE_PENDING_VALIDATION')) {
     return 'PRICE_PENDING_VALIDATION';
@@ -92,10 +108,19 @@ export function buildPricingLineCoverage(line: Omit<PricingLine, 'coverage'>): P
   const dominantLaborSource = dominantSource(
     line.laborPricing.map((item) => item.priceSource),
   );
+  const dominantLaborRate = dominantLaborRateSource(
+    line.laborPricing
+      .map((item) => item.rateSource)
+      .filter((item): item is LaborRateSource => Boolean(item)),
+  );
 
   const materialWeak =
     line.materialPricing.length > 0 && materialStatus !== 'PRICE_CONFIRMED';
-  const laborWeak = line.laborPricing.length > 0 && laborStatus !== 'PRICE_CONFIRMED';
+  const laborWeak =
+    line.laborPricing.length > 0 &&
+    (laborStatus === 'PRICE_PENDING_VALIDATION' ||
+      dominantLaborRate === 'PARAMETRIC_REFERENCE' ||
+      dominantLaborRate === 'MISSING');
   const weakness: PricingWeakness = materialWeak && laborWeak
     ? 'MIXED'
     : materialWeak
@@ -113,7 +138,7 @@ export function buildPricingLineCoverage(line: Omit<PricingLine, 'coverage'>): P
   if (laborStatus === 'PRICE_PENDING_VALIDATION') {
     provisionalReasons.push('Labor pendiente de validacion');
   } else if (laborStatus === 'PRICE_INFERRED') {
-    provisionalReasons.push(`Labor soportada por ${dominantLaborSource}`);
+    provisionalReasons.push(`Labor soportada por ${dominantLaborRate}`);
   }
 
   return {
@@ -152,6 +177,21 @@ export function buildPricingCoverageMetrics(lines: PricingLine[]): PricingCovera
     line.materialPricing.some((item) => item.priceSource === 'MISSING') ||
     line.laborPricing.some((item) => item.priceSource === 'MISSING')
   ).length;
+  const defaultRateLaborLines = lines.filter((line) =>
+    line.laborPricing.some((item) => item.rateSource === 'DEFAULT_RATE')
+  ).length;
+  const projectOverrideLaborLines = lines.filter((line) =>
+    line.laborPricing.some((item) => item.rateSource === 'PROJECT_OVERRIDE')
+  ).length;
+  const parametricLaborLines = lines.filter((line) =>
+    line.laborPricing.some((item) => item.rateSource === 'PARAMETRIC_REFERENCE')
+  ).length;
+  const manualOverrideLaborLines = lines.filter((line) =>
+    line.laborPricing.some((item) => item.rateSource === 'MANUAL_OVERRIDE')
+  ).length;
+  const missingLaborLines = lines.filter((line) =>
+    line.laborPricing.some((item) => item.rateSource === 'MISSING')
+  ).length;
   const materialCostTotal = round(lines.reduce((sum, line) => sum + (line.materialCost || 0), 0));
   const laborCostTotal = round(lines.reduce((sum, line) => sum + (line.laborCost || 0), 0));
   const indirectCostTotal = round(lines.reduce((sum, line) => sum + (line.indirectCost || 0), 0));
@@ -179,6 +219,11 @@ export function buildPricingCoverageMetrics(lines: PricingLine[]): PricingCovera
       materialWeakLines: 0,
       laborWeakLines: 0,
       mixedWeakLines: 0,
+      defaultRateLaborLines: 0,
+      projectOverrideLaborLines: 0,
+      parametricLaborLines: 0,
+      manualOverrideLaborLines: 0,
+      missingLaborLines: 0,
       materialCostTotal: 0,
       laborCostTotal: 0,
       indirectCostTotal: 0,
@@ -188,6 +233,7 @@ export function buildPricingCoverageMetrics(lines: PricingLine[]): PricingCovera
       pendingCoveragePercent: 0,
       materialSharePercent: 0,
       laborSharePercent: 0,
+      governedLaborCoveragePercent: 0,
       weakness: 'NONE' as PricingWeakness,
     };
 
@@ -206,6 +252,11 @@ export function buildPricingCoverageMetrics(lines: PricingLine[]): PricingCovera
     ) {
       current.missingLines += 1;
     }
+    if (line.laborPricing.some((item) => item.rateSource === 'DEFAULT_RATE')) current.defaultRateLaborLines += 1;
+    if (line.laborPricing.some((item) => item.rateSource === 'PROJECT_OVERRIDE')) current.projectOverrideLaborLines += 1;
+    if (line.laborPricing.some((item) => item.rateSource === 'PARAMETRIC_REFERENCE')) current.parametricLaborLines += 1;
+    if (line.laborPricing.some((item) => item.rateSource === 'MANUAL_OVERRIDE')) current.manualOverrideLaborLines += 1;
+    if (line.laborPricing.some((item) => item.rateSource === 'MISSING')) current.missingLaborLines += 1;
 
     if (lineCoverage.weakness === 'MATERIAL') current.materialWeakLines += 1;
     if (lineCoverage.weakness === 'LABOR') current.laborWeakLines += 1;
@@ -243,6 +294,10 @@ export function buildPricingCoverageMetrics(lines: PricingLine[]): PricingCovera
         pendingCoveragePercent: percent(item.pendingLines, item.lineCount),
         materialSharePercent: percent(item.materialCostTotal, combinedDirectCost),
         laborSharePercent: percent(item.laborCostTotal, combinedDirectCost),
+        governedLaborCoveragePercent: percent(
+          item.defaultRateLaborLines + item.projectOverrideLaborLines + item.manualOverrideLaborLines,
+          item.lineCount,
+        ),
         weakness,
       };
     })
@@ -274,6 +329,11 @@ export function buildPricingCoverageMetrics(lines: PricingLine[]): PricingCovera
     catalogReferenceLines,
     parametricReferenceLines,
     missingLines,
+    defaultRateLaborLines,
+    projectOverrideLaborLines,
+    parametricLaborLines,
+    manualOverrideLaborLines,
+    missingLaborLines,
     materialCostTotal,
     laborCostTotal,
     indirectCostTotal,

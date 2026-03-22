@@ -10,6 +10,10 @@ import {
   buildPricingCoverageMetrics,
   buildPricingLineCoverage,
 } from './pricing-coverage';
+import {
+  resolveLaborRate,
+  resolveProjectLaborRatePolicy,
+} from './project-labor-rate-policy';
 import type { RecipeLine, RecipeLaborCode, RecipeMaterialCode, RecipeResult } from './recipe-types';
 import type {
   PricingEngineOptions,
@@ -33,11 +37,6 @@ type LaborBinding = {
   unit: 'h' | 'jor';
   catalogReferenceUnitCost?: number;
   parametricReferenceUnitCost?: number;
-};
-
-type LaborRateProfile = {
-  hourlyRate: number;
-  detail: string;
 };
 
 const MATERIAL_BINDINGS: Record<RecipeMaterialCode, MaterialBinding> = {
@@ -225,29 +224,6 @@ const LABOR_BINDINGS: Record<RecipeLaborCode, LaborBinding> = {
   LAB_DRAINAGE_WET_ROOM_PLUS: { unit: 'h', parametricReferenceUnitCost: 32 },
 };
 
-const LABOR_RATE_BY_TRADE: Partial<Record<NonNullable<PricingLabor['tradeCode']>, LaborRateProfile>> = {
-  OFICIO_ALBANIL: { hourlyRate: 29.5, detail: 'Referencia de albanileria interior' },
-  OFICIO_PLADUR: { hourlyRate: 28.8, detail: 'Referencia de sistemas de yeso laminado' },
-  OFICIO_PINTOR: { hourlyRate: 24.8, detail: 'Referencia de pintura interior' },
-  OFICIO_ELECTRICISTA: { hourlyRate: 31.5, detail: 'Referencia de electricidad basica' },
-  OFICIO_FONTANERO: { hourlyRate: 32.2, detail: 'Referencia de fontaneria y saneamiento interior' },
-  OFICIO_CARPINTERO: { hourlyRate: 30.4, detail: 'Referencia de carpinteria interior y montaje' },
-  OFICIO_SOLADOR: { hourlyRate: 29.9, detail: 'Referencia de colocacion de pavimento y revestimiento' },
-  OFICIO_TECNICO_MULTI: { hourlyRate: 28.4, detail: 'Referencia de operario multi-interiores' },
-};
-
-const LABOR_CREW_RATE_ADJUSTMENTS: Partial<Record<NonNullable<PricingLabor['crewCode']>, number>> = {
-  CREW_PARTITIONS_STD: 1.02,
-  CREW_CEILINGS_STD: 1.01,
-  CREW_FLOORING_STD: 1.02,
-  CREW_TILING_WET_STD: 1.04,
-  CREW_PAINT_STD: 0.99,
-  CREW_CARPENTRY_STD: 1.03,
-  CREW_ELECTRICAL_BASIC: 1.02,
-  CREW_PLUMBING_WET: 1.04,
-  CREW_KITCHENETTE_INSTALL: 1.05,
-  CREW_GENERAL_INTERIORS: 1,
-};
 
 type OfferRecord = {
   id: string;
@@ -349,21 +325,6 @@ async function loadPreferredSuppliers() {
 
 function round(value: number) {
   return Number(value.toFixed(2));
-}
-
-function resolveLaborReferenceRate(labor: RecipeLine['labor'][number]) {
-  if (!labor.tradeCode || labor.productivitySource === 'FALLBACK') return null;
-  const tradeProfile = LABOR_RATE_BY_TRADE[labor.tradeCode];
-  if (!tradeProfile) return null;
-  const crewFactor = labor.crewCode ? LABOR_CREW_RATE_ADJUSTMENTS[labor.crewCode] || 1 : 1;
-  const hourlyRate = round(tradeProfile.hourlyRate * crewFactor);
-  return {
-    unit: 'h' as const,
-    unitCost: hourlyRate,
-    detail: labor.crewCode
-      ? `${tradeProfile.detail}; crew ${labor.crewCode} aplicada`
-      : tradeProfile.detail,
-  };
 }
 
 async function priceMaterial(
@@ -480,8 +441,12 @@ async function priceMaterial(
 
 function priceLabor(
   labor: RecipeLine['labor'][number],
+  solutionCode: RecipeLine['solutionCode'],
   options: PricingEngineOptions
 ): PricingLabor {
+  const resolvedLaborRatePolicy = resolveProjectLaborRatePolicy({
+    projectPolicy: options.laborRatePolicyOverride,
+  });
   const manual = options.manualOverrides?.labor?.[labor.laborCode];
   if (manual && isValidCost(manual.unitCost)) {
     return {
@@ -499,6 +464,13 @@ function priceLabor(
       policySource: labor.policySource || null,
       policyFamilyCode: labor.policyFamilyCode || null,
       appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
+      rateSource: 'MANUAL_OVERRIDE',
+      rateSourceDetail: 'Override manual de coste laboral.',
+      defaultHourlyRate: null,
+      appliedHourlyRate: round(manual.unitCost),
+      laborRateFamilyCode: null,
+      projectLaborRatePolicySnapshotApplied: resolvedLaborRatePolicy.policy,
+      rateOverridesApplied: [],
       unitCost: round(manual.unitCost),
       totalCost: round(labor.quantity * manual.unitCost),
       currency: 'EUR',
@@ -524,6 +496,13 @@ function priceLabor(
       policySource: labor.policySource || null,
       policyFamilyCode: labor.policyFamilyCode || null,
       appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
+      rateSource: 'MISSING',
+      rateSourceDetail: 'Labor sin binding ni rate gobernable.',
+      defaultHourlyRate: null,
+      appliedHourlyRate: null,
+      laborRateFamilyCode: null,
+      projectLaborRatePolicySnapshotApplied: resolvedLaborRatePolicy.policy,
+      rateOverridesApplied: [],
       unitCost: null,
       totalCost: null,
       currency: 'EUR',
@@ -532,8 +511,23 @@ function priceLabor(
     };
   }
 
-  const laborReferenceRate = resolveLaborReferenceRate(labor);
-  if (laborReferenceRate && isValidCost(laborReferenceRate.unitCost)) {
+  const governedLaborRate = resolveLaborRate({
+    tradeCode: labor.tradeCode,
+    crewCode: labor.crewCode,
+    solutionCode,
+    projectPolicy: resolvedLaborRatePolicy.policy,
+  });
+  const laborRateResolution =
+    labor.productivitySource === 'FALLBACK'
+      ? {
+          ...governedLaborRate,
+          rateSource: 'PARAMETRIC_REFERENCE' as const,
+          hourlyRate: null,
+          detail: 'Sin base de productividad seria; la labor cae a referencia parametrica.',
+        }
+      : governedLaborRate;
+
+  if (laborRateResolution.hourlyRate != null && isValidCost(laborRateResolution.hourlyRate)) {
     return {
       laborCode: labor.laborCode,
       quantity: labor.quantity,
@@ -546,15 +540,32 @@ function priceLabor(
       adjustedHoursPerUnit: labor.adjustedHoursPerUnit ?? null,
       adjustedCrewDays: labor.adjustedCrewDays ?? null,
       productivityFactors: labor.productivityFactors || [],
-      assumptions: [...(labor.assumptions || []), laborReferenceRate.detail],
+      assumptions: [
+        ...(labor.assumptions || []),
+        laborRateResolution.detail,
+        ...laborRateResolution.overridesApplied,
+      ],
       policySource: labor.policySource || null,
       policyFamilyCode: labor.policyFamilyCode || null,
       appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
-      unitCost: laborReferenceRate.unitCost,
-      totalCost: round(labor.quantity * laborReferenceRate.unitCost),
+      rateSource: laborRateResolution.rateSource,
+      rateSourceDetail: laborRateResolution.detail,
+      defaultHourlyRate: laborRateResolution.defaultCatalogEntry?.hourlyRate || null,
+      appliedHourlyRate: laborRateResolution.hourlyRate,
+      laborRateFamilyCode: laborRateResolution.familyCode || null,
+      projectLaborRatePolicySnapshotApplied: resolvedLaborRatePolicy.policy,
+      rateOverridesApplied: laborRateResolution.overridesApplied,
+      unitCost: laborRateResolution.hourlyRate,
+      totalCost: round(labor.quantity * laborRateResolution.hourlyRate),
       currency: 'EUR',
-      priceStatus: 'PRICE_INFERRED',
-      priceSource: 'CATALOG_REFERENCE',
+      priceStatus:
+        laborRateResolution.rateSource === 'MANUAL_OVERRIDE'
+          ? 'PRICE_CONFIRMED'
+          : 'PRICE_INFERRED',
+      priceSource:
+        laborRateResolution.rateSource === 'MANUAL_OVERRIDE'
+          ? 'MANUAL_OVERRIDE'
+          : 'CATALOG_REFERENCE',
     };
   }
 
@@ -575,6 +586,13 @@ function priceLabor(
       policySource: labor.policySource || null,
       policyFamilyCode: labor.policyFamilyCode || null,
       appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
+      rateSource: 'PARAMETRIC_REFERENCE',
+      rateSourceDetail: 'Referencia catalogal generica de labor.',
+      defaultHourlyRate: null,
+      appliedHourlyRate: round(binding.catalogReferenceUnitCost!),
+      laborRateFamilyCode: laborRateResolution.familyCode || null,
+      projectLaborRatePolicySnapshotApplied: resolvedLaborRatePolicy.policy,
+      rateOverridesApplied: [],
       unitCost: round(binding.catalogReferenceUnitCost!),
       totalCost: round(labor.quantity * binding.catalogReferenceUnitCost!),
       currency: 'EUR',
@@ -600,6 +618,13 @@ function priceLabor(
       policySource: labor.policySource || null,
       policyFamilyCode: labor.policyFamilyCode || null,
       appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
+      rateSource: 'PARAMETRIC_REFERENCE',
+      rateSourceDetail: 'Referencia parametrica de labor.',
+      defaultHourlyRate: null,
+      appliedHourlyRate: round(binding.parametricReferenceUnitCost!),
+      laborRateFamilyCode: laborRateResolution.familyCode || null,
+      projectLaborRatePolicySnapshotApplied: resolvedLaborRatePolicy.policy,
+      rateOverridesApplied: [],
       unitCost: round(binding.parametricReferenceUnitCost!),
       totalCost: round(labor.quantity * binding.parametricReferenceUnitCost!),
       currency: 'EUR',
@@ -624,6 +649,13 @@ function priceLabor(
     policySource: labor.policySource || null,
     policyFamilyCode: labor.policyFamilyCode || null,
     appliedPolicyOverrides: labor.appliedPolicyOverrides || [],
+    rateSource: 'MISSING',
+    rateSourceDetail: 'No existe rate laboral suficiente para esta labor.',
+    defaultHourlyRate: null,
+    appliedHourlyRate: null,
+    laborRateFamilyCode: laborRateResolution.familyCode || null,
+    projectLaborRatePolicySnapshotApplied: resolvedLaborRatePolicy.policy,
+    rateOverridesApplied: laborRateResolution.overridesApplied,
     unitCost: null,
     totalCost: null,
     currency: 'EUR',
@@ -658,12 +690,16 @@ export async function buildPricingResult(
     createDefaultProjectSourcingPolicy(executionContext),
     options.sourcingPolicyOverride,
   );
+  const resolvedLaborRatePolicy = resolveProjectLaborRatePolicy({
+    projectPolicy: options.laborRatePolicyOverride,
+  });
 
   if (!recipeResult) {
     return {
       status: 'BLOCKED',
       lines: [],
       sourcingPolicy,
+      laborRatePolicy: resolvedLaborRatePolicy.policy,
       coverage: {
         confirmedLines: 0,
         inferredLines: 0,
@@ -675,6 +711,11 @@ export async function buildPricingResult(
         catalogReferenceLines: 0,
         parametricReferenceLines: 0,
         missingLines: 0,
+        defaultRateLaborLines: 0,
+        projectOverrideLaborLines: 0,
+        parametricLaborLines: 0,
+        manualOverrideLaborLines: 0,
+        missingLaborLines: 0,
       },
       metrics: {
         totalLines: 0,
@@ -687,6 +728,11 @@ export async function buildPricingResult(
         catalogReferenceLines: 0,
         parametricReferenceLines: 0,
         missingLines: 0,
+        defaultRateLaborLines: 0,
+        projectOverrideLaborLines: 0,
+        parametricLaborLines: 0,
+        manualOverrideLaborLines: 0,
+        missingLaborLines: 0,
         materialCostTotal: 0,
         laborCostTotal: 0,
         indirectCostTotal: 0,
@@ -736,11 +782,14 @@ export async function buildPricingResult(
           })
         )
       );
-      const laborPricing = recipeLine.labor.map((labor) => priceLabor(labor, options));
-      const priceStatus = deriveLineStatus(recipeLine, materialPricing, laborPricing);
+      const pricedLabor = recipeLine.labor.map((labor) => priceLabor(labor, recipeLine.solutionCode, {
+        ...options,
+        laborRatePolicyOverride: resolvedLaborRatePolicy.policy,
+      }));
+      const priceStatus = deriveLineStatus(recipeLine, materialPricing, pricedLabor);
 
       const materialCostKnown = materialPricing.every((item) => isValidCost(item.totalCost));
-      const laborCostKnown = laborPricing.every((item) => isValidCost(item.totalCost));
+      const laborCostKnown = pricedLabor.every((item) => isValidCost(item.totalCost));
       const materialCost =
         materialPricing.length === 0
           ? 0
@@ -748,10 +797,10 @@ export async function buildPricingResult(
             ? round(materialPricing.reduce((sum, item) => sum + (item.totalCost || 0), 0))
             : null;
       const laborCost =
-        laborPricing.length === 0
+        pricedLabor.length === 0
           ? 0
           : laborCostKnown
-            ? round(laborPricing.reduce((sum, item) => sum + (item.totalCost || 0), 0))
+            ? round(pricedLabor.reduce((sum, item) => sum + (item.totalCost || 0), 0))
             : null;
 
       const subtotalKnown = isValidCost(materialCost) && isValidCost(laborCost);
@@ -772,9 +821,18 @@ export async function buildPricingResult(
       if (priceStatus === 'PRICE_INFERRED') {
         assumptions.push(`Pricing inferido para ${recipeLine.recipeCode} en ${recipeLine.spaceId}.`);
       }
-      for (const labor of laborPricing) {
+      for (const labor of pricedLabor) {
         if (labor.productivitySource === 'FALLBACK') {
           warnings.push(`Productividad fallback para ${labor.laborCode} en ${recipeLine.spaceId}.`);
+        }
+        if (labor.rateSource === 'PARAMETRIC_REFERENCE') {
+          warnings.push(`Labor con rate parametrico para ${labor.laborCode} en ${recipeLine.spaceId}.`);
+        }
+        if (labor.rateSource === 'MISSING') {
+          warnings.push(`Labor sin rate gobernable para ${labor.laborCode} en ${recipeLine.spaceId}.`);
+        }
+        if (labor.rateSource === 'PROJECT_OVERRIDE') {
+          assumptions.push(`Labor ${labor.laborCode} ajustada por policy laboral de proyecto en ${recipeLine.spaceId}.`);
         }
         if ((labor.productivityFactors || []).length > 0) {
           assumptions.push(
@@ -791,7 +849,7 @@ export async function buildPricingResult(
         solutionCode: recipeLine.solutionCode,
         recipeLineId: recipeLine.id,
         materialPricing,
-        laborPricing,
+        laborPricing: pricedLabor,
         materialCost,
         laborCost,
         indirectCost,
@@ -804,7 +862,7 @@ export async function buildPricingResult(
           solutionCode: recipeLine.solutionCode,
           recipeLineId: recipeLine.id,
           materialPricing,
-          laborPricing,
+          laborPricing: pricedLabor,
           materialCost,
           laborCost,
           indirectCost,
@@ -819,7 +877,6 @@ export async function buildPricingResult(
   const confirmedLines = lines.filter((line) => line.priceStatus === 'PRICE_CONFIRMED').length;
   const inferredLines = lines.filter((line) => line.priceStatus === 'PRICE_INFERRED').length;
   const pendingLines = lines.filter((line) => line.priceStatus === 'PRICE_PENDING_VALIDATION').length;
-  const allMaterialPricing = lines.flatMap((line) => line.materialPricing);
   const priceCoveragePercent =
     lines.length === 0 ? 0 : Math.round(((confirmedLines + inferredLines) / lines.length) * 100);
   const pendingValidationCount = pendingLines;
@@ -840,6 +897,7 @@ export async function buildPricingResult(
     status,
     lines,
     sourcingPolicy,
+    laborRatePolicy: resolvedLaborRatePolicy.policy,
     coverage: {
       confirmedLines,
       inferredLines,
@@ -850,7 +908,15 @@ export async function buildPricingResult(
       preferredSupplierLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'PREFERRED_SUPPLIER')).length,
       catalogReferenceLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'CATALOG_REFERENCE')).length,
       parametricReferenceLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'PARAMETRIC_REFERENCE')).length,
-      missingLines: allMaterialPricing.filter((item) => item.priceSource === 'MISSING').length,
+      missingLines: lines.filter((line) =>
+        line.materialPricing.some((item) => item.priceSource === 'MISSING') ||
+        line.laborPricing.some((item) => item.rateSource === 'MISSING')
+      ).length,
+      defaultRateLaborLines: lines.filter((line) => line.laborPricing.some((item) => item.rateSource === 'DEFAULT_RATE')).length,
+      projectOverrideLaborLines: lines.filter((line) => line.laborPricing.some((item) => item.rateSource === 'PROJECT_OVERRIDE')).length,
+      parametricLaborLines: lines.filter((line) => line.laborPricing.some((item) => item.rateSource === 'PARAMETRIC_REFERENCE')).length,
+      manualOverrideLaborLines: lines.filter((line) => line.laborPricing.some((item) => item.rateSource === 'MANUAL_OVERRIDE')).length,
+      missingLaborLines: lines.filter((line) => line.laborPricing.some((item) => item.rateSource === 'MISSING')).length,
     },
     metrics,
     estimateMode: deriveEstimateModeFromPricing({

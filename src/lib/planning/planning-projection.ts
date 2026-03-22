@@ -18,6 +18,7 @@ import type {
   VerticalSolutionCode,
 } from '@/lib/discovery/technical-spec-types';
 import type { ProjectProductivityPolicy } from '@/lib/estimate/project-productivity-policy';
+import type { ResolvedProjectLaborRatePolicy } from '@/lib/estimate/project-labor-rate-policy';
 // import type { ProjectProductionLog } from '@prisma/client';
 type ProjectProductionLog = any;
 import { summarizeProductionLogs } from '@/lib/estimate/production-actuals';
@@ -84,6 +85,7 @@ export type PlanningProjectionActivity = PlanningActivityNode & {
 
 export type PlanningProjection = {
   source: PlanningProjectionSource;
+  laborRatePolicySource?: 'DEFAULT' | 'PROJECT_OVERRIDE' | null;
   executionContext: Pick<
     ExecutionContext,
     'project' | 'resolvedSpaces' | 'resolvedSpecs'
@@ -111,6 +113,7 @@ type CanonicalPlanningInput = PlanningGenerationInput & {
   commercialEstimateProjection?: CommercialEstimateProjection | null;
   commercialRuntimeOutput?: CommercialEstimateRuntimeOutput | null;
   projectProductivityPolicy?: ProjectProductivityPolicy | null;
+  projectLaborRatePolicy?: ResolvedProjectLaborRatePolicy | null;
   productionLogs?: ProjectProductionLog[] | null;
 };
 
@@ -734,6 +737,7 @@ export async function buildPlanningProjection(
   return {
 
     source,
+    laborRatePolicySource: input.projectLaborRatePolicy?.source || null,
     executionContext: {
       project: executionContext.project,
       resolvedSpaces: executionContext.resolvedSpaces,
@@ -770,6 +774,9 @@ export async function buildPlanningProjection(
       ...measurementResult.assumptions,
       ...recipeResult.assumptions,
       ...executionContext.assumptions,
+      ...(input.projectLaborRatePolicy?.source === 'PROJECT_OVERRIDE'
+        ? ['La obra usa override de rates laborales; afecta baseline económica, no la duración productiva.']
+        : []),
     ]),
   };
 }
