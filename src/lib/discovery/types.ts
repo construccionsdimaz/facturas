@@ -7,6 +7,7 @@ import type {
 } from '@/lib/automation/types';
 import type { TechnicalSpecModel } from './technical-spec-types';
 import type { ResolvedTechnicalSpecSummary } from './technical-spec-types';
+import type { MeasurementResult } from '@/lib/estimate/measurement-types';
 
 export type DiscoverySessionStatus =
   | 'DRAFT'
@@ -748,6 +749,7 @@ export type DerivedInput = {
   currentVsTarget: DiscoverySessionData['currentVsTarget'];
   executionConstraints: DiscoverySessionData['executionConstraints'];
   executionContext: ExecutionContext;
+  measurementResult?: MeasurementResult;
   certainty: {
     byBlock: DiscoverySessionData['certainty']['byBlock'];
     confidenceLevel: 'BAJA' | 'MEDIA' | 'ALTA';

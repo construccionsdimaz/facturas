@@ -9,6 +9,18 @@ import type {
 } from './technical-spec-types';
 import type { DiscoverySessionData, ResolvedSpace } from './types';
 
+function getParentInstance(space: ResolvedSpace, sessionData: DiscoverySessionData) {
+  if (!space.parentSpaceId) return null;
+  return sessionData.spatialModel.instances.find(
+    (instance) => instance.instanceId === space.parentSpaceId
+  ) || null;
+}
+
+function getParentGroupId(space: ResolvedSpace, sessionData: DiscoverySessionData) {
+  const parentInstance = getParentInstance(space, sessionData);
+  return parentInstance?.groupId || null;
+}
+
 function mergeSelections(
   ...parts: Array<TechnicalSpecSelection | undefined>
 ): TechnicalSpecSelection {
@@ -29,6 +41,8 @@ function mergePatchChain(
 
 function determinePrimarySource(space: ResolvedSpace, sessionData: DiscoverySessionData) {
   const model = ensureTechnicalSpecModel(sessionData.technicalSpecModel);
+  const parentGroupId = getParentGroupId(space, sessionData);
+  const parentInstance = getParentInstance(space, sessionData);
 
   const subspacePatch =
     space.subspaceKind && model.subspaceSpecs[space.spaceId]
@@ -38,8 +52,12 @@ function determinePrimarySource(space: ResolvedSpace, sessionData: DiscoverySess
     ? { level: 'INSTANCE' as const, refId: space.spaceId, patch: model.instanceSpecs[space.spaceId] }
     : null;
   const groupPatch =
-    space.sourceGroupId && model.groupSpecs[space.sourceGroupId]
-      ? { level: 'GROUP' as const, refId: space.sourceGroupId, patch: model.groupSpecs[space.sourceGroupId] }
+    (space.sourceGroupId || parentGroupId) && model.groupSpecs[space.sourceGroupId || parentGroupId || '']
+      ? { level: 'GROUP' as const, refId: (space.sourceGroupId || parentGroupId) || undefined, patch: model.groupSpecs[(space.sourceGroupId || parentGroupId)!] }
+      : null;
+  const parentInstancePatch =
+    parentInstance && model.instanceSpecs[parentInstance.instanceId]
+      ? { level: 'INSTANCE' as const, refId: parentInstance.instanceId, patch: model.instanceSpecs[parentInstance.instanceId] }
       : null;
   const floorPatch =
     space.floorId && model.floorSpecs[space.floorId]
@@ -49,19 +67,24 @@ function determinePrimarySource(space: ResolvedSpace, sessionData: DiscoverySess
     ? { level: 'PROJECT' as const, refId: undefined, patch: model.projectSpecs }
     : null;
 
-  return subspacePatch || instancePatch || groupPatch || floorPatch || projectPatch;
+  return subspacePatch || instancePatch || parentInstancePatch || groupPatch || floorPatch || projectPatch;
 }
 
 function buildTrace(space: ResolvedSpace, sessionData: DiscoverySessionData) {
   const model = ensureTechnicalSpecModel(sessionData.technicalSpecModel);
   const trace: Array<{ level: ResolvedSpecSourceLevel; refId?: string }> = [];
+  const parentGroupId = getParentGroupId(space, sessionData);
+  const parentInstance = getParentInstance(space, sessionData);
 
   trace.push({ level: 'PROJECT' });
   if (space.floorId && model.floorSpecs[space.floorId]) {
     trace.push({ level: 'FLOOR', refId: space.floorId });
   }
-  if (space.sourceGroupId && model.groupSpecs[space.sourceGroupId]) {
-    trace.push({ level: 'GROUP', refId: space.sourceGroupId });
+  if ((space.sourceGroupId || parentGroupId) && model.groupSpecs[space.sourceGroupId || parentGroupId || '']) {
+    trace.push({ level: 'GROUP', refId: (space.sourceGroupId || parentGroupId) || undefined });
+  }
+  if (parentInstance && model.instanceSpecs[parentInstance.instanceId]) {
+    trace.push({ level: 'INSTANCE', refId: parentInstance.instanceId });
   }
   if (model.instanceSpecs[space.spaceId]) {
     trace.push({ level: 'INSTANCE', refId: space.spaceId });
@@ -103,15 +126,52 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('dimensions.roomAreaM2');
   }
 
+  if (
+    (space.subspaceKind === 'BANO_ASOCIADO' || space.areaType === 'BANO' || space.features.hasBathroom) &&
+    !merged.dimensions?.bathAreaM2 &&
+    !space.measurementDrivers.areaM2
+  ) {
+    assumedFields.push('dimensions.bathAreaM2');
+  }
+
+  if (
+    (space.subspaceKind === 'KITCHENETTE' || space.areaType === 'COCINA' || space.features.hasKitchenette) &&
+    !merged.dimensions?.kitchenetteLinearMeters &&
+    !space.measurementDrivers.linearMeters
+  ) {
+    assumedFields.push('dimensions.kitchenetteLinearMeters');
+  }
+
+  if (
+    space.features.requiresLeveling &&
+    !merged.dimensions?.levelingAreaM2 &&
+    !space.measurementDrivers.floorSurfaceM2 &&
+    !space.measurementDrivers.areaM2
+  ) {
+    assumedFields.push('dimensions.levelingAreaM2');
+  }
+
+  if (
+    ['ZONA_COMUN', 'PASILLO', 'PORTAL', 'ESCALERA'].includes(space.areaType) &&
+    !merged.dimensions?.commonAreaM2 &&
+    !space.measurementDrivers.areaM2
+  ) {
+    assumedFields.push('dimensions.commonAreaM2');
+  }
+
   return assumedFields;
 }
 
 function resolveSpecForSpace(space: ResolvedSpace, sessionData: DiscoverySessionData): ResolvedSpec {
   const model = ensureTechnicalSpecModel(sessionData.technicalSpecModel);
+  const parentGroupId = getParentGroupId(space, sessionData);
+  const parentInstance = getParentInstance(space, sessionData);
   const merged = mergePatchChain(
     model.projectSpecs,
     space.floorId ? model.floorSpecs[space.floorId] : undefined,
+    parentGroupId ? model.groupSpecs[parentGroupId] : undefined,
     space.sourceGroupId ? model.groupSpecs[space.sourceGroupId] : undefined,
+    parentInstance ? model.instanceSpecs[parentInstance.instanceId] : undefined,
     model.instanceSpecs[space.spaceId],
     space.subspaceKind ? model.subspaceSpecs[space.spaceId] : undefined
   );

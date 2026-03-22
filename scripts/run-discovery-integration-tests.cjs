@@ -36,6 +36,7 @@ async function run() {
   const { createEmptyDiscoverySessionData, createDefaultTemplate } = require(path.join(srcRoot, 'lib/discovery/defaults.ts'));
   const { deriveInputFromSession } = require(path.join(srcRoot, 'lib/discovery/derive-input.ts'));
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
+  const { measureExecutionContext } = require(path.join(srcRoot, 'lib/estimate/measurement-engine.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
@@ -270,6 +271,146 @@ async function run() {
   });
   assert.equal(fallbackContext.mode, 'SIMPLE_AREA_BASED');
   assert(fallbackContext.resolvedSpaces.length >= 1);
+
+  const measured = createEmptyDiscoverySessionData('COLIVING');
+  measured.modelingStrategy = 'STRUCTURED_REPETITIVE';
+  measured.spatialModel.mode = 'STRUCTURED_REPETITIVE';
+  measured.classification.interventionType = 'REFORMA';
+  measured.classification.globalScope = 'TOTAL';
+  measured.assetContext.areaM2 = 140;
+  measured.assetContext.accessLevel = 'NORMAL';
+  measured.assetContext.occupancyState = 'VACIO';
+  measured.finishProfile.globalLevel = 'MEDIO_ALTO';
+  measured.interventionProfile.globalIntensity = 'INTEGRAL';
+  measured.spatialModel.floors = [
+    { floorId: 'pf', label: 'Planta baja', index: 1, type: 'BAJA', selected: true, features: {}, measurementDrivers: {}, technicalScope: {}, notes: '' },
+  ];
+  measured.spatialModel.groups = [
+    {
+      groupId: 'room-group',
+      label: 'Habitacion tipo',
+      category: 'HABITACION',
+      count: 2,
+      floorIds: ['pf'],
+      template: {
+        ...createDefaultTemplate('HABITACION', 'Habitacion tipo'),
+        features: {
+          ...createDefaultTemplate('HABITACION', 'Habitacion tipo').features,
+          hasBathroom: true,
+          hasKitchenette: true,
+          requiresLeveling: true,
+          countAsUnit: true,
+          countAsRoom: true,
+        },
+        measurementDrivers: { areaM2: 16, floorSurfaceM2: 16 },
+        technicalScope: createDefaultTemplate('HABITACION', 'Habitacion tipo').technicalScope,
+        subspaces: [],
+      },
+      features: {},
+      measurementDrivers: {},
+      technicalScope: {},
+      certainty: 'CONFIRMADO',
+    },
+  ];
+  measured.spatialModel.instances = [
+    { instanceId: 'room-1', groupId: 'room-group', floorId: 'pf', parentInstanceId: null, areaType: 'HABITACION', unitKind: 'HABITACION', spaceKind: 'UNIDAD_PRINCIPAL', subspaceKind: null, label: 'H1', isTemplateDerived: true, features: { hasBathroom: true, hasKitchenette: true, requiresLeveling: true, countAsUnit: true, countAsRoom: true }, measurementDrivers: { areaM2: 16, floorSurfaceM2: 16 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'bath-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'BANO', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'BANO_ASOCIADO', label: 'Bano H1', isTemplateDerived: false, features: { countAsBathroom: true }, measurementDrivers: { areaM2: 4, floorSurfaceM2: 4 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'kit-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'COCINA', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'KITCHENETTE', label: 'Kitchenette H1', isTemplateDerived: false, features: { countAsKitchen: true }, measurementDrivers: { linearMeters: 1.2 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'common-1', groupId: null, floorId: 'pf', parentInstanceId: null, areaType: 'ZONA_COMUN', unitKind: 'ZONA_COMUN', spaceKind: 'ESPACIO_COMUN', subspaceKind: null, label: 'Zona comun', isTemplateDerived: false, features: { countAsArea: true }, measurementDrivers: { areaM2: 20, floorSurfaceM2: 20 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+  ];
+  measured.technicalSpecModel.status = 'READY_FOR_MEASUREMENT';
+  measured.technicalSpecModel.strategy = 'SPECIFIED';
+  measured.technicalSpecModel.groupSpecs['room-group'] = {
+    selections: {
+      roomSolution: 'ROOM_STD_COLIVING_BASIC',
+      bathSolution: 'BATH_STD_COMPACT',
+      kitchenetteSolution: 'KITCHENETTE_120_BASIC',
+    },
+    dimensions: {
+      roomAreaM2: 16,
+      bathAreaM2: 4,
+      kitchenetteLinearMeters: 1.2,
+    },
+    counts: {},
+    options: {
+      hasBathroom: true,
+      hasKitchenette: true,
+    },
+  };
+  measured.technicalSpecModel.floorSpecs['pf'] = {
+    selections: {
+      levelingSolution: 'LEVELING_LIGHT',
+    },
+    dimensions: {
+      levelingAreaM2: 36,
+    },
+    counts: {},
+    options: {},
+  };
+  measured.technicalSpecModel.instanceSpecs['common-1'] = {
+    selections: {
+      commonAreaSolution: 'COMMON_AREA_BASIC',
+    },
+    dimensions: {
+      commonAreaM2: 20,
+    },
+    counts: {},
+    options: {
+      includeCommonCorridors: true,
+    },
+  };
+
+  const measuredInput = deriveInputFromSession(measured, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(measuredInput.measurementResult);
+  assert.equal(measuredInput.measurementResult.status, 'READY');
+  assert(measuredInput.measurementResult.coverage.measuredLines > 0);
+  assert.equal(
+    measuredInput.measurementResult.lines.filter((line) => line.measurementCode === 'KITCHENETTE_LENGTH').length,
+    1
+  );
+
+  const partial = JSON.parse(JSON.stringify(measured));
+  partial.technicalSpecModel.groupSpecs['room-group'].dimensions.kitchenetteLinearMeters = null;
+  partial.spatialModel.instances.find((instance) => instance.instanceId === 'kit-1').measurementDrivers.linearMeters = null;
+  const partialInput = deriveInputFromSession(partial, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert.equal(partialInput.measurementResult.status, 'PARTIAL');
+  assert(
+    partialInput.measurementResult.lines.some(
+      (line) => line.measurementCode === 'KITCHENETTE_LENGTH' && line.status === 'BLOCKED'
+    )
+  );
+
+  const assumed = JSON.parse(JSON.stringify(measured));
+  assumed.technicalSpecModel.floorSpecs['pf'].dimensions.levelingAreaM2 = null;
+  assumed.spatialModel.instances.find((instance) => instance.instanceId === 'room-1').measurementDrivers.floorSurfaceM2 = null;
+  const assumedInput = deriveInputFromSession(assumed, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert.equal(assumedInput.measurementResult.status, 'PARTIAL');
+  assert(
+    assumedInput.measurementResult.lines.some(
+      (line) => line.measurementCode === 'LEVELING_AREA' && line.status === 'ASSUMED'
+    )
+  );
+
+  const blocked = JSON.parse(JSON.stringify(measured));
+  blocked.technicalSpecModel.groupSpecs['room-group'].dimensions.roomAreaM2 = null;
+  blocked.spatialModel.instances[0].measurementDrivers.areaM2 = null;
+  blocked.spatialModel.instances[0].measurementDrivers.floorSurfaceM2 = null;
+  const blockedInput = deriveInputFromSession(blocked, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    blockedInput.measurementResult.lines.some(
+      (line) => line.measurementCode === 'ROOM_AREA' && line.status === 'BLOCKED'
+    )
+  );
+  assert(
+    blockedInput.measurementResult.lines.some(
+      (line) => line.measurementCode === 'ROOM_UNIT' && line.status === 'PARTIAL'
+    )
+  );
+
+  const noDoubleCountKitchen = measuredInput.measurementResult.lines.filter(
+    (line) => line.measurementCode === 'KITCHENETTE_LENGTH'
+  );
+  assert.equal(noDoubleCountKitchen.length, 1);
 
   console.log('Discovery integration tests passed.');
 }

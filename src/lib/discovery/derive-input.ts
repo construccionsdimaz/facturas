@@ -15,6 +15,7 @@ import {
   buildCompatibilityFromExecutionContext,
   resolveSpatialModelToExecutionContext,
 } from './resolve-spatial-model';
+import { measureExecutionContext } from '@/lib/estimate/measurement-engine';
 import type {
   BudgetGoal,
   ComplexityProfile,
@@ -214,6 +215,7 @@ export function deriveInputFromSession(
 
   const compatibility = buildCompatibilityFromExecutionContext(executionContext);
   const works = compatibility.works;
+  const measurementResult = measureExecutionContext(executionContext);
 
   return {
     discoverySchemaVersion: DISCOVERY_SCHEMA_VERSION,
@@ -249,6 +251,7 @@ export function deriveInputFromSession(
     currentVsTarget: data.currentVsTarget,
     executionConstraints: data.executionConstraints,
     executionContext,
+    measurementResult,
     certainty: {
       byBlock: data.certainty.byBlock,
       confidenceLevel,
