@@ -32,6 +32,7 @@ import type { PlanningBlueprint } from '@/lib/automation/planning-generator';
 import type { PlanningProjection as RuntimePlanningProjection } from '@/lib/planning/planning-projection';
 import type { DiscoverySupplyHint } from '@/lib/procurement/discovery-context';
 import type { ProcurementProjection as RuntimeProcurementProjection } from '@/lib/procurement/procurement-projection';
+import type { ControlProjection as RuntimeControlProjection } from '@/lib/control/control-projection';
 
 /**
  * Canonical engine contracts.
@@ -70,3 +71,4 @@ export type CommercialEstimateProjection = RuntimeCommercialEstimateProjection;
 export type ProcurementProjection = RuntimeProcurementProjection;
 
 export type PlanningProjection = RuntimePlanningProjection;
+export type ControlProjection = RuntimeControlProjection;

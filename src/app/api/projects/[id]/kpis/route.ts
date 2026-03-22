@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
+import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
+import { buildControlProjection } from '@/lib/control/control-projection';
 
 function getBaselineActivities(snapshotData: any) {
   if (Array.isArray(snapshotData)) return snapshotData;
@@ -19,7 +22,9 @@ export async function GET(
       restrictions,
       supplies,
       baselines,
-      changes
+      changes,
+      expenses,
+      latestEstimate,
     ] = await Promise.all([
       (db as any).projectActivity.findMany({ where: { projectId: id } }),
       (db as any).weeklyPlan.findMany({ 
@@ -29,7 +34,20 @@ export async function GET(
       (db as any).restriction.findMany({ where: { projectId: id } }),
       (db as any).projectSupply.findMany({ where: { projectId: id } }),
       (db as any).projectBaseline.findMany({ where: { projectId: id }, orderBy: { createdAt: 'desc' }, take: 1 }),
-      (db as any).projectChangeRequest.findMany({ where: { projectId: id } })
+      (db as any).projectChangeRequest.findMany({ where: { projectId: id } }),
+      (db as any).projectExpense.findMany({ where: { projectId: id } }),
+      (db as any).estimate.findFirst({
+        where: { projectId: id },
+        orderBy: { createdAt: 'desc' },
+        include: {
+          discoverySession: true,
+          internalAnalysis: {
+            include: {
+              lines: true,
+            },
+          },
+        },
+      }),
     ]);
 
     const now = new Date();
@@ -84,6 +102,46 @@ export async function GET(
 
     // 5. Baseline y Estabilidad
     const currentBaseline = baselines[0];
+    const commercialReadModel = latestEstimate?.internalAnalysis
+      ? readCommercialEstimateReadModel({
+          generationNotes: latestEstimate.internalAnalysis.generationNotes,
+        })
+      : {
+          source: 'LEGACY',
+          commercialRuntimeOutput: null,
+          commercialEstimateProjection: null,
+        };
+    const derivedInput = (latestEstimate?.discoverySession?.derivedInput as any) || null;
+    const procurementProjection =
+      derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
+        ? await buildProcurementProjection({
+            executionContext: derivedInput?.executionContext || null,
+            recipeResult: derivedInput?.recipeResult || null,
+            pricingResult: derivedInput?.pricingResult || null,
+            includeDiscoveryHints: true,
+            projectActivities: activities.map((activity: any) => ({
+              id: activity.id,
+              name: activity.name,
+              code: activity.code,
+              locationId: activity.locationId,
+              wbsId: activity.wbsId,
+              plannedStartDate: activity.plannedStartDate,
+              plannedEndDate: activity.plannedEndDate,
+              originCostItemCode: activity.originCostItemCode,
+              standardActivity: null,
+            })),
+          })
+        : null;
+    const controlProjection = buildControlProjection({
+      commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
+      commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
+      planningProjection: currentBaseline?.snapshotData?.planningProjection || null,
+      procurementProjection,
+      baselineSnapshot: currentBaseline?.snapshotData || null,
+      activities,
+      supplies,
+      expenses,
+    });
     let baselineDeviations = 0;
     if (currentBaseline && currentBaseline.snapshotData) {
       const baselineActivities = getBaselineActivities(currentBaseline.snapshotData);
@@ -126,7 +184,15 @@ export async function GET(
       stability: {
         openChanges,
         baselineName: currentBaseline?.name || 'No fijada'
-      }
+      },
+      control: {
+        source: controlProjection.source,
+        totalDeviationLines: controlProjection.deviationSummary.totalLines,
+        costDeviationLines: controlProjection.deviationSummary.costLines,
+        timeDeviationLines: controlProjection.deviationSummary.timeLines,
+        procurementDeviationLines: controlProjection.deviationSummary.procurementLines,
+        criticalDeviationLines: controlProjection.deviationSummary.criticalLines,
+      },
     });
   } catch (error) {
     console.error('Error calculating KPIs:', error);

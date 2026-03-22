@@ -64,6 +64,7 @@ async function run() {
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { buildProcurementProjection } = require(path.join(srcRoot, 'lib/procurement/procurement-projection.ts'));
+  const { buildControlProjection } = require(path.join(srcRoot, 'lib/control/control-projection.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
   const { buildPlanningProjection } = require(path.join(srcRoot, 'lib/planning/planning-projection.ts'));
@@ -1052,6 +1053,96 @@ async function run() {
       (line) => Boolean(line.requiredOnSiteDate)
     )
   );
+  const canonicalControlProjection = buildControlProjection({
+    commercialRuntimeOutput: integratedTechnicalRuntime,
+    commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
+    planningProjection: canonicalPlanningProjection,
+    procurementProjection: canonicalProcurementProjection,
+    baselineSnapshot: {
+      planningProjection: canonicalPlanningProjection,
+      procurementProjection: canonicalProcurementProjection,
+    },
+    activities: [
+      {
+        id: 'act-bath',
+        name: 'Montaje banos',
+        locationId: 'loc-bath',
+        plannedDuration: 2,
+        plannedStartDate: '2026-04-02T08:00:00.000Z',
+        plannedEndDate: '2026-04-04T08:00:00.000Z',
+        realStartDate: '2026-04-02T08:00:00.000Z',
+        realEndDate: '2026-04-05T08:00:00.000Z',
+        realProgress: 100,
+        originCostItemCode: 'BANOS',
+      },
+      {
+        id: 'act-kit',
+        name: 'Montaje cocinas',
+        locationId: 'loc-kit',
+        plannedDuration: 1,
+        plannedStartDate: '2026-04-05T08:00:00.000Z',
+        plannedEndDate: '2026-04-06T08:00:00.000Z',
+        realStartDate: '2026-04-05T08:00:00.000Z',
+        realEndDate: '2026-04-06T08:00:00.000Z',
+        realProgress: 100,
+        originCostItemCode: 'COCINA',
+      },
+    ],
+    supplies: canonicalProcurementProjection.procurementLines.map((line, index) => ({
+      id: `supply-${index}`,
+      description: line.description,
+      quantity: line.quantity,
+      unit: line.unit,
+      expectedUnitCost: line.unitCost,
+      expectedTotalCost: line.expectedTotalCost,
+      actualUnitCost: line.unitCost ? Number((line.unitCost * 1.08).toFixed(2)) : null,
+      actualTotalCost: line.expectedTotalCost ? Number((line.expectedTotalCost * 1.08).toFixed(2)) : null,
+      status: 'PEDIDA',
+      supplierId: line.supplierId || null,
+      requiredOnSiteDate: line.requiredOnSiteDate || null,
+      receivedDate: null,
+      originSource: 'PROCUREMENT_RECIPE_DRIVEN',
+      projectActivityId: line.planningLinkage?.projectActivityId || null,
+      locationId: line.planningLinkage?.locationId || null,
+      estimateInternalLine: {
+        id: `estimate-line-${index}`,
+        code: line.supportedSolutionCodes[0] || null,
+        chapter: 'CANONICAL',
+        description: line.description,
+        appliedAssumptions: {
+          __economicStatus: {
+            bucketCode:
+              (line.supportedSolutionCodes[0] || '').startsWith('BATH_')
+                ? 'BATHS'
+                : (line.supportedSolutionCodes[0] || '').startsWith('KITCHENETTE_')
+                  ? 'KITCHENETTES'
+                  : (line.supportedSolutionCodes[0] || '').startsWith('LEVELING_')
+                    ? 'LEVELING'
+                    : 'ROOMS',
+          },
+        },
+      },
+      material: { code: line.materialCode, name: line.description },
+    })),
+    expenses: [
+      { id: 'exp-1', amount: 1800, category: 'MATERIALES' },
+      { id: 'exp-2', amount: 950, category: 'MANO_DE_OBRA' },
+    ],
+  });
+  assert.equal(canonicalControlProjection.source, 'CANONICAL_BASELINE');
+  assert(canonicalControlProjection.deviationLines.some((line) => line.type === 'PROCUREMENT'));
+  assert(canonicalControlProjection.deviationLines.some((line) => line.type === 'TIME'));
+  assert(canonicalControlProjection.deviationLines.some((line) => line.type === 'COST'));
+  assert(
+    canonicalControlProjection.deviationLines.some(
+      (line) => line.bucketCode === 'BATHS' && line.activityIds.length > 0
+    )
+  );
+  assert(
+    canonicalControlProjection.deviationLines.some(
+      (line) => line.supplyIds.length > 0 && line.pricingLineIds.length > 0
+    )
+  );
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnicalRuntime.source));
   assert(integratedTechnical.integratedCostBuckets.length > 0);
@@ -1187,6 +1278,54 @@ async function run() {
       (line) => line.generatedFrom === 'DISCOVERY_HINT'
     )
   );
+  const hybridControlProjection = buildControlProjection({
+    commercialRuntimeOutput: integratedMixedRuntime,
+    commercialEstimateProjection: integratedMixed.commercialEstimateProjection,
+    planningProjection: null,
+    procurementProjection: hybridProcurementProjection,
+    baselineSnapshot: null,
+    activities: [
+      {
+        id: 'act-common',
+        name: 'Acabados zonas comunes',
+        plannedDuration: 3,
+        plannedStartDate: '2026-04-08T08:00:00.000Z',
+        plannedEndDate: '2026-04-10T08:00:00.000Z',
+        realProgress: 40,
+        originCostItemCode: 'ZONAS_COMUNES',
+      },
+    ],
+    supplies: [],
+    expenses: [],
+  });
+  assert.equal(hybridControlProjection.source, 'HYBRID');
+  assert(hybridControlProjection.warnings.length > 0 || hybridControlProjection.assumptions.length > 0);
+  const legacyControlProjection = buildControlProjection({
+    activities: [
+      {
+        id: 'legacy-act',
+        name: 'Legacy general',
+        plannedDuration: 4,
+        plannedEndDate: '2026-04-10T08:00:00.000Z',
+        originCostItemCode: 'GENERAL',
+        realProgress: 20,
+      },
+    ],
+    supplies: [
+      {
+        id: 'legacy-supply',
+        description: 'Suministro general legacy',
+        quantity: 2,
+        unit: 'ud',
+        expectedUnitCost: 50,
+        expectedTotalCost: 100,
+        status: 'IDENTIFICADA',
+        originSource: 'MANUAL',
+      },
+    ],
+    expenses: [],
+  });
+  assert.equal(legacyControlProjection.source, 'LEGACY_CONTROL');
   assert.equal(integratedMixed.commercialEstimateProjection.source, 'HYBRID');
   assert.equal(integratedMixedRuntime.source, 'HYBRID');
   assert(

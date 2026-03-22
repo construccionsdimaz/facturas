@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
+import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
 
 export async function GET(
   req: Request,
@@ -37,8 +39,56 @@ export async function POST(
 
     const project = await (db as any).project.findUnique({
       where: { id },
-      include: { calendar: true }
+      include: {
+        calendar: true,
+        estimates: {
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          include: {
+            discoverySession: true,
+            internalAnalysis: {
+              include: {
+                lines: true,
+              },
+            },
+          },
+        },
+        supplies: true,
+      }
     });
+
+    const latestEstimate = project?.estimates?.[0] || null;
+    const commercialReadModel = latestEstimate?.internalAnalysis
+      ? readCommercialEstimateReadModel({
+          generationNotes: latestEstimate.internalAnalysis.generationNotes,
+        })
+      : {
+          source: 'LEGACY',
+          commercialRuntimeOutput: null,
+          commercialEstimateProjection: null,
+        };
+
+    const derivedInput = (latestEstimate?.discoverySession?.derivedInput as any) || null;
+    const procurementProjection =
+      derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
+        ? await buildProcurementProjection({
+            executionContext: derivedInput?.executionContext || null,
+            recipeResult: derivedInput?.recipeResult || null,
+            pricingResult: derivedInput?.pricingResult || null,
+            includeDiscoveryHints: true,
+            projectActivities: activities.map((activity: any) => ({
+              id: activity.id,
+              name: activity.name,
+              code: activity.code,
+              locationId: activity.locationId,
+              wbsId: activity.wbsId,
+              plannedStartDate: activity.plannedStartDate,
+              plannedEndDate: activity.plannedEndDate,
+              originCostItemCode: activity.originCostItemCode,
+              standardActivity: null,
+            })),
+          })
+        : null;
 
     const snapshot = {
       scheduler: {
@@ -48,6 +98,9 @@ export async function POST(
         workHours: project?.calendar?.workHours || '08:00-18:00',
         bufferDays: project?.calendar?.bufferDays || 0,
       },
+      commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
+      commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
+      procurementProjection,
       activities: activities.map((a: any) => ({
         id: a.id,
         code: a.code,

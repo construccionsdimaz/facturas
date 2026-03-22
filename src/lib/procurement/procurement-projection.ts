@@ -69,6 +69,8 @@ export type ProcurementProjectionLine = {
   description: string;
   quantity: number;
   unit: string;
+  unitCost?: number | null;
+  expectedTotalCost?: number | null;
   requiredBySpaceIds: string[];
   supportedRecipeLineIds: string[];
   supportedPricingLineIds: string[];
@@ -339,6 +341,8 @@ function activityFallbackLine(
       description: lookup?.name || template.material.name,
       quantity: 1,
       unit,
+      unitCost: suggestion.offer?.unitCost ?? null,
+      expectedTotalCost: suggestion.offer?.unitCost ? round(suggestion.offer.unitCost) : null,
       requiredBySpaceIds: [],
       supportedRecipeLineIds: [],
       supportedPricingLineIds: [],
@@ -424,6 +428,12 @@ export async function buildProcurementProjection(
         description: lookup?.name || material.description,
         quantity: round(material.quantity),
         unit: lookup?.baseUnit || material.unit,
+        unitCost: pricingMaterial?.unitCost ?? fallbackSuggestion.offer?.unitCost ?? null,
+        expectedTotalCost:
+          pricingMaterial?.totalCost ??
+          (fallbackSuggestion.offer?.unitCost
+            ? round(fallbackSuggestion.offer.unitCost * material.quantity)
+            : null),
         requiredBySpaceIds: [recipeLine.spaceId],
         supportedRecipeLineIds: [recipeLine.id],
         supportedPricingLineIds: pricingLine ? [pricingLine.id] : [],
@@ -485,6 +495,8 @@ export async function buildProcurementProjection(
       description: lookup?.name || hint.description,
       quantity: round(hint.quantity),
       unit: lookup?.baseUnit || hint.unit,
+      unitCost: suggestion.offer?.unitCost ?? null,
+      expectedTotalCost: suggestion.offer?.unitCost ? round(suggestion.offer.unitCost * hint.quantity) : null,
       requiredBySpaceIds: hint.requiredSpaceId ? [hint.requiredSpaceId] : [],
       supportedRecipeLineIds: [],
       supportedPricingLineIds: [],
@@ -648,9 +660,9 @@ export function procurementProjectionLineToProjectSupply(
     responsible: 'Compras / Produccion',
     quantity: line.quantity,
     unit: line.unit,
-    suggestedUnitCost: null,
-    expectedUnitCost: null,
-    expectedTotalCost: null,
+    suggestedUnitCost: line.unitCost ?? null,
+    expectedUnitCost: line.unitCost ?? null,
+    expectedTotalCost: line.expectedTotalCost ?? null,
     suggestedSupplierReason: line.priceSource ? `Fuente de precio: ${line.priceSource}` : null,
     scheduleRisk: line.requiredOnSiteDate ? 'PENDIENTE_ANALISIS' : 'SIN_FECHA',
     isCriticalForSchedule: line.generatedFrom === 'RECIPE',
