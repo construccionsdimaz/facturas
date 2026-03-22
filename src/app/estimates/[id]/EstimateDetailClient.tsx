@@ -129,6 +129,10 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     window.open(`/estimates/${estimate.id}/print`, '_blank');
   };
 
+  const handleExportBc3 = () => {
+    window.open(`/api/estimates/${estimate.id}/export/bc3?download=1`, '_blank');
+  };
+
   const handleConvertToInvoice = async () => {
     setShowConvertModal(false);
     setIsConverting(true);
@@ -340,7 +344,14 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
         >
           📄 Imprimir / Descargar PDF
         </button>
-        
+        <button
+          className="btn-secondary"
+          onClick={handleExportBc3}
+          style={{ padding: '8px 20px' }}
+        >
+          Exportar BC3
+        </button>
+
         {canConvertEstimate && (
           <button
             className="btn-success"

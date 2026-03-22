@@ -45,6 +45,9 @@ async function run() {
     toEstimateInternalAnalysisCreate,
   } = require(path.join(srcRoot, 'lib/estimates/internal-analysis.ts'));
   const {
+    buildBc3EstimateExport,
+  } = require(path.join(srcRoot, 'lib/interoperability/bc3-export.ts'));
+  const {
     materializeEstimateOperationalView,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-runtime-materialization.ts'));
   const {
@@ -2972,6 +2975,56 @@ async function run() {
     ],
   });
   assert.equal(legacyMaterialized.source, 'LEGACY');
+
+  const bc3RuntimeExport = buildBc3EstimateExport({
+    estimateId: 'est-runtime',
+    estimateNumber: 'PRE-RUNTIME-001',
+    estimateName: 'Runtime export test',
+    issueDate: '2026-03-22T12:00:00.000Z',
+    projectName: 'Proyecto Runtime',
+    clientName: 'Cliente Runtime',
+    commercialReadModel: runtimeFirstReadModel,
+    measurementResult: measuredInput.measurementResult,
+    legacyItems: legacyMaterialized.legacyItems,
+  });
+  assert.equal(bc3RuntimeExport.summary.sourceOfTruth, 'RUNTIME_OUTPUT');
+  assert.equal(bc3RuntimeExport.summary.exportedLineCount > 0, true);
+  assert.equal(bc3RuntimeExport.summary.measurementSource, 'DISCOVERY_SESSION');
+  assert(bc3RuntimeExport.content.includes('~V|FIEBDC-3/2020|'));
+  assert(bc3RuntimeExport.content.includes('~C|'));
+  assert(bc3RuntimeExport.content.includes('~M|'));
+
+  const bc3ProjectionExport = buildBc3EstimateExport({
+    estimateId: 'est-proj',
+    estimateNumber: 'PRE-PROJ-001',
+    estimateName: 'Projection export test',
+    issueDate: '2026-03-22T12:00:00.000Z',
+    commercialReadModel: projectionFallbackReadModel,
+    discoveryDerivedInput: {
+      measurementResult: measuredInput.measurementResult,
+    },
+    legacyItems: legacyMaterialized.legacyItems,
+  });
+  assert.equal(bc3ProjectionExport.summary.sourceOfTruth, 'PROJECTION');
+  assert.equal(bc3ProjectionExport.summary.fallbackUsed, true);
+  assert.equal(bc3ProjectionExport.summary.measurementSource, 'DISCOVERY_SESSION');
+
+  const bc3LegacyExport = buildBc3EstimateExport({
+    estimateId: 'est-legacy',
+    estimateNumber: 'PRE-LEGACY-001',
+    estimateName: 'Legacy export test',
+    issueDate: '2026-03-22T12:00:00.000Z',
+    commercialReadModel: legacyReadModel,
+    legacyItems: legacyMaterialized.legacyItems,
+  });
+  assert.equal(bc3LegacyExport.summary.sourceOfTruth, 'LEGACY');
+  assert.equal(bc3LegacyExport.summary.measurementSource, 'NONE');
+  assert(
+    bc3LegacyExport.summary.warnings.some((warning) => warning.includes('estimate.items legacy'))
+  );
+  assert(
+    bc3LegacyExport.summary.warnings.some((warning) => warning.includes('MeasurementResult'))
+  );
 
   const convertedLocked = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',
