@@ -101,6 +101,11 @@ function bucketFromSolutionCode(solutionCode: string): IntegratedEstimateBucketC
   if (solutionCode.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (solutionCode.startsWith('LEVELING_')) return 'LEVELING';
   if (solutionCode.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (solutionCode.startsWith('PARTITION_')) return 'PARTITIONS';
+  if (solutionCode.startsWith('CEILING_')) return 'CEILINGS';
+  if (solutionCode.startsWith('FLOOR_') || solutionCode === 'SKIRTING_STD') return 'FLOORING';
+  if (solutionCode.startsWith('DOOR_') || solutionCode.startsWith('WINDOW_') || solutionCode.startsWith('SHUTTER_')) return 'CARPENTRY';
+  if (solutionCode.startsWith('ELECTRICAL_') || solutionCode.startsWith('LIGHTING_') || solutionCode.startsWith('PLUMBING_') || solutionCode.startsWith('DRAINAGE_')) return 'BASIC_MEP';
   return null;
 }
 

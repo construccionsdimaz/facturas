@@ -16,7 +16,7 @@ export type MeasurementLine = {
   measurementCode: string;
   description: string;
   quantity: number;
-  unit: 'm2' | 'ml' | 'ud' | 'lot';
+  unit: 'm2' | 'ml' | 'ud' | 'lot' | 'pt';
   sourceLevel: ResolvedSpecSourceLevel;
   sourceRefId?: string;
   assumedFields: string[];

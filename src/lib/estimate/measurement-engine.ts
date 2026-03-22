@@ -52,6 +52,52 @@ function hasDedicatedKitchenChild(space: ResolvedSpace, allSpaces: ResolvedSpace
   );
 }
 
+function hasWorkCode(space: ResolvedSpace, code: string) {
+  return space.derivedWorkCodes.includes(code as any);
+}
+
+function hasAction(space: ResolvedSpace, actionCode: string) {
+  return space.technicalScope.actions.some(
+    (action) => action.enabled !== false && action.actionCode === actionCode
+  );
+}
+
+function requiresPartition(space: ResolvedSpace) {
+  return hasWorkCode(space, 'PLADUR') || hasWorkCode(space, 'ALBANILERIA') || hasAction(space, 'LEVANTAR_TABIQUES');
+}
+
+function requiresCeiling(space: ResolvedSpace) {
+  return hasWorkCode(space, 'FALSO_TECHO') || hasAction(space, 'MONTAR_FALSO_TECHO');
+}
+
+function requiresFlooring(space: ResolvedSpace) {
+  return hasWorkCode(space, 'REVESTIMIENTOS') || hasAction(space, 'COLOCAR_SUELO');
+}
+
+function requiresDoors(space: ResolvedSpace) {
+  return (space.measurementDrivers.doorsCount || 0) > 0 && (hasWorkCode(space, 'CARPINTERIA_INTERIOR') || hasAction(space, 'CAMBIAR_PUERTAS'));
+}
+
+function requiresWindows(space: ResolvedSpace) {
+  return (space.measurementDrivers.windowsCount || 0) > 0 && space.features.hasExteriorOpenings && (hasWorkCode(space, 'CARPINTERIA_EXTERIOR') || hasAction(space, 'CAMBIAR_VENTANAS'));
+}
+
+function requiresElectrical(space: ResolvedSpace) {
+  return ((space.measurementDrivers.electricalPointsCount || 0) > 0 && hasWorkCode(space, 'ELECTRICIDAD')) || hasAction(space, 'RENOVAR_INSTALACION_ELECTRICA');
+}
+
+function requiresLighting(space: ResolvedSpace) {
+  return ((space.measurementDrivers.lightingPointsCount || 0) > 0 && hasWorkCode(space, 'ILUMINACION')) || hasAction(space, 'RENOVAR_ILUMINACION');
+}
+
+function requiresPlumbing(space: ResolvedSpace) {
+  return ((space.measurementDrivers.waterPointsCount || 0) > 0 && hasWorkCode(space, 'FONTANERIA')) || hasAction(space, 'RENOVAR_INSTALACION_FONTANERIA');
+}
+
+function requiresDrainage(space: ResolvedSpace) {
+  return (((space.measurementDrivers.sanitaryFixturesCount || 0) > 0 || space.areaType === 'BANO' || space.areaType === 'COCINA') && hasWorkCode(space, 'SANEAMIENTO')) || hasAction(space, 'RENOVAR_INSTALACION_SANEAMIENTO');
+}
+
 function resolveRoomArea(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
   if (typeof spec.dimensions.roomAreaM2 === 'number' && spec.dimensions.roomAreaM2 > 0) {
     return { quantity: spec.dimensions.roomAreaM2, status: 'MEASURED' };
@@ -136,6 +182,90 @@ function resolveCommonArea(space: ResolvedSpace, spec: ResolvedSpec): Measuremen
   };
 }
 
+function resolvePartitionArea(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.partitionWallAreaM2 === 'number' && spec.dimensions.partitionWallAreaM2 > 0) {
+    return { quantity: spec.dimensions.partitionWallAreaM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.wallSurfaceM2 === 'number' && space.measurementDrivers.wallSurfaceM2 > 0) {
+    return { quantity: space.measurementDrivers.wallSurfaceM2, status: 'MEASURED' };
+  }
+  const height = spec.dimensions.partitionHeightM || space.measurementDrivers.heightM;
+  if (typeof space.measurementDrivers.perimeterMl === 'number' && space.measurementDrivers.perimeterMl > 0 && typeof height === 'number' && height > 0) {
+    return {
+      quantity: Number((space.measurementDrivers.perimeterMl * height).toFixed(2)),
+      status: 'ASSUMED',
+      assumption: `Se usa perimetro x altura como fallback de tabiqueria para ${space.label}.`,
+    };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta superficie base de tabiqueria en ${space.label}.`,
+  };
+}
+
+function resolveCeilingArea(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.ceilingAreaM2 === 'number' && spec.dimensions.ceilingAreaM2 > 0) {
+    return { quantity: spec.dimensions.ceilingAreaM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.ceilingSurfaceM2 === 'number' && space.measurementDrivers.ceilingSurfaceM2 > 0) {
+    return { quantity: space.measurementDrivers.ceilingSurfaceM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.areaM2 === 'number' && space.measurementDrivers.areaM2 > 0) {
+    return {
+      quantity: space.measurementDrivers.areaM2,
+      status: 'ASSUMED',
+      assumption: `Se usa area del espacio como fallback de falso techo para ${space.label}.`,
+    };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta superficie base de falso techo en ${space.label}.`,
+  };
+}
+
+function resolveFlooringArea(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.flooringAreaM2 === 'number' && spec.dimensions.flooringAreaM2 > 0) {
+    return { quantity: spec.dimensions.flooringAreaM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.floorSurfaceM2 === 'number' && space.measurementDrivers.floorSurfaceM2 > 0) {
+    return { quantity: space.measurementDrivers.floorSurfaceM2, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.areaM2 === 'number' && space.measurementDrivers.areaM2 > 0) {
+    return {
+      quantity: space.measurementDrivers.areaM2,
+      status: 'ASSUMED',
+      assumption: `Se usa area del espacio como fallback de pavimento para ${space.label}.`,
+    };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta superficie base de pavimento en ${space.label}.`,
+  };
+}
+
+function resolveSkirtingLength(space: ResolvedSpace, spec: ResolvedSpec): MeasurementSource {
+  if (typeof spec.dimensions.skirtingLengthMl === 'number' && spec.dimensions.skirtingLengthMl > 0) {
+    return { quantity: spec.dimensions.skirtingLengthMl, status: 'MEASURED' };
+  }
+  if (typeof space.measurementDrivers.perimeterMl === 'number' && space.measurementDrivers.perimeterMl > 0) {
+    return { quantity: space.measurementDrivers.perimeterMl, status: 'MEASURED' };
+  }
+  return {
+    quantity: null,
+    status: 'BLOCKED',
+    warning: `Falta longitud base de rodapie en ${space.label}.`,
+  };
+}
+
+function resolveCount(primary: number | null | undefined, fallback: number | null | undefined, message: string): MeasurementSource {
+  if (typeof primary === 'number' && primary > 0) return { quantity: primary, status: 'MEASURED' };
+  if (typeof fallback === 'number' && fallback > 0) return { quantity: fallback, status: 'MEASURED' };
+  return { quantity: null, status: 'BLOCKED', warning: message };
+}
+
 function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpaces: ResolvedSpace[]) {
   const solutions: VerticalSolutionCode[] = [];
 
@@ -176,6 +306,72 @@ function solutionCodesForSpace(space: ResolvedSpace, spec: ResolvedSpec, allSpac
     spec.selections.commonAreaSolution
   ) {
     solutions.push(spec.selections.commonAreaSolution);
+  }
+
+  if ((requiresPartition(space) || Boolean(spec.selections.partitionSolution)) && spec.selections.partitionSolution) {
+    solutions.push(spec.selections.partitionSolution);
+  }
+
+  if ((requiresCeiling(space) || Boolean(spec.selections.ceilingSolution)) && spec.selections.ceilingSolution) {
+    solutions.push(spec.selections.ceilingSolution);
+  }
+
+  if ((requiresFlooring(space) || Boolean(spec.selections.flooringSolution)) && spec.selections.flooringSolution) {
+    solutions.push(spec.selections.flooringSolution);
+  }
+
+  if ((requiresFlooring(space) || Boolean(spec.selections.skirtingSolution)) && spec.options.includeSkirting && spec.selections.skirtingSolution) {
+    solutions.push(spec.selections.skirtingSolution);
+  }
+
+  if (
+    spec.selections.doorSolution &&
+    (requiresDoors(space) || (spec.counts.doorCount || 0) > 0 || (space.measurementDrivers.doorsCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.doorSolution);
+  }
+
+  if (
+    spec.selections.windowSolution &&
+    (requiresWindows(space) || (spec.counts.windowCount || 0) > 0 || (space.measurementDrivers.windowsCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.windowSolution);
+  }
+
+  if (
+    spec.options.includeShutter &&
+    spec.selections.shutterSolution &&
+    (requiresWindows(space) || (spec.counts.shutterCount || 0) > 0 || (space.measurementDrivers.windowsCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.shutterSolution);
+  }
+
+  if (
+    spec.selections.electricalSolution &&
+    (requiresElectrical(space) || (spec.counts.electricalPointsCount || 0) > 0 || (space.measurementDrivers.electricalPointsCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.electricalSolution);
+  }
+
+  if (
+    spec.selections.lightingSolution &&
+    (requiresLighting(space) || (spec.counts.lightingPointsCount || 0) > 0 || (space.measurementDrivers.lightingPointsCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.lightingSolution);
+  }
+
+  if (
+    spec.selections.plumbingSolution &&
+    (requiresPlumbing(space) || (spec.counts.plumbingPointsCount || 0) > 0 || (space.measurementDrivers.waterPointsCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.plumbingSolution);
+  }
+
+  if (
+    spec.selections.drainageSolution &&
+    (requiresDrainage(space) || (spec.counts.drainagePointsCount || 0) > 0 || (space.measurementDrivers.sanitaryFixturesCount || 0) > 0)
+  ) {
+    solutions.push(spec.selections.drainageSolution);
   }
 
   return solutions;
@@ -352,6 +548,222 @@ function measureSolutionForSpace(
       warnings,
       assumptions
     );
+  }
+
+  if (solutionCode.startsWith('PARTITION_')) {
+    const resolved = resolvePartitionArea(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'PARTITION_WALL_AREA',
+        description: `Tabiqueria ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'm2',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode.startsWith('CEILING_')) {
+    const resolved = resolveCeilingArea(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'CEILING_AREA',
+        description: `Falso techo ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'm2',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode.startsWith('FLOOR_')) {
+    const resolved = resolveFlooringArea(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'FLOORING_AREA',
+        description: `Pavimento ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'm2',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'SKIRTING_STD') {
+    const resolved = resolveSkirtingLength(space, spec);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.assumption) assumptions.push(resolved.assumption);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'SKIRTING_LENGTH',
+        description: `Rodapie ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ml',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode.startsWith('DOOR_')) {
+    const resolved = resolveCount(spec.counts.doorCount, space.measurementDrivers.doorsCount, `Falta conteo base de puertas en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'DOOR_UNITS',
+        description: `Puertas ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode.startsWith('WINDOW_')) {
+    const resolved = resolveCount(spec.counts.windowCount, space.measurementDrivers.windowsCount, `Falta conteo base de ventanas en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'WINDOW_UNITS',
+        description: `Ventanas ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'SHUTTER_STD') {
+    const resolved = resolveCount(spec.counts.shutterCount, space.measurementDrivers.windowsCount, `Falta conteo base de persianas en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    if (resolved.quantity != null && (spec.counts.shutterCount == null || spec.counts.shutterCount === 0) && (space.measurementDrivers.windowsCount || 0) > 0) {
+      assumptions.push(`Se usa el numero de ventanas como fallback de persianas para ${space.label}.`);
+    }
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'SHUTTER_UNITS',
+        description: `Persianas ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'ud',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : spec.counts.shutterCount ? resolved.status : 'ASSUMED',
+      }),
+    ];
+  }
+
+  if (solutionCode === 'ELECTRICAL_ROOM_STD') {
+    const resolved = resolveCount(spec.counts.electricalPointsCount, space.measurementDrivers.electricalPointsCount, `Falta conteo base de puntos electricos en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'ELECTRICAL_POINTS',
+        description: `Puntos electricos ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'pt',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'LIGHTING_BASIC') {
+    const resolved = resolveCount(spec.counts.lightingPointsCount, space.measurementDrivers.lightingPointsCount, `Falta conteo base de puntos de luz en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'LIGHTING_POINTS',
+        description: `Puntos de luz ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'pt',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'PLUMBING_POINT_STD') {
+    const resolved = resolveCount(spec.counts.plumbingPointsCount, space.measurementDrivers.waterPointsCount, `Falta conteo base de puntos de fontaneria en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'PLUMBING_POINTS',
+        description: `Puntos de fontaneria ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'pt',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
+  }
+
+  if (solutionCode === 'DRAINAGE_POINT_STD') {
+    const resolved = resolveCount(spec.counts.drainagePointsCount, space.measurementDrivers.sanitaryFixturesCount, `Falta conteo base de puntos de saneamiento en ${space.label}.`);
+    if (resolved.warning) warnings.push(resolved.warning);
+    return [
+      makeLine({
+        spaceId: space.spaceId,
+        solutionCode,
+        measurementCode: 'DRAINAGE_POINTS',
+        description: `Puntos de saneamiento ${space.label}`,
+        quantity: resolved.quantity ?? 0,
+        unit: 'pt',
+        sourceLevel: spec.sourceLevel,
+        sourceRefId: spec.sourceRefId,
+        assumedFields: spec.assumedFields,
+        status: resolved.quantity === null ? 'BLOCKED' : resolved.status,
+      }),
+    ];
   }
 
   const resolved = resolveCommonArea(space, spec);

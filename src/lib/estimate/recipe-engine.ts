@@ -19,12 +19,23 @@ type RecipeMeasurementCode =
   | 'BATH_UNIT'
   | 'KITCHENETTE_LENGTH'
   | 'LEVELING_AREA'
-  | 'COMMON_AREA';
+  | 'COMMON_AREA'
+  | 'PARTITION_WALL_AREA'
+  | 'CEILING_AREA'
+  | 'FLOORING_AREA'
+  | 'SKIRTING_LENGTH'
+  | 'DOOR_UNITS'
+  | 'WINDOW_UNITS'
+  | 'SHUTTER_UNITS'
+  | 'ELECTRICAL_POINTS'
+  | 'LIGHTING_POINTS'
+  | 'PLUMBING_POINTS'
+  | 'DRAINAGE_POINTS';
 
 type RecipeTemplate = {
   recipeCode: RecipeCode;
   description: string;
-  unit: 'm2' | 'ml';
+  unit: 'm2' | 'ml' | 'ud' | 'pt';
   wasteFactor?: number | null;
   indirectFactor?: number | null;
   materials: Array<{
@@ -55,6 +66,26 @@ const RECIPE_MAPPING_TABLE: Partial<Record<MappingKey, RecipeCode>> = {
   'LEVELING_MEDIUM:LEVELING_AREA': 'RECIPE_LEVELING_MEDIUM_M2',
   'COMMON_AREA_BASIC:COMMON_AREA': 'RECIPE_COMMON_AREA_BASIC_M2',
   'COMMON_AREA_INTENSIVE:COMMON_AREA': 'RECIPE_COMMON_AREA_INTENSIVE_M2',
+  'PARTITION_PLADUR_STD:PARTITION_WALL_AREA': 'RECIPE_PARTITION_PLADUR_STD_M2',
+  'PARTITION_PLADUR_ACOUSTIC:PARTITION_WALL_AREA': 'RECIPE_PARTITION_PLADUR_ACOUSTIC_M2',
+  'PARTITION_BRICK_STD:PARTITION_WALL_AREA': 'RECIPE_PARTITION_BRICK_STD_M2',
+  'PARTITION_BLOCK_STD:PARTITION_WALL_AREA': 'RECIPE_PARTITION_BLOCK_STD_M2',
+  'CEILING_CONTINUOUS_STD:CEILING_AREA': 'RECIPE_CEILING_CONTINUOUS_STD_M2',
+  'CEILING_CONTINUOUS_INSULATED:CEILING_AREA': 'RECIPE_CEILING_CONTINUOUS_INSULATED_M2',
+  'CEILING_SUSPENDED_GRID:CEILING_AREA': 'RECIPE_CEILING_SUSPENDED_GRID_M2',
+  'FLOOR_TILE_STD:FLOORING_AREA': 'RECIPE_FLOOR_TILE_STD_M2',
+  'FLOOR_LAMINATE_STD:FLOORING_AREA': 'RECIPE_FLOOR_LAMINATE_STD_M2',
+  'FLOOR_VINYL_STD:FLOORING_AREA': 'RECIPE_FLOOR_VINYL_STD_M2',
+  'SKIRTING_STD:SKIRTING_LENGTH': 'RECIPE_SKIRTING_STD_ML',
+  'DOOR_INTERIOR_STD:DOOR_UNITS': 'RECIPE_DOOR_INTERIOR_STD_UD',
+  'DOOR_INTERIOR_PLUS:DOOR_UNITS': 'RECIPE_DOOR_INTERIOR_PLUS_UD',
+  'WINDOW_STD:WINDOW_UNITS': 'RECIPE_WINDOW_STD_UD',
+  'WINDOW_IMPROVED:WINDOW_UNITS': 'RECIPE_WINDOW_IMPROVED_UD',
+  'SHUTTER_STD:SHUTTER_UNITS': 'RECIPE_SHUTTER_STD_UD',
+  'ELECTRICAL_ROOM_STD:ELECTRICAL_POINTS': 'RECIPE_ELECTRICAL_ROOM_STD_PT',
+  'LIGHTING_BASIC:LIGHTING_POINTS': 'RECIPE_LIGHTING_BASIC_PT',
+  'PLUMBING_POINT_STD:PLUMBING_POINTS': 'RECIPE_PLUMBING_POINT_STD_PT',
+  'DRAINAGE_POINT_STD:DRAINAGE_POINTS': 'RECIPE_DRAINAGE_POINT_STD_PT',
 };
 
 const AUXILIARY_MEASUREMENT_CODES = new Set<RecipeMeasurementCode>(['ROOM_UNIT', 'BATH_UNIT']);
@@ -236,6 +267,219 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
     labor: [
       { laborCode: 'LAB_COMMON_INTENSIVE', description: 'Mano de obra zona comun intensiva', quantityPerUnit: 0.8, unit: 'h' },
     ],
+  },
+  RECIPE_PARTITION_PLADUR_STD_M2: {
+    recipeCode: 'RECIPE_PARTITION_PLADUR_STD_M2',
+    description: 'Tabiqueria pladur estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.08,
+    materials: [
+      { materialCode: 'MAT_PARTITION_PLADUR_STD_FRAME', description: 'Perfileria pladur estandar', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_PLADUR_STD_BOARD', description: 'Placa pladur estandar', quantityPerUnit: 2, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_PLADUR_STD_FILL', description: 'Relleno interior pladur estandar', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_PARTITION_PLADUR_STD', description: 'Montaje tabiqueria pladur estandar', quantityPerUnit: 0.52, unit: 'h' }],
+  },
+  RECIPE_PARTITION_PLADUR_ACOUSTIC_M2: {
+    recipeCode: 'RECIPE_PARTITION_PLADUR_ACOUSTIC_M2',
+    description: 'Tabiqueria pladur acustica por m2',
+    unit: 'm2',
+    wasteFactor: 0.06,
+    indirectFactor: 0.1,
+    materials: [
+      { materialCode: 'MAT_PARTITION_PLADUR_AC_FRAME', description: 'Perfileria pladur acustico', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_PLADUR_AC_BOARD', description: 'Placa pladur acustica', quantityPerUnit: 4, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_PLADUR_AC_FILL', description: 'Aislamiento tabiqueria acustica', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_PARTITION_PLADUR_ACOUSTIC', description: 'Montaje tabiqueria pladur acustica', quantityPerUnit: 0.68, unit: 'h' }],
+  },
+  RECIPE_PARTITION_BRICK_STD_M2: {
+    recipeCode: 'RECIPE_PARTITION_BRICK_STD_M2',
+    description: 'Tabiqueria ladrillo hueco por m2',
+    unit: 'm2',
+    wasteFactor: 0.07,
+    indirectFactor: 0.1,
+    materials: [
+      { materialCode: 'MAT_PARTITION_BRICK_STD_BLOCK', description: 'Ladrillo hueco sencillo', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_BRICK_STD_MORTAR', description: 'Mortero agarre tabiqueria ceramica', quantityPerUnit: 0.12, unit: 'm3' },
+    ],
+    labor: [{ laborCode: 'LAB_PARTITION_BRICK_STD', description: 'Ejecucion tabiqueria ladrillo hueco', quantityPerUnit: 0.74, unit: 'h' }],
+  },
+  RECIPE_PARTITION_BLOCK_STD_M2: {
+    recipeCode: 'RECIPE_PARTITION_BLOCK_STD_M2',
+    description: 'Tabiqueria bloque simple por m2',
+    unit: 'm2',
+    wasteFactor: 0.08,
+    indirectFactor: 0.11,
+    materials: [
+      { materialCode: 'MAT_PARTITION_BLOCK_STD_BLOCK', description: 'Bloque sencillo', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_BLOCK_STD_MORTAR', description: 'Mortero tabiqueria bloque', quantityPerUnit: 0.14, unit: 'm3' },
+    ],
+    labor: [{ laborCode: 'LAB_PARTITION_BLOCK_STD', description: 'Ejecucion tabiqueria bloque simple', quantityPerUnit: 0.78, unit: 'h' }],
+  },
+  RECIPE_CEILING_CONTINUOUS_STD_M2: {
+    recipeCode: 'RECIPE_CEILING_CONTINUOUS_STD_M2',
+    description: 'Falso techo continuo estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.04,
+    indirectFactor: 0.08,
+    materials: [
+      { materialCode: 'MAT_CEILING_CONT_STD_FRAME', description: 'Perfileria falso techo continuo', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_CEILING_CONT_STD_BOARD', description: 'Placa falso techo continuo', quantityPerUnit: 1.05, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_CEILING_CONTINUOUS_STD', description: 'Montaje falso techo continuo', quantityPerUnit: 0.36, unit: 'h' }],
+  },
+  RECIPE_CEILING_CONTINUOUS_INSULATED_M2: {
+    recipeCode: 'RECIPE_CEILING_CONTINUOUS_INSULATED_M2',
+    description: 'Falso techo continuo aislado por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.09,
+    materials: [
+      { materialCode: 'MAT_CEILING_CONT_INS_FRAME', description: 'Perfileria falso techo aislado', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_CEILING_CONT_INS_BOARD', description: 'Placa falso techo aislado', quantityPerUnit: 1.05, unit: 'm2' },
+      { materialCode: 'MAT_CEILING_CONT_INS_FILL', description: 'Aislamiento falso techo', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_CEILING_CONTINUOUS_INSULATED', description: 'Montaje falso techo aislado', quantityPerUnit: 0.42, unit: 'h' }],
+  },
+  RECIPE_CEILING_SUSPENDED_GRID_M2: {
+    recipeCode: 'RECIPE_CEILING_SUSPENDED_GRID_M2',
+    description: 'Falso techo registrable por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.09,
+    materials: [
+      { materialCode: 'MAT_CEILING_GRID_MAIN', description: 'Perfileria registrable', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_CEILING_GRID_TILE', description: 'Placa registrable', quantityPerUnit: 1.02, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_CEILING_SUSPENDED_GRID', description: 'Montaje falso techo registrable', quantityPerUnit: 0.33, unit: 'h' }],
+  },
+  RECIPE_FLOOR_TILE_STD_M2: {
+    recipeCode: 'RECIPE_FLOOR_TILE_STD_M2',
+    description: 'Pavimento porcelanico estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.06,
+    indirectFactor: 0.09,
+    materials: [
+      { materialCode: 'MAT_FLOOR_TILE_STD', description: 'Pavimento porcelanico estandar', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_FLOOR_TILE_ADHESIVE', description: 'Adhesivo pavimento porcelanico', quantityPerUnit: 0.18, unit: 'bag' },
+    ],
+    labor: [{ laborCode: 'LAB_FLOOR_TILE_STD', description: 'Colocacion pavimento porcelanico', quantityPerUnit: 0.4, unit: 'h' }],
+  },
+  RECIPE_FLOOR_LAMINATE_STD_M2: {
+    recipeCode: 'RECIPE_FLOOR_LAMINATE_STD_M2',
+    description: 'Pavimento laminado estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.08,
+    materials: [
+      { materialCode: 'MAT_FLOOR_LAMINATE_STD', description: 'Pavimento laminado estandar', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_FLOOR_LAMINATE_STD', description: 'Colocacion pavimento laminado', quantityPerUnit: 0.28, unit: 'h' }],
+  },
+  RECIPE_FLOOR_VINYL_STD_M2: {
+    recipeCode: 'RECIPE_FLOOR_VINYL_STD_M2',
+    description: 'Pavimento vinilico estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.08,
+    materials: [
+      { materialCode: 'MAT_FLOOR_VINYL_STD', description: 'Pavimento vinilico estandar', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_FLOOR_VINYL_STD', description: 'Colocacion pavimento vinilico', quantityPerUnit: 0.25, unit: 'h' }],
+  },
+  RECIPE_SKIRTING_STD_ML: {
+    recipeCode: 'RECIPE_SKIRTING_STD_ML',
+    description: 'Rodapie estandar por ml',
+    unit: 'ml',
+    wasteFactor: 0.04,
+    indirectFactor: 0.06,
+    materials: [
+      { materialCode: 'MAT_SKIRTING_STD', description: 'Rodapie estandar', quantityPerUnit: 1, unit: 'ml' },
+    ],
+    labor: [{ laborCode: 'LAB_SKIRTING_STD', description: 'Colocacion rodapie estandar', quantityPerUnit: 0.08, unit: 'h' }],
+  },
+  RECIPE_DOOR_INTERIOR_STD_UD: {
+    recipeCode: 'RECIPE_DOOR_INTERIOR_STD_UD',
+    description: 'Puerta interior estandar por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_DOOR_INTERIOR_STD_SET', description: 'Puerta interior estandar completa', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_DOOR_INTERIOR_STD', description: 'Colocacion puerta interior estandar', quantityPerUnit: 1.2, unit: 'h' }],
+  },
+  RECIPE_DOOR_INTERIOR_PLUS_UD: {
+    recipeCode: 'RECIPE_DOOR_INTERIOR_PLUS_UD',
+    description: 'Puerta interior mejorada por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_DOOR_INTERIOR_PLUS_SET', description: 'Puerta interior mejorada completa', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_DOOR_INTERIOR_PLUS', description: 'Colocacion puerta interior mejorada', quantityPerUnit: 1.35, unit: 'h' }],
+  },
+  RECIPE_WINDOW_STD_UD: {
+    recipeCode: 'RECIPE_WINDOW_STD_UD',
+    description: 'Ventana estandar por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_WINDOW_STD_SET', description: 'Ventana estandar completa', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_WINDOW_STD', description: 'Colocacion ventana estandar', quantityPerUnit: 1.8, unit: 'h' }],
+  },
+  RECIPE_WINDOW_IMPROVED_UD: {
+    recipeCode: 'RECIPE_WINDOW_IMPROVED_UD',
+    description: 'Ventana mejorada por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.11,
+    materials: [{ materialCode: 'MAT_WINDOW_IMPROVED_SET', description: 'Ventana mejorada completa', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_WINDOW_IMPROVED', description: 'Colocacion ventana mejorada', quantityPerUnit: 2.1, unit: 'h' }],
+  },
+  RECIPE_SHUTTER_STD_UD: {
+    recipeCode: 'RECIPE_SHUTTER_STD_UD',
+    description: 'Persiana estandar por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_SHUTTER_STD_SET', description: 'Persiana estandar completa', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_SHUTTER_STD', description: 'Colocacion persiana estandar', quantityPerUnit: 0.95, unit: 'h' }],
+  },
+  RECIPE_ELECTRICAL_ROOM_STD_PT: {
+    recipeCode: 'RECIPE_ELECTRICAL_ROOM_STD_PT',
+    description: 'Punto electrico estandar',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_ELECTRICAL_POINT_STD', description: 'Material electrico por punto', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_ELECTRICAL_POINT_STD', description: 'Montaje punto electrico', quantityPerUnit: 0.35, unit: 'h' }],
+  },
+  RECIPE_LIGHTING_BASIC_PT: {
+    recipeCode: 'RECIPE_LIGHTING_BASIC_PT',
+    description: 'Punto de iluminacion basico',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_LIGHTING_POINT_STD', description: 'Material iluminacion por punto', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_LIGHTING_POINT_STD', description: 'Montaje punto de iluminacion', quantityPerUnit: 0.25, unit: 'h' }],
+  },
+  RECIPE_PLUMBING_POINT_STD_PT: {
+    recipeCode: 'RECIPE_PLUMBING_POINT_STD_PT',
+    description: 'Punto de fontaneria basico',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_PLUMBING_POINT_STD', description: 'Material fontaneria por punto', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_PLUMBING_POINT_STD', description: 'Montaje punto de fontaneria', quantityPerUnit: 0.42, unit: 'h' }],
+  },
+  RECIPE_DRAINAGE_POINT_STD_PT: {
+    recipeCode: 'RECIPE_DRAINAGE_POINT_STD_PT',
+    description: 'Punto de saneamiento basico',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_DRAINAGE_POINT_STD', description: 'Material saneamiento por punto', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_DRAINAGE_POINT_STD', description: 'Montaje punto de saneamiento', quantityPerUnit: 0.38, unit: 'h' }],
   },
 };
 

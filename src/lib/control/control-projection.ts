@@ -228,6 +228,11 @@ function bucketFromSolutionCode(solutionCode?: string | null) {
   if (value.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (value.startsWith('LEVELING_')) return 'LEVELING';
   if (value.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (value.startsWith('PARTITION_')) return 'PARTITIONS';
+  if (value.startsWith('CEILING_')) return 'CEILINGS';
+  if (value.startsWith('FLOOR_') || value === 'SKIRTING_STD') return 'FLOORING';
+  if (value.startsWith('DOOR_') || value.startsWith('WINDOW_') || value.startsWith('SHUTTER_')) return 'CARPENTRY';
+  if (value.startsWith('ELECTRICAL_') || value.startsWith('LIGHTING_') || value.startsWith('PLUMBING_') || value.startsWith('DRAINAGE_')) return 'BASIC_MEP';
   return 'GENERAL';
 }
 
@@ -238,6 +243,11 @@ function bucketFromCostItemCode(value?: string | null) {
   if (code.includes('PAVIMENT')) return 'LEVELING';
   if (code.includes('COMUN')) return 'COMMON_AREAS';
   if (code.includes('HAB')) return 'ROOMS';
+  if (code.includes('TABIQ') || code.includes('PLADUR') || code.includes('ALBANIL')) return 'PARTITIONS';
+  if (code.includes('TECHO')) return 'CEILINGS';
+  if (code.includes('RODAP') || code.includes('LAMIN') || code.includes('VINIL')) return 'FLOORING';
+  if (code.includes('PUERTA') || code.includes('VENTANA') || code.includes('CARPINTER')) return 'CARPENTRY';
+  if (code.includes('ELECTR') || code.includes('FONTAN') || code.includes('SANEAM') || code.includes('ILUMIN')) return 'BASIC_MEP';
   return 'GENERAL';
 }
 

@@ -510,6 +510,7 @@ async function run() {
   measured.assetContext.occupancyState = 'VACIO';
   measured.finishProfile.globalLevel = 'MEDIO_ALTO';
   measured.interventionProfile.globalIntensity = 'INTEGRAL';
+  measured.macroScope.workCodes = ['PLADUR', 'FALSO_TECHO', 'REVESTIMIENTOS', 'CARPINTERIA_INTERIOR', 'CARPINTERIA_EXTERIOR', 'ELECTRICIDAD', 'FONTANERIA', 'SANEAMIENTO', 'BANOS', 'COCINA', 'PINTURA'];
   measured.spatialModel.floors = [
     { floorId: 'pf', label: 'Planta baja', index: 1, type: 'BAJA', selected: true, features: {}, measurementDrivers: {}, technicalScope: {}, notes: '' },
   ];
@@ -530,7 +531,7 @@ async function run() {
           countAsUnit: true,
           countAsRoom: true,
         },
-        measurementDrivers: { areaM2: 16, floorSurfaceM2: 16 },
+        measurementDrivers: { areaM2: 16, floorSurfaceM2: 16, wallSurfaceM2: 42, ceilingSurfaceM2: 16, perimeterMl: 16, doorsCount: 1, windowsCount: 1, electricalPointsCount: 8, lightingPointsCount: 2, waterPointsCount: 2, sanitaryFixturesCount: 2 },
         technicalScope: createDefaultTemplate('HABITACION', 'Habitacion tipo').technicalScope,
         subspaces: [],
       },
@@ -541,10 +542,10 @@ async function run() {
     },
   ];
   measured.spatialModel.instances = [
-    { instanceId: 'room-1', groupId: 'room-group', floorId: 'pf', parentInstanceId: null, areaType: 'HABITACION', unitKind: 'HABITACION', spaceKind: 'UNIDAD_PRINCIPAL', subspaceKind: null, label: 'H1', isTemplateDerived: true, features: { hasBathroom: true, hasKitchenette: true, requiresLeveling: true, countAsUnit: true, countAsRoom: true }, measurementDrivers: { areaM2: 16, floorSurfaceM2: 16 }, technicalScope: {}, certainty: 'CONFIRMADO' },
-    { instanceId: 'bath-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'BANO', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'BANO_ASOCIADO', label: 'Bano H1', isTemplateDerived: false, features: { countAsBathroom: true }, measurementDrivers: { areaM2: 4, floorSurfaceM2: 4 }, technicalScope: {}, certainty: 'CONFIRMADO' },
-    { instanceId: 'kit-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'COCINA', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'KITCHENETTE', label: 'Kitchenette H1', isTemplateDerived: false, features: { countAsKitchen: true }, measurementDrivers: { linearMeters: 1.2 }, technicalScope: {}, certainty: 'CONFIRMADO' },
-    { instanceId: 'common-1', groupId: null, floorId: 'pf', parentInstanceId: null, areaType: 'ZONA_COMUN', unitKind: 'ZONA_COMUN', spaceKind: 'ESPACIO_COMUN', subspaceKind: null, label: 'Zona comun', isTemplateDerived: false, features: { countAsArea: true }, measurementDrivers: { areaM2: 20, floorSurfaceM2: 20 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'room-1', groupId: 'room-group', floorId: 'pf', parentInstanceId: null, areaType: 'HABITACION', unitKind: 'HABITACION', spaceKind: 'UNIDAD_PRINCIPAL', subspaceKind: null, label: 'H1', isTemplateDerived: true, features: { hasBathroom: true, hasKitchenette: true, requiresLeveling: true, countAsUnit: true, countAsRoom: true, hasExteriorOpenings: true }, measurementDrivers: { areaM2: 16, floorSurfaceM2: 16, wallSurfaceM2: 42, ceilingSurfaceM2: 16, perimeterMl: 16, doorsCount: 1, windowsCount: 1, electricalPointsCount: 8, lightingPointsCount: 2, waterPointsCount: 2, sanitaryFixturesCount: 2 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'bath-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'BANO', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'BANO_ASOCIADO', label: 'Bano H1', isTemplateDerived: false, features: { countAsBathroom: true }, measurementDrivers: { areaM2: 4, floorSurfaceM2: 4, wallSurfaceM2: 11, ceilingSurfaceM2: 4, perimeterMl: 8, doorsCount: 1, electricalPointsCount: 3, lightingPointsCount: 1, waterPointsCount: 3, sanitaryFixturesCount: 3 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'kit-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'COCINA', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'KITCHENETTE', label: 'Kitchenette H1', isTemplateDerived: false, features: { countAsKitchen: true }, measurementDrivers: { linearMeters: 1.2, areaM2: 3.2, floorSurfaceM2: 3.2, wallSurfaceM2: 7.5, ceilingSurfaceM2: 3.2, perimeterMl: 5.4, doorsCount: 1, electricalPointsCount: 4, lightingPointsCount: 1, waterPointsCount: 2, sanitaryFixturesCount: 1 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'common-1', groupId: null, floorId: 'pf', parentInstanceId: null, areaType: 'ZONA_COMUN', unitKind: 'ZONA_COMUN', spaceKind: 'ESPACIO_COMUN', subspaceKind: null, label: 'Zona comun', isTemplateDerived: false, features: { countAsArea: true, hasExteriorOpenings: true }, measurementDrivers: { areaM2: 20, floorSurfaceM2: 20, wallSurfaceM2: 36, ceilingSurfaceM2: 20, perimeterMl: 18, doorsCount: 1, windowsCount: 2, electricalPointsCount: 6, lightingPointsCount: 4 }, technicalScope: {}, certainty: 'CONFIRMADO' },
   ];
   measured.technicalSpecModel.status = 'READY_FOR_MEASUREMENT';
   measured.technicalSpecModel.strategy = 'SPECIFIED';
@@ -574,6 +575,31 @@ async function run() {
     },
     counts: {},
     options: {},
+  };
+  measured.technicalSpecModel.projectSpecs = {
+    selections: {
+      partitionSolution: 'PARTITION_PLADUR_STD',
+      ceilingSolution: 'CEILING_CONTINUOUS_STD',
+      flooringSolution: 'FLOOR_TILE_STD',
+      skirtingSolution: 'SKIRTING_STD',
+      doorSolution: 'DOOR_INTERIOR_STD',
+      windowSolution: 'WINDOW_STD',
+      shutterSolution: 'SHUTTER_STD',
+      electricalSolution: 'ELECTRICAL_ROOM_STD',
+      lightingSolution: 'LIGHTING_BASIC',
+      plumbingSolution: 'PLUMBING_POINT_STD',
+      drainageSolution: 'DRAINAGE_POINT_STD',
+    },
+    dimensions: {
+      partitionHeightM: 2.5,
+    },
+    counts: {},
+    options: {
+      includeSkirting: true,
+      includeShutter: true,
+      partitionInsulated: true,
+      acousticRequirementBasic: true,
+    },
   };
   measured.technicalSpecModel.instanceSpecs['common-1'] = {
     selections: {
@@ -631,6 +657,36 @@ async function run() {
     measuredInput.recipeResult.lines.filter((line) => line.recipeCode === 'RECIPE_KITCHENETTE_120_BASIC_ML').length,
     1
   );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'PARTITION_PLADUR_STD' && line.measurementCode === 'PARTITION_WALL_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'CEILING_CONTINUOUS_STD' && line.measurementCode === 'CEILING_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'FLOOR_TILE_STD' && line.measurementCode === 'FLOORING_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'DOOR_INTERIOR_STD' && line.measurementCode === 'DOOR_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'ELECTRICAL_ROOM_STD' && line.measurementCode === 'ELECTRICAL_POINTS'
+    )
+  );
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PARTITION_PLADUR_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_CEILING_CONTINUOUS_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_FLOOR_TILE_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_DOOR_INTERIOR_STD_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_ROOM_STD_PT'));
 
   const inferredPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -669,6 +725,27 @@ async function run() {
       (line) =>
         line.solutionCode === 'LEVELING_LIGHT' &&
         line.materialPricing.some((material) => material.priceSource === 'PARAMETRIC_REFERENCE')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'PARTITION_PLADUR_STD' &&
+        line.priceStatus === 'PRICE_INFERRED'
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'FLOOR_TILE_STD' &&
+        line.materialPricing.some((material) => ['SUPPLIER_OFFER', 'CATALOG_REFERENCE'].includes(material.priceSource))
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'ELECTRICAL_ROOM_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
     )
   );
 
@@ -986,6 +1063,9 @@ async function run() {
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'bath-1'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'kit-1'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'LEVELING_LIGHT'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'PARTITION_PLADUR_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'CEILING_CONTINUOUS_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'ELECTRICAL_ROOM_STD'));
   assert(canonicalPlanningProjection.coverage.recipeCoveragePercent > 0);
   const canonicalProcurementProjection = await buildProcurementProjection({
     executionContext: measuredInput.executionContext,
@@ -1053,6 +1133,16 @@ async function run() {
       (line) => Boolean(line.requiredOnSiteDate)
     )
   );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('PARTITION_PLADUR_STD')
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('ELECTRICAL_ROOM_STD')
+    )
+  );
   const canonicalControlProjection = buildControlProjection({
     commercialRuntimeOutput: integratedTechnicalRuntime,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
@@ -1118,7 +1208,19 @@ async function run() {
                   ? 'KITCHENETTES'
                   : (line.supportedSolutionCodes[0] || '').startsWith('LEVELING_')
                     ? 'LEVELING'
-                    : 'ROOMS',
+                    : (line.supportedSolutionCodes[0] || '').startsWith('COMMON_AREA_')
+                      ? 'COMMON_AREAS'
+                      : (line.supportedSolutionCodes[0] || '').startsWith('PARTITION_')
+                        ? 'PARTITIONS'
+                        : (line.supportedSolutionCodes[0] || '').startsWith('CEILING_')
+                          ? 'CEILINGS'
+                          : (line.supportedSolutionCodes[0] || '').startsWith('FLOOR_') || (line.supportedSolutionCodes[0] || '') === 'SKIRTING_STD'
+                            ? 'FLOORING'
+                            : (line.supportedSolutionCodes[0] || '').startsWith('DOOR_') || (line.supportedSolutionCodes[0] || '').startsWith('WINDOW_') || (line.supportedSolutionCodes[0] || '').startsWith('SHUTTER_')
+                              ? 'CARPENTRY'
+                              : (line.supportedSolutionCodes[0] || '').startsWith('ELECTRICAL_') || (line.supportedSolutionCodes[0] || '').startsWith('LIGHTING_') || (line.supportedSolutionCodes[0] || '').startsWith('PLUMBING_') || (line.supportedSolutionCodes[0] || '').startsWith('DRAINAGE_')
+                                ? 'BASIC_MEP'
+                                : 'ROOMS',
           },
         },
       },
@@ -1141,6 +1243,11 @@ async function run() {
   assert(
     canonicalControlProjection.deviationLines.some(
       (line) => line.supplyIds.length > 0 && line.pricingLineIds.length > 0
+    )
+  );
+  assert(
+    canonicalControlProjection.deviationLines.some(
+      (line) => ['PARTITIONS', 'CEILINGS', 'BASIC_MEP'].includes(line.bucketCode || '')
     )
   );
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
@@ -1175,6 +1282,21 @@ async function run() {
   assert(
     integratedTechnical.commercialEstimateProjection.commercialLines.some(
       (line) => line.code === 'INT-ROOMS'
+    )
+  );
+  assert(
+    integratedTechnical.commercialEstimateProjection.commercialLines.some(
+      (line) => line.code === 'INT-PART' && line.generatedFrom === 'TECHNICAL'
+    )
+  );
+  assert(
+    integratedTechnical.commercialEstimateProjection.commercialLines.some(
+      (line) => line.code === 'INT-CEIL' && line.supportedSolutionCodes.includes('CEILING_CONTINUOUS_STD')
+    )
+  );
+  assert(
+    integratedTechnical.commercialEstimateProjection.commercialLines.some(
+      (line) => line.code === 'INT-MEP' && line.supportedSolutionCodes.includes('ELECTRICAL_ROOM_STD')
     )
   );
   assert(

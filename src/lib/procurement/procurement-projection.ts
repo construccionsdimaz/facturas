@@ -150,6 +150,11 @@ function solutionFamily(solutionCode?: string | null) {
   if (value.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (value.startsWith('LEVELING_')) return 'LEVELING';
   if (value.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (value.startsWith('PARTITION_')) return 'PARTITIONS';
+  if (value.startsWith('CEILING_')) return 'CEILINGS';
+  if (value.startsWith('FLOOR_') || value === 'SKIRTING_STD') return 'FLOORING';
+  if (value.startsWith('DOOR_') || value.startsWith('WINDOW_') || value.startsWith('SHUTTER_')) return 'CARPENTRY';
+  if (value.startsWith('ELECTRICAL_') || value.startsWith('LIGHTING_') || value.startsWith('PLUMBING_') || value.startsWith('DRAINAGE_')) return 'BASIC_MEP';
   return 'OTHER';
 }
 

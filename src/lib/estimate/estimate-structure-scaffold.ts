@@ -8,7 +8,12 @@ export type IntegratedEstimateBucketCode =
   | 'BATHS'
   | 'KITCHENETTES'
   | 'LEVELING'
-  | 'COMMON_AREAS';
+  | 'COMMON_AREAS'
+  | 'PARTITIONS'
+  | 'CEILINGS'
+  | 'FLOORING'
+  | 'CARPENTRY'
+  | 'BASIC_MEP';
 
 export type CommercialLineGeneratedFrom =
   | 'TECHNICAL'
@@ -81,6 +86,46 @@ const CANONICAL_BUCKET_SCAFFOLD: Record<
     unit: 'lot',
     order: 60,
   },
+  PARTITIONS: {
+    bucketCode: 'PARTITIONS',
+    chapter: '03 ALBANILERIA Y REDISTRIBUCION',
+    code: 'INT-PART',
+    description: 'Tabiqueria interior',
+    unit: 'lot',
+    order: 31,
+  },
+  CEILINGS: {
+    bucketCode: 'CEILINGS',
+    chapter: '04 TECHOS Y ACABADOS SUPERIORES',
+    code: 'INT-CEIL',
+    description: 'Falsos techos',
+    unit: 'lot',
+    order: 40,
+  },
+  FLOORING: {
+    bucketCode: 'FLOORING',
+    chapter: '05 ACABADOS Y EQUIPAMIENTO',
+    code: 'INT-FLOOR',
+    description: 'Pavimentos y rodapies',
+    unit: 'lot',
+    order: 53,
+  },
+  CARPENTRY: {
+    bucketCode: 'CARPENTRY',
+    chapter: '05 ACABADOS Y EQUIPAMIENTO',
+    code: 'INT-CARP',
+    description: 'Carpinteria interior y exterior',
+    unit: 'lot',
+    order: 54,
+  },
+  BASIC_MEP: {
+    bucketCode: 'BASIC_MEP',
+    chapter: '04 INSTALACIONES BASICAS',
+    code: 'INT-MEP',
+    description: 'Instalaciones basicas por puntos',
+    unit: 'lot',
+    order: 45,
+  },
 };
 
 const LEGACY_CODE_TO_BUCKET: Partial<
@@ -91,6 +136,10 @@ const LEGACY_CODE_TO_BUCKET: Partial<
   COCINAS_OFFICE: 'KITCHENETTES',
   PAVIMENTOS: 'LEVELING',
   ZONAS_COMUNES: 'COMMON_AREAS',
+  TABIQUERIA: 'PARTITIONS',
+  FALSOS_TECHOS: 'CEILINGS',
+  CARPINTERIA: 'CARPENTRY',
+  INSTALACIONES: 'BASIC_MEP',
 };
 
 function bucketFromHeuristicText(
@@ -105,6 +154,11 @@ function bucketFromHeuristicText(
     return 'COMMON_AREAS';
   }
   if (/NIVELACI|REGULARIZACI|PAVIMENT/.test(text)) return 'LEVELING';
+  if (/TABIQU|PLADUR|ALBANILER/.test(text)) return 'PARTITIONS';
+  if (/TECHO|FALSO TECHO|REGISTRABLE/.test(text)) return 'CEILINGS';
+  if (/LAMINAD|VINIL|RODAPIE|PAVIMENTO/.test(text)) return 'FLOORING';
+  if (/PUERTA|VENTANA|CARPINTER/.test(text)) return 'CARPENTRY';
+  if (/ELECTRIC|FONTANER|SANEAMIENTO|ILUMINACION/.test(text)) return 'BASIC_MEP';
 
   return null;
 }

@@ -39,6 +39,11 @@ export type PlanningProjectionWorkPackage = {
     | 'KITCHENETTES'
     | 'LEVELING'
     | 'COMMON_AREAS'
+    | 'PARTITIONS'
+    | 'CEILINGS'
+    | 'FLOORING'
+    | 'CARPENTRY'
+    | 'BASIC_MEP'
     | 'GENERAL';
   generatedFrom: PlanningProjectionSource;
   locationKeys: string[];
@@ -103,6 +108,11 @@ const CANONICAL_WBS: Array<{
   { key: 'wbs-baths', bucketCode: 'BATHS', code: '05B', name: 'Banos repetitivos' },
   { key: 'wbs-kitchenettes', bucketCode: 'KITCHENETTES', code: '05C', name: 'Kitchenettes' },
   { key: 'wbs-common', bucketCode: 'COMMON_AREAS', code: '06', name: 'Zonas comunes y remates' },
+  { key: 'wbs-partitions', bucketCode: 'PARTITIONS', code: '03B', name: 'Tabiqueria interior' },
+  { key: 'wbs-ceilings', bucketCode: 'CEILINGS', code: '04A', name: 'Falsos techos' },
+  { key: 'wbs-flooring', bucketCode: 'FLOORING', code: '05D', name: 'Pavimentos y rodapies' },
+  { key: 'wbs-carpentry', bucketCode: 'CARPENTRY', code: '05E', name: 'Carpinteria interior y exterior' },
+  { key: 'wbs-mep', bucketCode: 'BASIC_MEP', code: '04B', name: 'Instalaciones basicas' },
 ];
 
 function round(value: number) {
@@ -121,6 +131,11 @@ function bucketFromSolutionCode(
   if (solutionCode.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (solutionCode.startsWith('LEVELING_')) return 'LEVELING';
   if (solutionCode.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (solutionCode.startsWith('PARTITION_')) return 'PARTITIONS';
+  if (solutionCode.startsWith('CEILING_')) return 'CEILINGS';
+  if (solutionCode.startsWith('FLOOR_') || solutionCode === 'SKIRTING_STD') return 'FLOORING';
+  if (solutionCode.startsWith('DOOR_') || solutionCode.startsWith('WINDOW_') || solutionCode.startsWith('SHUTTER_')) return 'CARPENTRY';
+  if (solutionCode.startsWith('ELECTRICAL_') || solutionCode.startsWith('LIGHTING_') || solutionCode.startsWith('PLUMBING_') || solutionCode.startsWith('DRAINAGE_')) return 'BASIC_MEP';
   return 'GENERAL';
 }
 
@@ -136,6 +151,16 @@ function activityPrefix(bucketCode: PlanningProjectionWorkPackage['bucketCode'])
       return 'LEVEL';
     case 'COMMON_AREAS':
       return 'COMM';
+    case 'PARTITIONS':
+      return 'PART';
+    case 'CEILINGS':
+      return 'CEIL';
+    case 'FLOORING':
+      return 'FLOOR';
+    case 'CARPENTRY':
+      return 'CARP';
+    case 'BASIC_MEP':
+      return 'MEP';
     default:
       return 'GEN';
   }
@@ -151,6 +176,11 @@ function activityNameForRecipe(
   if (recipeLine.solutionCode.startsWith('KITCHENETTE_')) return `Montaje ${label}`;
   if (recipeLine.solutionCode.startsWith('LEVELING_')) return `Nivelacion ${label}`;
   if (recipeLine.solutionCode.startsWith('COMMON_AREA_')) return `Acondicionamiento ${label}`;
+  if (recipeLine.solutionCode.startsWith('PARTITION_')) return `Tabiqueria ${label}`;
+  if (recipeLine.solutionCode.startsWith('CEILING_')) return `Falso techo ${label}`;
+  if (recipeLine.solutionCode.startsWith('FLOOR_') || recipeLine.solutionCode === 'SKIRTING_STD') return `Pavimentos ${label}`;
+  if (recipeLine.solutionCode.startsWith('DOOR_') || recipeLine.solutionCode.startsWith('WINDOW_') || recipeLine.solutionCode.startsWith('SHUTTER_')) return `Carpinteria ${label}`;
+  if (recipeLine.solutionCode.startsWith('ELECTRICAL_') || recipeLine.solutionCode.startsWith('LIGHTING_') || recipeLine.solutionCode.startsWith('PLUMBING_') || recipeLine.solutionCode.startsWith('DRAINAGE_')) return `Instalaciones ${label}`;
   return recipeLine.description;
 }
 
@@ -178,6 +208,39 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 28;
     case 'COMMON_AREA_INTENSIVE':
       return 20;
+    case 'PARTITION_PLADUR_STD':
+      return 12;
+    case 'PARTITION_PLADUR_ACOUSTIC':
+      return 10;
+    case 'PARTITION_BRICK_STD':
+      return 9;
+    case 'PARTITION_BLOCK_STD':
+      return 8;
+    case 'CEILING_CONTINUOUS_STD':
+      return 22;
+    case 'CEILING_CONTINUOUS_INSULATED':
+      return 18;
+    case 'CEILING_SUSPENDED_GRID':
+      return 26;
+    case 'FLOOR_TILE_STD':
+      return 18;
+    case 'FLOOR_LAMINATE_STD':
+      return 28;
+    case 'FLOOR_VINYL_STD':
+      return 30;
+    case 'SKIRTING_STD':
+      return 45;
+    case 'DOOR_INTERIOR_STD':
+    case 'DOOR_INTERIOR_PLUS':
+    case 'WINDOW_STD':
+    case 'WINDOW_IMPROVED':
+    case 'SHUTTER_STD':
+      return 2;
+    case 'ELECTRICAL_ROOM_STD':
+    case 'LIGHTING_BASIC':
+    case 'PLUMBING_POINT_STD':
+    case 'DRAINAGE_POINT_STD':
+      return 12;
     default:
       return 10;
   }
@@ -260,6 +323,11 @@ function coveredLegacyFamily(text: string) {
   if (/COCINA|KITCH/.test(upper)) return 'KITCHENETTES';
   if (/NIVEL|REGULAR|PAVIMENT/.test(upper)) return 'LEVELING';
   if (/ZONA COMUN|COMMON|PORTAL|PASILLO|ESCALERA/.test(upper)) return 'COMMON_AREAS';
+  if (/PLADUR|TABIQU|ALBANILER/.test(upper)) return 'PARTITIONS';
+  if (/TECHO|REGISTRABLE/.test(upper)) return 'CEILINGS';
+  if (/LAMINAD|VINIL|RODAPIE/.test(upper)) return 'FLOORING';
+  if (/PUERTA|VENTANA|CARPINTER/.test(upper)) return 'CARPENTRY';
+  if (/ELECTRIC|FONTANER|SANEAMIENTO|ILUMINACION/.test(upper)) return 'BASIC_MEP';
   return null;
 }
 
