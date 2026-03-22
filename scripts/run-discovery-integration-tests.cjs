@@ -38,6 +38,7 @@ async function run() {
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
   const { buildPricingResult } = require(path.join(srcRoot, 'lib/estimate/pricing-engine.ts'));
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
+  const { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } = require(path.join(srcRoot, 'lib/estimates/internal-analysis.ts'));
   const {
     acceptEstimate,
     applyEstimateReadinessOverride,
@@ -343,6 +344,7 @@ async function run() {
     structuralWorks: false,
   });
   const parametricIntegrated = integratePricingIntoEstimateProposal(parametricProposal);
+  assert.equal(parametricIntegrated.proposal.commercialEstimateProjection.source, 'PARAMETRIC_FALLBACK');
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.costSource === 'PARAMETRIC_MASTER'));
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.commercialPriceProvisional === false));
   const parametricReadiness = buildEstimateStatusFromPipeline({
@@ -773,6 +775,7 @@ async function run() {
     structuralWorks: measuredInput.structuralWorks,
   });
   const integratedTechnical = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).proposal;
+  assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
   assert(integratedTechnical.integratedCostBuckets.length > 0);
   assert(
     integratedTechnical.integratedCostBuckets.some(
@@ -782,6 +785,11 @@ async function run() {
   assert(
     integratedTechnical.lines.some(
       (line) => line.economicStatus.costSource === 'RECIPE_PRICED'
+    )
+  );
+  assert(
+    integratedTechnical.commercialEstimateProjection.commercialLines.some(
+      (line) => line.costSource === 'RECIPE_PRICED' && line.supportedSolutionCodes.length > 0
     )
   );
   assert(
@@ -853,6 +861,7 @@ async function run() {
   assert.equal(issuedClosed.commercialStatus, 'ISSUED_FINAL');
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
+  assert.equal(integratedMixed.commercialEstimateProjection.source, 'HYBRID');
   assert(
     integratedMixed.integratedCostBuckets.some(
       (bucket) => bucket.bucketCode === 'BATHS' && bucket.source === 'HYBRID'
@@ -926,6 +935,22 @@ async function run() {
   assert.equal(overriddenStatus.capabilities.canEmitAsFinal, true);
   assert.equal(overriddenStatus.manualOverride.applied, true);
   assert.equal(overriddenStatus.manualOverride.reason, 'Validado manualmente para envio al cliente');
+
+  const normalizedInternalAnalysis = normalizeInternalAnalysis({
+    source: integratedTechnical.source,
+    typologyCode: integratedTechnical.typologyCode,
+    seedVersion: integratedTechnical.seedVersion,
+    notes: integratedTechnical.notes,
+    estimateStatus: integratedTechnical.estimateStatus,
+    integratedCostBuckets: integratedTechnical.integratedCostBuckets,
+    commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
+    summary: integratedTechnical.summary,
+    lines: integratedTechnical.lines,
+  });
+  assert(normalizedInternalAnalysis);
+  assert.equal(normalizedInternalAnalysis.commercialEstimateProjection.source, integratedTechnical.commercialEstimateProjection.source);
+  const createPayload = toEstimateInternalAnalysisCreate(normalizedInternalAnalysis);
+  assert(createPayload.generationNotes.commercialEstimateProjection);
 
   const convertedLocked = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',

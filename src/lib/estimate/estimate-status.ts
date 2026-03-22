@@ -1,4 +1,5 @@
-import type { IntegratedEstimateCostBucket } from './estimate-integration';
+import type { Prisma } from '@prisma/client';
+import type { IntegratedEstimateCostBucket } from './commercial-estimate-projection';
 
 export type TechnicalSpecStatus = 'INCOMPLETE' | 'READY_FOR_MEASUREMENT';
 
@@ -179,6 +180,7 @@ type GenerationNotesPayload = {
   notes: string[];
   estimateStatus: EstimateStatusSnapshot | null;
   integratedCostBuckets?: IntegratedEstimateCostBucket[];
+  commercialEstimateProjection?: Prisma.InputJsonValue | null;
 };
 
 function clampPercent(value: number) {
@@ -1109,7 +1111,8 @@ export function buildSprintOneLineEconomicStatus(): EstimateLineEconomicSnapshot
 export function serializeGenerationNotes(
   notes: string[] | null | undefined,
   estimateStatus: EstimateStatusSnapshot | null | undefined,
-  integratedCostBuckets?: IntegratedEstimateCostBucket[] | null | undefined
+  integratedCostBuckets?: IntegratedEstimateCostBucket[] | null | undefined,
+  commercialEstimateProjection?: Prisma.InputJsonValue | null | undefined
 ): GenerationNotesPayload {
   return {
     notes: Array.isArray(notes)
@@ -1119,6 +1122,10 @@ export function serializeGenerationNotes(
     integratedCostBuckets: Array.isArray(integratedCostBuckets)
       ? integratedCostBuckets
       : [],
+    commercialEstimateProjection:
+      commercialEstimateProjection && typeof commercialEstimateProjection === 'object'
+        ? commercialEstimateProjection
+        : null,
   };
 }
 
@@ -1151,6 +1158,7 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
     return {
       notes: value.filter((note): note is string => typeof note === 'string'),
       estimateStatus: null,
+      commercialEstimateProjection: null,
     };
   }
 
@@ -1162,6 +1170,12 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
     const integratedCostBuckets = Array.isArray(record.integratedCostBuckets)
       ? (record.integratedCostBuckets as IntegratedEstimateCostBucket[])
       : [];
+    const commercialEstimateProjection =
+      record.commercialEstimateProjection &&
+      (typeof record.commercialEstimateProjection === 'object' ||
+        Array.isArray(record.commercialEstimateProjection))
+        ? (record.commercialEstimateProjection as Prisma.InputJsonValue)
+        : null;
     const rawStatus = record.estimateStatus;
     if (rawStatus && typeof rawStatus === 'object') {
       const statusRecord = rawStatus as Record<string, unknown>;
@@ -1376,6 +1390,7 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
         notes,
         estimateStatus: snapshot,
         integratedCostBuckets,
+        commercialEstimateProjection,
       };
     }
 
@@ -1383,6 +1398,7 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
       notes,
       estimateStatus: null,
       integratedCostBuckets,
+      commercialEstimateProjection,
     };
   }
 
@@ -1390,6 +1406,7 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
     notes: [],
     estimateStatus: null,
     integratedCostBuckets: [],
+    commercialEstimateProjection: null,
   };
 }
 

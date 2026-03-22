@@ -6,7 +6,10 @@ import {
   type EstimateLineEconomicSnapshot,
   type EstimateStatusSnapshot,
 } from '@/lib/estimate/estimate-status';
-import type { IntegratedEstimateCostBucket } from '@/lib/estimate/estimate-integration';
+import type {
+  CommercialEstimateProjection,
+  IntegratedEstimateCostBucket,
+} from '@/lib/estimate/commercial-estimate-projection';
 
 export type InternalAnalysisLineInput = {
   chapter: string;
@@ -50,6 +53,7 @@ export type EstimateInternalAnalysisInput = {
   notes?: string[];
   estimateStatus?: EstimateStatusSnapshot | null;
   integratedCostBuckets?: IntegratedEstimateCostBucket[];
+  commercialEstimateProjection?: CommercialEstimateProjection | null;
   summary: InternalAnalysisSummaryInput;
   lines: InternalAnalysisLineInput[];
 };
@@ -119,6 +123,12 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
       ? (input.estimateStatus as EstimateStatusSnapshot)
       : null),
     integratedCostBuckets: parsedNotes.integratedCostBuckets,
+    commercialEstimateProjection:
+      parsedNotes.commercialEstimateProjection && typeof parsedNotes.commercialEstimateProjection === 'object'
+        ? (parsedNotes.commercialEstimateProjection as CommercialEstimateProjection)
+        : input.commercialEstimateProjection && typeof input.commercialEstimateProjection === 'object'
+          ? (input.commercialEstimateProjection as CommercialEstimateProjection)
+          : null,
     summary,
     lines,
   };
@@ -138,7 +148,12 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
     commercialSubtotal: input.summary.commercialSubtotal,
     vatAmount: input.summary.vatAmount,
     commercialTotal: input.summary.commercialTotal,
-    generationNotes: serializeGenerationNotes(input.notes, input.estimateStatus, input.integratedCostBuckets),
+    generationNotes: serializeGenerationNotes(
+      input.notes,
+      input.estimateStatus,
+      input.integratedCostBuckets,
+      input.commercialEstimateProjection
+    ),
     lines: {
       create: input.lines.map((line) => ({
         chapter: line.chapter,

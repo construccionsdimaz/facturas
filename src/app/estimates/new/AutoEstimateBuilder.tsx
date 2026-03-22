@@ -6,7 +6,10 @@ import type {
   EstimateLineEconomicSnapshot,
   EstimateStatusSnapshot,
 } from '@/lib/estimate/estimate-status';
-import type { IntegratedEstimateCostBucket } from '@/lib/estimate/estimate-integration';
+import type {
+  CommercialEstimateProjection,
+  IntegratedEstimateCostBucket,
+} from '@/lib/estimate/commercial-estimate-projection';
 
 export type ProposalLine = {
   chapter: string;
@@ -51,6 +54,7 @@ export type Proposal = {
   seedVersion?: number | null;
   estimateStatus: EstimateStatusSnapshot;
   integratedCostBuckets?: IntegratedEstimateCostBucket[];
+  commercialEstimateProjection?: CommercialEstimateProjection;
 };
 
 export type EstimateItem = {
@@ -374,6 +378,11 @@ export default function AutoEstimateBuilder({
 	            <div style={{ fontWeight: 700 }}>
 	              {proposal.source || 'MASTER'}{proposal.typologyCode ? ` | ${proposal.typologyCode}` : ''}
 	            </div>
+              {proposal.commercialEstimateProjection && (
+                <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
+                  Proyeccion comercial: {proposal.commercialEstimateProjection.source}
+                </div>
+              )}
 	            {proposal.notes.length > 0 && (
 	              <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--text-secondary)' }}>
 	                {proposal.notes.join(' | ')}
@@ -427,11 +436,11 @@ export default function AutoEstimateBuilder({
             </div>
           </div>
 
-          {proposal.integratedCostBuckets && proposal.integratedCostBuckets.length > 0 && (
+          {(proposal.commercialEstimateProjection?.buckets || proposal.integratedCostBuckets)?.length ? (
             <div style={{ marginTop: '20px' }}>
               <h4 style={{ marginBottom: '8px' }}>Buckets tecnicos integrados</h4>
               <div style={{ display: 'grid', gap: '8px' }}>
-                {proposal.integratedCostBuckets.map((bucket) => (
+                {(proposal.commercialEstimateProjection?.buckets || proposal.integratedCostBuckets || []).map((bucket) => (
                   <div key={bucket.bucketCode} className="glass-panel" style={{ padding: '12px' }}>
                     <div style={{ fontWeight: 600 }}>{bucket.bucketCode}</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -449,7 +458,7 @@ export default function AutoEstimateBuilder({
                 ))}
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       )}
     </div>

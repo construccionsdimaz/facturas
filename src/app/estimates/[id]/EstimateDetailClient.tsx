@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import ConfirmationModal from '@/components/ConfirmationModal';
 import { formatCurrency } from '@/lib/format';
 import { parseGenerationNotes, parseLineEconomicStatus } from '@/lib/estimate/estimate-status';
+import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
 
 interface EstimateData {
   id: string;
@@ -312,6 +313,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   const parsedInternalNotes = estimate.internalAnalysis
     ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
     : { notes: [], estimateStatus: null };
+  const commercialProjection = (parsedInternalNotes.commercialEstimateProjection || null) as CommercialEstimateProjection | null;
   const commercialCapabilities =
     parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;
   const acceptanceCapabilities =
@@ -506,6 +508,11 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               <div style={{ fontSize: '13px', marginBottom: '6px' }}>
                 Estado comercial: {commercialStatusLabel(parsedInternalNotes.estimateStatus.commercialStatus)}
               </div>
+              {commercialProjection && (
+                <div style={{ fontSize: '13px', marginBottom: '6px' }}>
+                  Proyeccion comercial: {commercialProjection.source}
+                </div>
+              )}
               <div style={{ fontSize: '13px', marginBottom: '6px' }}>
                 Aceptacion: {acceptanceLabel(parsedInternalNotes.estimateStatus.acceptance.status)}
               </div>
@@ -602,9 +609,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             </div>
           )}
 
-          {parsedInternalNotes.integratedCostBuckets && parsedInternalNotes.integratedCostBuckets.length > 0 && (
+          {(commercialProjection?.buckets || parsedInternalNotes.integratedCostBuckets)?.length ? (
             <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
-              {parsedInternalNotes.integratedCostBuckets.map((bucket) => (
+              {(commercialProjection?.buckets || parsedInternalNotes.integratedCostBuckets || []).map((bucket) => (
                 <div key={bucket.bucketCode} className="glass-panel" style={{ padding: '12px' }}>
                   <div style={{ fontWeight: 700 }}>{bucket.bucketCode}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -621,7 +628,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                 </div>
               ))}
             </div>
-          )}
+          ) : null}
 
           <div style={{ display: 'grid', gap: '8px' }}>
             {estimate.internalAnalysis.lines.map((line, index) => {

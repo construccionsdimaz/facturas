@@ -417,6 +417,7 @@ function NewEstimateContent() {
           notes: internalProposal.notes,
           estimateStatus: internalProposal.estimateStatus,
           integratedCostBuckets: internalProposal.integratedCostBuckets || [],
+          commercialEstimateProjection: internalProposal.commercialEstimateProjection || null,
           summary: internalProposal.summary,
           lines: internalProposal.lines,
         } : undefined,

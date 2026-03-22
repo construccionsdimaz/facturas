@@ -24,7 +24,10 @@ import type {
   EstimateStatusSnapshot,
   InternalCostSource,
 } from './estimate-status';
-import type { IntegratedEstimateCostBucket } from './estimate-integration';
+import type {
+  CommercialEstimateProjection as RuntimeCommercialEstimateProjection,
+  IntegratedEstimateCostBucket,
+} from './commercial-estimate-projection';
 import type { PlanningBlueprint } from '@/lib/automation/planning-generator';
 import type { DiscoverySupplyHint } from '@/lib/procurement/discovery-context';
 
@@ -60,40 +63,7 @@ export type MeasurementResult = CanonicalMeasurementResult;
 export type RecipeResult = CanonicalRecipeResult;
 export type PricingResult = CanonicalPricingResult;
 
-export type CommercialEstimateProjection = {
-  status: EstimateStatusSnapshot;
-  source: 'TECHNICAL_PIPELINE' | 'HYBRID' | 'PARAMETRIC_FALLBACK';
-  buckets: IntegratedEstimateCostBucket[];
-  measurementLines: MeasurementLine[];
-  recipeLines: RecipeLine[];
-  pricingLines: PricingLine[];
-  commercialLines: Array<{
-    id: string;
-    chapter: string;
-    code?: string | null;
-    description: string;
-    quantity: number;
-    unit: string;
-    internalCost: number | null;
-    commercialPrice: number | null;
-    costSource: InternalCostSource;
-    supportedSolutionCodes: VerticalSolutionCode[];
-    measurementLineIds: string[];
-    recipeLineIds: string[];
-    pricingLineIds: string[];
-    provisional: boolean;
-  }>;
-  summary: {
-    materialCost: number;
-    laborCost: number;
-    indirectCost: number;
-    internalCost: number | null;
-    commercialSubtotal: number | null;
-    commercialTotal: number | null;
-  };
-  warnings: string[];
-  assumptions: string[];
-};
+export type CommercialEstimateProjection = RuntimeCommercialEstimateProjection;
 
 export type ProcurementProjection = {
   source: 'DISCOVERY_HINTS' | 'RECIPE_DRIVEN' | 'HYBRID';

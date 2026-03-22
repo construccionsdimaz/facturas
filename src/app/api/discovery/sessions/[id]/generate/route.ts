@@ -76,9 +76,33 @@ export async function POST(
       structuralWorks: Boolean(derivedInput.structuralWorks),
     });
 
+    const estimateStatus = buildEstimateStatusFromPipeline({
+      technicalSpecStatus:
+        derivedInput.executionContext.project.technicalSpecStatus || 'INCOMPLETE',
+      technicalCoveragePercent:
+        derivedInput.executionContext.resolvedSpecs.completeness.specifiedScopePercent || 0,
+      recipeCoveragePercent:
+        derivedInput.recipeResult?.coverage.recipeCoveragePercent || 0,
+      priceCoveragePercent:
+        derivedInput.pricingResult?.coverage.priceCoveragePercent || 0,
+      pendingValidationCount:
+        derivedInput.pricingResult?.coverage.pendingValidationCount || 0,
+      hasHybridBuckets:
+        false,
+    });
+
     const { proposal } = integratePricingIntoEstimateProposal(
-      parametricProposal,
-      derivedInput.pricingResult
+      {
+        ...parametricProposal,
+        estimateStatus,
+      },
+      derivedInput.pricingResult,
+      {
+        recipeResult: derivedInput.recipeResult,
+        measurementResult: derivedInput.measurementResult,
+        executionContext: derivedInput.executionContext,
+        estimateStatus,
+      }
     );
 
     proposal.estimateStatus = buildEstimateStatusFromPipeline({
@@ -93,8 +117,19 @@ export async function POST(
       pendingValidationCount:
         derivedInput.pricingResult?.coverage.pendingValidationCount || 0,
       hasHybridBuckets:
-        proposal.integratedCostBuckets?.some((bucket) => bucket.source === 'HYBRID') || false,
+        proposal.commercialEstimateProjection.buckets.some((bucket) => bucket.source === 'HYBRID'),
+      manualOverride: proposal.estimateStatus.manualOverride,
+      issuance: proposal.estimateStatus.issuance,
+      issuanceHistory: proposal.estimateStatus.issuanceHistory,
+      acceptance: proposal.estimateStatus.acceptance,
+      acceptanceHistory: proposal.estimateStatus.acceptanceHistory,
+      commercialStatusOverride:
+        proposal.estimateStatus.commercialStatus === 'CONVERTED' ||
+        proposal.estimateStatus.commercialStatus === 'CANCELLED'
+          ? proposal.estimateStatus.commercialStatus
+          : null,
     });
+    proposal.commercialEstimateProjection.status = proposal.estimateStatus;
 
     if (derivedInput.pricingResult?.estimateMode === 'PARAMETRIC_PRELIMINARY') {
       proposal.notes.push(
