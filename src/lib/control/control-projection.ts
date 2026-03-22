@@ -228,6 +228,7 @@ function bucketFromSolutionCode(solutionCode?: string | null) {
   if (value.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (value.startsWith('LEVELING_')) return 'LEVELING';
   if (value.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (value.startsWith('WALL_TILE_') || value.startsWith('PAINT_') || value.startsWith('WET_AREA_')) return 'WALL_FINISHES';
   if (value.startsWith('PARTITION_')) return 'PARTITIONS';
   if (value.startsWith('CEILING_')) return 'CEILINGS';
   if (value.startsWith('FLOOR_') || value === 'SKIRTING_STD') return 'FLOORING';
@@ -240,6 +241,7 @@ function bucketFromCostItemCode(value?: string | null) {
   const code = (value || '').toUpperCase();
   if (code.includes('BANO')) return 'BATHS';
   if (code.includes('COCINA')) return 'KITCHENETTES';
+  if (code.includes('ALICAT') || code.includes('PINTUR') || code.includes('IMPERM') || code.includes('REVEST')) return 'WALL_FINISHES';
   if (code.includes('PAVIMENT')) return 'LEVELING';
   if (code.includes('COMUN')) return 'COMMON_AREAS';
   if (code.includes('HAB')) return 'ROOMS';

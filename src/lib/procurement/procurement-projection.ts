@@ -150,6 +150,7 @@ function solutionFamily(solutionCode?: string | null) {
   if (value.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (value.startsWith('LEVELING_')) return 'LEVELING';
   if (value.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (value.startsWith('WALL_TILE_') || value.startsWith('PAINT_') || value.startsWith('WET_AREA_')) return 'WALL_FINISHES';
   if (value.startsWith('PARTITION_')) return 'PARTITIONS';
   if (value.startsWith('CEILING_')) return 'CEILINGS';
   if (value.startsWith('FLOOR_') || value === 'SKIRTING_STD') return 'FLOORING';

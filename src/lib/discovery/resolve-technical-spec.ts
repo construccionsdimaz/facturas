@@ -27,6 +27,10 @@ function requiresCeilingSpec(space: ResolvedSpace) {
   return hasWorkCode(space, 'FALSO_TECHO') || hasAction(space, 'MONTAR_FALSO_TECHO');
 }
 
+function requiresWallFinishSpec(space: ResolvedSpace) {
+  return hasWorkCode(space, 'REVESTIMIENTOS') || hasWorkCode(space, 'PINTURA') || hasAction(space, 'ALICATAR') || hasAction(space, 'PINTAR');
+}
+
 function requiresFlooringSpec(space: ResolvedSpace) {
   return hasWorkCode(space, 'REVESTIMIENTOS') || hasAction(space, 'COLOCAR_SUELO');
 }
@@ -45,6 +49,10 @@ function requiresElectricalSpec(space: ResolvedSpace) {
 
 function requiresLightingSpec(space: ResolvedSpace) {
   return ((space.measurementDrivers.lightingPointsCount || 0) > 0 && hasWorkCode(space, 'ILUMINACION')) || hasAction(space, 'RENOVAR_ILUMINACION');
+}
+
+function requiresWaterproofingSpec(space: ResolvedSpace) {
+  return (space.areaType === 'BANO' || space.areaType === 'COCINA' || space.subspaceKind === 'BANO_ASOCIADO' || space.subspaceKind === 'KITCHENETTE') && hasWorkCode(space, 'IMPERMEABILIZACION');
 }
 
 function requiresPlumbingSpec(space: ResolvedSpace) {
@@ -168,8 +176,28 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('selections.commonAreaSolution');
   }
 
+  if (requiresWallFinishSpec(space) && merged.options?.includeWallTile && !merged.selections.wallTileSolution) {
+    assumedFields.push('selections.wallTileSolution');
+  }
+
+  if (requiresWallFinishSpec(space) && merged.options?.includeWallPaint && !merged.selections.wallPaintSolution) {
+    assumedFields.push('selections.wallPaintSolution');
+  }
+
+  if (requiresWallFinishSpec(space) && merged.options?.includeCeilingPaint && !merged.selections.ceilingPaintSolution) {
+    assumedFields.push('selections.ceilingPaintSolution');
+  }
+
+  if (requiresWaterproofingSpec(space) && merged.options?.includeWaterproofing && !merged.selections.waterproofingSolution) {
+    assumedFields.push('selections.waterproofingSolution');
+  }
+
   if (requiresPartitionSpec(space) && !merged.selections.partitionSolution) {
     assumedFields.push('selections.partitionSolution');
+  }
+
+  if (requiresPartitionSpec(space) && !merged.selections.liningSolution) {
+    assumedFields.push('selections.liningSolution');
   }
 
   if (requiresCeilingSpec(space) && !merged.selections.ceilingSolution) {
@@ -200,6 +228,14 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('selections.electricalSolution');
   }
 
+  if (requiresElectricalSpec(space) && !merged.selections.electricalMechanismsSolution) {
+    assumedFields.push('selections.electricalMechanismsSolution');
+  }
+
+  if (requiresElectricalSpec(space) && !merged.selections.electricalPanelSolution) {
+    assumedFields.push('selections.electricalPanelSolution');
+  }
+
   if (requiresLightingSpec(space) && !merged.selections.lightingSolution) {
     assumedFields.push('selections.lightingSolution');
   }
@@ -208,8 +244,16 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('selections.plumbingSolution');
   }
 
+  if (requiresPlumbingSpec(space) && !merged.selections.plumbingWetSolution) {
+    assumedFields.push('selections.plumbingWetSolution');
+  }
+
   if (requiresDrainageSpec(space) && !merged.selections.drainageSolution) {
     assumedFields.push('selections.drainageSolution');
+  }
+
+  if (requiresDrainageSpec(space) && !merged.selections.drainageWetSolution) {
+    assumedFields.push('selections.drainageWetSolution');
   }
 
   if ((space.unitKind === 'HABITACION' || space.areaType === 'HABITACION') && !merged.dimensions?.roomAreaM2 && !space.measurementDrivers.areaM2) {
@@ -247,6 +291,26 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     !space.measurementDrivers.areaM2
   ) {
     assumedFields.push('dimensions.commonAreaM2');
+  }
+
+  if (requiresWallFinishSpec(space) && merged.options?.includeWallTile && !merged.dimensions?.wallTileAreaM2 && !space.measurementDrivers.tilingSurfaceM2 && !space.measurementDrivers.wallSurfaceM2) {
+    assumedFields.push('dimensions.wallTileAreaM2');
+  }
+
+  if (requiresWallFinishSpec(space) && merged.options?.includeWallPaint && !merged.dimensions?.paintWallAreaM2 && !space.measurementDrivers.wallSurfaceM2) {
+    assumedFields.push('dimensions.paintWallAreaM2');
+  }
+
+  if (requiresWallFinishSpec(space) && merged.options?.includeCeilingPaint && !merged.dimensions?.paintCeilingAreaM2 && !space.measurementDrivers.ceilingSurfaceM2 && !space.measurementDrivers.areaM2) {
+    assumedFields.push('dimensions.paintCeilingAreaM2');
+  }
+
+  if (requiresWaterproofingSpec(space) && merged.options?.includeWaterproofing && !merged.dimensions?.waterproofingAreaM2 && !space.measurementDrivers.tilingSurfaceM2 && !space.measurementDrivers.floorSurfaceM2) {
+    assumedFields.push('dimensions.waterproofingAreaM2');
+  }
+
+  if (requiresPartitionSpec(space) && merged.selections.liningSolution && !merged.dimensions?.liningWallAreaM2 && !space.measurementDrivers.wallSurfaceM2) {
+    assumedFields.push('dimensions.liningWallAreaM2');
   }
 
   if (
@@ -305,12 +369,28 @@ function inferAssumedFields(space: ResolvedSpace, merged: TechnicalSpecPatch): s
     assumedFields.push('counts.lightingPointsCount');
   }
 
+  if (requiresElectricalSpec(space) && !merged.counts?.electricalMechanismsCount && !space.measurementDrivers.electricalPointsCount) {
+    assumedFields.push('counts.electricalMechanismsCount');
+  }
+
+  if (requiresElectricalSpec(space) && !merged.counts?.electricalPanelCount) {
+    assumedFields.push('counts.electricalPanelCount');
+  }
+
   if (requiresPlumbingSpec(space) && !merged.counts?.plumbingPointsCount && !space.measurementDrivers.waterPointsCount) {
     assumedFields.push('counts.plumbingPointsCount');
   }
 
+  if (requiresPlumbingSpec(space) && !merged.counts?.plumbingWetPointsCount && !space.measurementDrivers.waterPointsCount) {
+    assumedFields.push('counts.plumbingWetPointsCount');
+  }
+
   if (requiresDrainageSpec(space) && !merged.counts?.drainagePointsCount && !space.measurementDrivers.sanitaryFixturesCount) {
     assumedFields.push('counts.drainagePointsCount');
+  }
+
+  if (requiresDrainageSpec(space) && !merged.counts?.drainageWetPointsCount && !space.measurementDrivers.sanitaryFixturesCount) {
+    assumedFields.push('counts.drainageWetPointsCount');
   }
 
   return assumedFields;
@@ -370,9 +450,29 @@ function isScopeSatisfied(space: ResolvedSpace, spec: ResolvedSpec) {
     if (!spec.selections.commonAreaSolution) missing.push('commonArea');
   }
 
+  if (requiresWallFinishSpec(space) && spec.options.includeWallTile) {
+    applicable.push('wallTile');
+    if (!spec.selections.wallTileSolution) missing.push('wallTile');
+  }
+  if (requiresWallFinishSpec(space) && spec.options.includeWallPaint) {
+    applicable.push('wallPaint');
+    if (!spec.selections.wallPaintSolution) missing.push('wallPaint');
+  }
+  if (requiresWallFinishSpec(space) && spec.options.includeCeilingPaint) {
+    applicable.push('ceilingPaint');
+    if (!spec.selections.ceilingPaintSolution) missing.push('ceilingPaint');
+  }
+  if (requiresWaterproofingSpec(space) && spec.options.includeWaterproofing) {
+    applicable.push('waterproofing');
+    if (!spec.selections.waterproofingSolution) missing.push('waterproofing');
+  }
+
   if (requiresPartitionSpec(space)) {
     applicable.push('partition');
     if (!spec.selections.partitionSolution) missing.push('partition');
+  }
+  if (requiresPartitionSpec(space) && spec.selections.liningSolution) {
+    applicable.push('lining');
   }
   if (requiresCeilingSpec(space)) {
     applicable.push('ceiling');
@@ -402,6 +502,12 @@ function isScopeSatisfied(space: ResolvedSpace, spec: ResolvedSpec) {
     applicable.push('electrical');
     if (!spec.selections.electricalSolution) missing.push('electrical');
   }
+  if (requiresElectricalSpec(space)) {
+    applicable.push('electricalMechanisms');
+    if (!spec.selections.electricalMechanismsSolution) missing.push('electricalMechanisms');
+    applicable.push('electricalPanel');
+    if (!spec.selections.electricalPanelSolution) missing.push('electricalPanel');
+  }
   if (requiresLightingSpec(space)) {
     applicable.push('lighting');
     if (!spec.selections.lightingSolution) missing.push('lighting');
@@ -409,10 +515,14 @@ function isScopeSatisfied(space: ResolvedSpace, spec: ResolvedSpec) {
   if (requiresPlumbingSpec(space)) {
     applicable.push('plumbing');
     if (!spec.selections.plumbingSolution) missing.push('plumbing');
+    applicable.push('plumbingWet');
+    if (!spec.selections.plumbingWetSolution) missing.push('plumbingWet');
   }
   if (requiresDrainageSpec(space)) {
     applicable.push('drainage');
     if (!spec.selections.drainageSolution) missing.push('drainage');
+    applicable.push('drainageWet');
+    if (!spec.selections.drainageWetSolution) missing.push('drainageWet');
   }
 
   return {

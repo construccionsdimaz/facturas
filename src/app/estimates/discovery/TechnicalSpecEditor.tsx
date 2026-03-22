@@ -12,6 +12,7 @@ import {
   PARTITION_SOLUTION_CODES,
   ROOM_SOLUTION_CODES,
   SOLUTION_LABELS,
+  WALL_FINISH_SOLUTION_CODES,
 } from '@/lib/discovery/technical-spec-types';
 import {
   createEmptyTechnicalSpecPatch,
@@ -92,6 +93,8 @@ function computeTechnicalSpecStatus(data: DiscoverySessionData) {
   const flooringRequired = workCodes.has('REVESTIMIENTOS');
   const carpentryRequired =
     workCodes.has('CARPINTERIA_INTERIOR') || workCodes.has('CARPINTERIA_EXTERIOR');
+  const wallFinishesRequired =
+    workCodes.has('REVESTIMIENTOS') || workCodes.has('PINTURA') || workCodes.has('IMPERMEABILIZACION');
   const mepRequired =
     workCodes.has('ELECTRICIDAD') ||
     workCodes.has('ILUMINACION') ||
@@ -103,6 +106,14 @@ function computeTechnicalSpecStatus(data: DiscoverySessionData) {
   const flooringReady =
     !flooringRequired ||
     Boolean(projectPatch.selections.flooringSolution || projectPatch.selections.skirtingSolution);
+  const wallFinishesReady =
+    !wallFinishesRequired ||
+    Boolean(
+      projectPatch.selections.wallTileSolution ||
+        projectPatch.selections.wallPaintSolution ||
+        projectPatch.selections.ceilingPaintSolution ||
+        projectPatch.selections.waterproofingSolution,
+    );
   const carpentryReady =
     !carpentryRequired ||
     Boolean(projectPatch.selections.doorSolution || projectPatch.selections.windowSolution);
@@ -120,6 +131,7 @@ function computeTechnicalSpecStatus(data: DiscoverySessionData) {
     kitchenetteReady &&
     levelingReady &&
     commonAreasReady &&
+    wallFinishesReady &&
     partitionsReady &&
     ceilingsReady &&
     flooringReady &&
@@ -246,6 +258,7 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
           <label><input type="checkbox" checked={model.coverage.kitchenettes} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, kitchenettes: e.target.checked } }))} style={{ marginRight: '8px' }} />Kitchenettes checklist</label>
           <label><input type="checkbox" checked={model.coverage.leveling} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, leveling: e.target.checked } }))} style={{ marginRight: '8px' }} />Leveling checklist</label>
           <label><input type="checkbox" checked={model.coverage.commonAreas} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, commonAreas: e.target.checked } }))} style={{ marginRight: '8px' }} />Common areas checklist</label>
+          <label><input type="checkbox" checked={model.coverage.wallFinishes} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, wallFinishes: e.target.checked } }))} style={{ marginRight: '8px' }} />Wall finishes checklist</label>
           <label><input type="checkbox" checked={model.coverage.partitions} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, partitions: e.target.checked } }))} style={{ marginRight: '8px' }} />Partitions checklist</label>
           <label><input type="checkbox" checked={model.coverage.ceilings} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, ceilings: e.target.checked } }))} style={{ marginRight: '8px' }} />Ceilings checklist</label>
           <label><input type="checkbox" checked={model.coverage.flooring} onChange={(e) => updateModel((current) => ({ ...current, coverage: { ...current.coverage, flooring: e.target.checked } }))} style={{ marginRight: '8px' }} />Flooring checklist</label>
@@ -258,14 +271,64 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
         {sectionTitle('Sistemas adicionales Phase 1', 'Selecciona defaults prudentes a nivel proyecto para tabiqueria, techos, pavimentos, carpinteria e instalaciones basicas.')}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '10px' }}>
           <div className="formGroup">
+            <label>Alicatado / revestimiento vertical</label>
+            <select className="input-modern" value={projectPatch.selections.wallTileSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, wallTileSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(WALL_FINISH_SOLUTION_CODES.filter((code) => code.startsWith('WALL_TILE_')), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
+            <label>m2 revestimiento vertical</label>
+            <input className="input-modern" type="number" value={projectPatch.dimensions?.wallTileAreaM2 || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, dimensions: { ...current.dimensions, wallTileAreaM2: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
+            <label>Pintura paredes</label>
+            <select className="input-modern" value={projectPatch.selections.wallPaintSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, wallPaintSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(WALL_FINISH_SOLUTION_CODES.filter((code) => code.startsWith('PAINT_WALL_')), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
+            <label>m2 pintura paredes</label>
+            <input className="input-modern" type="number" value={projectPatch.dimensions?.paintWallAreaM2 || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, dimensions: { ...current.dimensions, paintWallAreaM2: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
+            <label>Pintura techos</label>
+            <select className="input-modern" value={projectPatch.selections.ceilingPaintSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, ceilingPaintSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(WALL_FINISH_SOLUTION_CODES.filter((code) => code === 'PAINT_CEILING_STD'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
+            <label>m2 pintura techos</label>
+            <input className="input-modern" type="number" value={projectPatch.dimensions?.paintCeilingAreaM2 || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, dimensions: { ...current.dimensions, paintCeilingAreaM2: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
+            <label>Impermeabilizacion ligera</label>
+            <select className="input-modern" value={projectPatch.selections.waterproofingSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, waterproofingSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(WALL_FINISH_SOLUTION_CODES.filter((code) => code === 'WET_AREA_WATERPROOFING_STD'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
+            <label>m2 impermeabilizacion</label>
+            <input className="input-modern" type="number" value={projectPatch.dimensions?.waterproofingAreaM2 || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, dimensions: { ...current.dimensions, waterproofingAreaM2: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
             <label>Tabiqueria</label>
             <select className="input-modern" value={projectPatch.selections.partitionSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, partitionSolution: (e.target.value || undefined) as any } }))}>
               {solutionOptions(PARTITION_SOLUTION_CODES, 'Sin definir')}
             </select>
           </div>
           <div className="formGroup">
+            <label>Trasdosado / lining</label>
+            <select className="input-modern" value={projectPatch.selections.liningSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, liningSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(PARTITION_SOLUTION_CODES.filter((code) => code === 'PARTITION_LINING_STD'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
             <label>m2 tabiqueria</label>
             <input className="input-modern" type="number" value={projectPatch.dimensions?.partitionWallAreaM2 || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, dimensions: { ...current.dimensions, partitionWallAreaM2: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
+            <label>m2 trasdosado</label>
+            <input className="input-modern" type="number" value={projectPatch.dimensions?.liningWallAreaM2 || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, dimensions: { ...current.dimensions, liningWallAreaM2: Number(e.target.value) || null } }))} />
           </div>
           <div className="formGroup">
             <label>Falso techo</label>
@@ -330,6 +393,18 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
             </select>
           </div>
           <div className="formGroup">
+            <label>Mecanismos electricos</label>
+            <select className="input-modern" value={projectPatch.selections.electricalMechanismsSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, electricalMechanismsSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(BASIC_MEP_SOLUTION_CODES.filter((code) => code === 'ELECTRICAL_MECHANISMS_STD'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
+            <label>Cuadro electrico</label>
+            <select className="input-modern" value={projectPatch.selections.electricalPanelSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, electricalPanelSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(BASIC_MEP_SOLUTION_CODES.filter((code) => code === 'ELECTRICAL_PANEL_BASIC'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
             <label>Iluminacion</label>
             <select className="input-modern" value={projectPatch.selections.lightingSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, lightingSolution: (e.target.value || undefined) as any } }))}>
               {solutionOptions(BASIC_MEP_SOLUTION_CODES.filter((code) => code === 'LIGHTING_BASIC'), 'Sin definir')}
@@ -342,9 +417,21 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
             </select>
           </div>
           <div className="formGroup">
+            <label>Fontaneria humeda</label>
+            <select className="input-modern" value={projectPatch.selections.plumbingWetSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, plumbingWetSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(BASIC_MEP_SOLUTION_CODES.filter((code) => code === 'PLUMBING_WET_ROOM_STD'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
             <label>Saneamiento</label>
             <select className="input-modern" value={projectPatch.selections.drainageSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, drainageSolution: (e.target.value || undefined) as any } }))}>
               {solutionOptions(BASIC_MEP_SOLUTION_CODES.filter((code) => code === 'DRAINAGE_POINT_STD'), 'Sin definir')}
+            </select>
+          </div>
+          <div className="formGroup">
+            <label>Saneamiento humedo</label>
+            <select className="input-modern" value={projectPatch.selections.drainageWetSolution || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, selections: { ...current.selections, drainageWetSolution: (e.target.value || undefined) as any } }))}>
+              {solutionOptions(BASIC_MEP_SOLUTION_CODES.filter((code) => code === 'DRAINAGE_WET_ROOM_STD'), 'Sin definir')}
             </select>
           </div>
           <div className="formGroup">
@@ -356,15 +443,35 @@ export default function TechnicalSpecEditor({ data, onChange }: Props) {
             <input className="input-modern" type="number" value={projectPatch.counts?.lightingPointsCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, lightingPointsCount: Number(e.target.value) || null } }))} />
           </div>
           <div className="formGroup">
+            <label>Mecanismos</label>
+            <input className="input-modern" type="number" value={projectPatch.counts?.electricalMechanismsCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, electricalMechanismsCount: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
+            <label>Cuadros</label>
+            <input className="input-modern" type="number" value={projectPatch.counts?.electricalPanelCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, electricalPanelCount: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
             <label>Puntos fontaneria</label>
             <input className="input-modern" type="number" value={projectPatch.counts?.plumbingPointsCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, plumbingPointsCount: Number(e.target.value) || null } }))} />
+          </div>
+          <div className="formGroup">
+            <label>Puntos fontaneria humeda</label>
+            <input className="input-modern" type="number" value={projectPatch.counts?.plumbingWetPointsCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, plumbingWetPointsCount: Number(e.target.value) || null } }))} />
           </div>
           <div className="formGroup">
             <label>Puntos saneamiento</label>
             <input className="input-modern" type="number" value={projectPatch.counts?.drainagePointsCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, drainagePointsCount: Number(e.target.value) || null } }))} />
           </div>
+          <div className="formGroup">
+            <label>Puntos saneamiento humedo</label>
+            <input className="input-modern" type="number" value={projectPatch.counts?.drainageWetPointsCount || ''} onChange={(e) => updateProjectPatch((current) => ({ ...current, counts: { ...current.counts, drainageWetPointsCount: Number(e.target.value) || null } }))} />
+          </div>
         </div>
         <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginTop: '8px', color: 'var(--text-secondary)', fontSize: '13px' }}>
+          <label><input type="checkbox" checked={Boolean(projectPatch.options?.includeWallTile)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, includeWallTile: e.target.checked } }))} style={{ marginRight: '8px' }} />Incluir revestimiento vertical</label>
+          <label><input type="checkbox" checked={Boolean(projectPatch.options?.includeWallPaint)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, includeWallPaint: e.target.checked } }))} style={{ marginRight: '8px' }} />Incluir pintura pared</label>
+          <label><input type="checkbox" checked={Boolean(projectPatch.options?.includeCeilingPaint)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, includeCeilingPaint: e.target.checked } }))} style={{ marginRight: '8px' }} />Incluir pintura techo</label>
+          <label><input type="checkbox" checked={Boolean(projectPatch.options?.includeWaterproofing)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, includeWaterproofing: e.target.checked } }))} style={{ marginRight: '8px' }} />Incluir impermeabilizacion</label>
           <label><input type="checkbox" checked={Boolean(projectPatch.options?.partitionInsulated)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, partitionInsulated: e.target.checked } }))} style={{ marginRight: '8px' }} />Aislamiento en tabiqueria</label>
           <label><input type="checkbox" checked={Boolean(projectPatch.options?.acousticRequirementBasic)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, acousticRequirementBasic: e.target.checked } }))} style={{ marginRight: '8px' }} />Requisito acustico basico</label>
           <label><input type="checkbox" checked={Boolean(projectPatch.options?.includeSkirting)} onChange={(e) => updateProjectPatch((current) => ({ ...current, options: { ...current.options, includeSkirting: e.target.checked } }))} style={{ marginRight: '8px' }} />Incluir rodapie</label>

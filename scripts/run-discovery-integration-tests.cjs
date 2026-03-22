@@ -105,6 +105,125 @@ async function run() {
         { id: 'offer-san-1', supplierId: 'sup-puertas', unitCost: 142, unit: 'ud', leadTimeDays: 6, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
       ],
     },
+    'ACA-WALL-STD': {
+      id: 'mat-wall-std',
+      code: 'ACA-WALL-STD',
+      offers: [
+        { id: 'offer-wall-std-1', supplierId: 'sup-acabats', unitCost: 18.2, unit: 'm2', leadTimeDays: 5, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'ACA-WALL-PLUS': {
+      id: 'mat-wall-plus',
+      code: 'ACA-WALL-PLUS',
+      offers: [
+        { id: 'offer-wall-plus-1', supplierId: 'sup-acabats', unitCost: 24.4, unit: 'm2', leadTimeDays: 6, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'PIN-PLA-PLUS': {
+      id: 'mat-paint-plus',
+      code: 'PIN-PLA-PLUS',
+      offers: [
+        { id: 'offer-paint-plus-1', supplierId: 'sup-acabats', unitCost: 5.1, unit: 'm2', leadTimeDays: 2, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'IMP-LIQ-STD': {
+      id: 'mat-imp-std',
+      code: 'IMP-LIQ-STD',
+      offers: [
+        { id: 'offer-imp-1', supplierId: 'sup-acabats', unitCost: 7.4, unit: 'm2', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'PLADUR-FRAME-STD': {
+      id: 'mat-lining-frame',
+      code: 'PLADUR-FRAME-STD',
+      offers: [
+        { id: 'offer-lining-frame-1', supplierId: 'sup-acabats', unitCost: 7.6, unit: 'm2', leadTimeDays: 4, isPreferred: false, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'PLADUR-BOARD-STD': {
+      id: 'mat-lining-board',
+      code: 'PLADUR-BOARD-STD',
+      offers: [
+        { id: 'offer-lining-board-1', supplierId: 'sup-acabats', unitCost: 5.5, unit: 'm2', leadTimeDays: 4, isPreferred: false, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'PLADUR-FILL-STD': {
+      id: 'mat-lining-fill',
+      code: 'PLADUR-FILL-STD',
+      offers: [
+        { id: 'offer-lining-fill-1', supplierId: 'sup-acabats', unitCost: 3.6, unit: 'm2', leadTimeDays: 4, isPreferred: false, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'CEIL-FRAME-PLUS': {
+      id: 'mat-ceil-plus-frame',
+      code: 'CEIL-FRAME-PLUS',
+      offers: [
+        { id: 'offer-ceil-frame-1', supplierId: 'sup-acabats', unitCost: 7.1, unit: 'm2', leadTimeDays: 4, isPreferred: false, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'CEIL-BOARD-PLUS': {
+      id: 'mat-ceil-plus-board',
+      code: 'CEIL-BOARD-PLUS',
+      offers: [
+        { id: 'offer-ceil-board-1', supplierId: 'sup-acabats', unitCost: 6.2, unit: 'm2', leadTimeDays: 4, isPreferred: false, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'CEIL-FILL-PLUS': {
+      id: 'mat-ceil-plus-fill',
+      code: 'CEIL-FILL-PLUS',
+      offers: [
+        { id: 'offer-ceil-fill-1', supplierId: 'sup-acabats', unitCost: 4.2, unit: 'm2', leadTimeDays: 4, isPreferred: false, supplier: { id: 'sup-acabats', name: 'Acabats Mediterrani' } },
+      ],
+    },
+    'CARP-DOOR-SLI': {
+      id: 'mat-door-sli',
+      code: 'CARP-DOOR-SLI',
+      offers: [
+        { id: 'offer-door-sli-1', supplierId: 'sup-puertas', unitCost: 282, unit: 'ud', leadTimeDays: 8, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+    'CARP-DOOR-RF': {
+      id: 'mat-door-rf',
+      code: 'CARP-DOOR-RF',
+      offers: [
+        { id: 'offer-door-rf-1', supplierId: 'sup-puertas', unitCost: 358, unit: 'ud', leadTimeDays: 10, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+    'WIN-THERM-PLUS': {
+      id: 'mat-win-thermal',
+      code: 'WIN-THERM-PLUS',
+      offers: [
+        { id: 'offer-win-thermal-1', supplierId: 'sup-puertas', unitCost: 528, unit: 'ud', leadTimeDays: 12, isPreferred: true, supplier: { id: 'sup-puertas', name: 'Puertas y Obras BCN' } },
+      ],
+    },
+    'ELE-MECH-STD': {
+      id: 'mat-ele-mech',
+      code: 'ELE-MECH-STD',
+      offers: [
+        { id: 'offer-ele-mech-1', supplierId: 'sup-electro', unitCost: 12.4, unit: 'pt', leadTimeDays: 2, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'ELE-PANEL-BASIC': {
+      id: 'mat-ele-panel',
+      code: 'ELE-PANEL-BASIC',
+      offers: [
+        { id: 'offer-ele-panel-1', supplierId: 'sup-electro', unitCost: 136, unit: 'ud', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'FON-WET-STD': {
+      id: 'mat-fon-wet',
+      code: 'FON-WET-STD',
+      offers: [
+        { id: 'offer-fon-wet-1', supplierId: 'sup-electro', unitCost: 33.2, unit: 'pt', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
+    'SAN-WET-STD': {
+      id: 'mat-san-wet',
+      code: 'SAN-WET-STD',
+      offers: [
+        { id: 'offer-san-wet-1', supplierId: 'sup-electro', unitCost: 28.6, unit: 'pt', leadTimeDays: 3, isPreferred: true, supplier: { id: 'sup-electro', name: 'Electro BCN' } },
+      ],
+    },
   };
 
   const preferredSuppliersOverride = {
@@ -510,7 +629,7 @@ async function run() {
   measured.assetContext.occupancyState = 'VACIO';
   measured.finishProfile.globalLevel = 'MEDIO_ALTO';
   measured.interventionProfile.globalIntensity = 'INTEGRAL';
-  measured.macroScope.workCodes = ['PLADUR', 'FALSO_TECHO', 'REVESTIMIENTOS', 'CARPINTERIA_INTERIOR', 'CARPINTERIA_EXTERIOR', 'ELECTRICIDAD', 'FONTANERIA', 'SANEAMIENTO', 'BANOS', 'COCINA', 'PINTURA'];
+  measured.macroScope.workCodes = ['PLADUR', 'FALSO_TECHO', 'REVESTIMIENTOS', 'IMPERMEABILIZACION', 'CARPINTERIA_INTERIOR', 'CARPINTERIA_EXTERIOR', 'ELECTRICIDAD', 'FONTANERIA', 'SANEAMIENTO', 'BANOS', 'COCINA', 'PINTURA'];
   measured.spatialModel.floors = [
     { floorId: 'pf', label: 'Planta baja', index: 1, type: 'BAJA', selected: true, features: {}, measurementDrivers: {}, technicalScope: {}, notes: '' },
   ];
@@ -543,8 +662,8 @@ async function run() {
   ];
   measured.spatialModel.instances = [
     { instanceId: 'room-1', groupId: 'room-group', floorId: 'pf', parentInstanceId: null, areaType: 'HABITACION', unitKind: 'HABITACION', spaceKind: 'UNIDAD_PRINCIPAL', subspaceKind: null, label: 'H1', isTemplateDerived: true, features: { hasBathroom: true, hasKitchenette: true, requiresLeveling: true, countAsUnit: true, countAsRoom: true, hasExteriorOpenings: true }, measurementDrivers: { areaM2: 16, floorSurfaceM2: 16, wallSurfaceM2: 42, ceilingSurfaceM2: 16, perimeterMl: 16, doorsCount: 1, windowsCount: 1, electricalPointsCount: 8, lightingPointsCount: 2, waterPointsCount: 2, sanitaryFixturesCount: 2 }, technicalScope: {}, certainty: 'CONFIRMADO' },
-    { instanceId: 'bath-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'BANO', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'BANO_ASOCIADO', label: 'Bano H1', isTemplateDerived: false, features: { countAsBathroom: true }, measurementDrivers: { areaM2: 4, floorSurfaceM2: 4, wallSurfaceM2: 11, ceilingSurfaceM2: 4, perimeterMl: 8, doorsCount: 1, electricalPointsCount: 3, lightingPointsCount: 1, waterPointsCount: 3, sanitaryFixturesCount: 3 }, technicalScope: {}, certainty: 'CONFIRMADO' },
-    { instanceId: 'kit-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'COCINA', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'KITCHENETTE', label: 'Kitchenette H1', isTemplateDerived: false, features: { countAsKitchen: true }, measurementDrivers: { linearMeters: 1.2, areaM2: 3.2, floorSurfaceM2: 3.2, wallSurfaceM2: 7.5, ceilingSurfaceM2: 3.2, perimeterMl: 5.4, doorsCount: 1, electricalPointsCount: 4, lightingPointsCount: 1, waterPointsCount: 2, sanitaryFixturesCount: 1 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'bath-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'BANO', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'BANO_ASOCIADO', label: 'Bano H1', isTemplateDerived: false, features: { countAsBathroom: true }, measurementDrivers: { areaM2: 4, floorSurfaceM2: 4, wallSurfaceM2: 11, ceilingSurfaceM2: 4, perimeterMl: 8, tilingSurfaceM2: 9, doorsCount: 1, electricalPointsCount: 3, lightingPointsCount: 1, waterPointsCount: 3, sanitaryFixturesCount: 3 }, technicalScope: {}, certainty: 'CONFIRMADO' },
+    { instanceId: 'kit-1', groupId: null, floorId: 'pf', parentInstanceId: 'room-1', areaType: 'COCINA', unitKind: null, spaceKind: 'ESTANCIA', subspaceKind: 'KITCHENETTE', label: 'Kitchenette H1', isTemplateDerived: false, features: { countAsKitchen: true }, measurementDrivers: { linearMeters: 1.2, areaM2: 3.2, floorSurfaceM2: 3.2, wallSurfaceM2: 7.5, ceilingSurfaceM2: 3.2, perimeterMl: 5.4, tilingSurfaceM2: 3, doorsCount: 1, electricalPointsCount: 4, lightingPointsCount: 1, waterPointsCount: 2, sanitaryFixturesCount: 1 }, technicalScope: {}, certainty: 'CONFIRMADO' },
     { instanceId: 'common-1', groupId: null, floorId: 'pf', parentInstanceId: null, areaType: 'ZONA_COMUN', unitKind: 'ZONA_COMUN', spaceKind: 'ESPACIO_COMUN', subspaceKind: null, label: 'Zona comun', isTemplateDerived: false, features: { countAsArea: true, hasExteriorOpenings: true }, measurementDrivers: { areaM2: 20, floorSurfaceM2: 20, wallSurfaceM2: 36, ceilingSurfaceM2: 20, perimeterMl: 18, doorsCount: 1, windowsCount: 2, electricalPointsCount: 6, lightingPointsCount: 4 }, technicalScope: {}, certainty: 'CONFIRMADO' },
   ];
   measured.technicalSpecModel.status = 'READY_FOR_MEASUREMENT';
@@ -560,10 +679,14 @@ async function run() {
       bathAreaM2: 4,
       kitchenetteLinearMeters: 1.2,
     },
-    counts: {},
+    counts: {
+      electricalMechanismsCount: 8,
+    },
     options: {
       hasBathroom: true,
       hasKitchenette: true,
+      includeWallPaint: true,
+      includeCeilingPaint: true,
     },
   };
   measured.technicalSpecModel.floorSpecs['pf'] = {
@@ -579,26 +702,79 @@ async function run() {
   measured.technicalSpecModel.projectSpecs = {
     selections: {
       partitionSolution: 'PARTITION_PLADUR_STD',
+      liningSolution: 'PARTITION_LINING_STD',
       ceilingSolution: 'CEILING_CONTINUOUS_STD',
       flooringSolution: 'FLOOR_TILE_STD',
       skirtingSolution: 'SKIRTING_STD',
       doorSolution: 'DOOR_INTERIOR_STD',
       windowSolution: 'WINDOW_STD',
       shutterSolution: 'SHUTTER_STD',
+      wallPaintSolution: 'PAINT_WALL_STD',
+      ceilingPaintSolution: 'PAINT_CEILING_STD',
       electricalSolution: 'ELECTRICAL_ROOM_STD',
+      electricalMechanismsSolution: 'ELECTRICAL_MECHANISMS_STD',
+      electricalPanelSolution: 'ELECTRICAL_PANEL_BASIC',
       lightingSolution: 'LIGHTING_BASIC',
       plumbingSolution: 'PLUMBING_POINT_STD',
+      plumbingWetSolution: 'PLUMBING_WET_ROOM_STD',
       drainageSolution: 'DRAINAGE_POINT_STD',
+      drainageWetSolution: 'DRAINAGE_WET_ROOM_STD',
     },
     dimensions: {
       partitionHeightM: 2.5,
     },
-    counts: {},
+    counts: {
+      electricalMechanismsCount: 10,
+      electricalPanelCount: 1,
+      plumbingWetPointsCount: 3,
+      drainageWetPointsCount: 3,
+    },
     options: {
       includeSkirting: true,
       includeShutter: true,
+      includeWallPaint: true,
+      includeCeilingPaint: true,
       partitionInsulated: true,
       acousticRequirementBasic: true,
+    },
+  };
+  measured.technicalSpecModel.instanceSpecs['bath-1'] = {
+    selections: {
+      wallTileSolution: 'WALL_TILE_BATH_STD',
+      waterproofingSolution: 'WET_AREA_WATERPROOFING_STD',
+    },
+    dimensions: {
+      wallTileAreaM2: 9,
+      waterproofingAreaM2: 4,
+    },
+    counts: {
+      electricalMechanismsCount: 3,
+      plumbingWetPointsCount: 3,
+      drainageWetPointsCount: 3,
+    },
+    options: {
+      includeWallTile: true,
+      includeWaterproofing: true,
+      includeWallPaint: true,
+      includeCeilingPaint: true,
+    },
+  };
+  measured.technicalSpecModel.instanceSpecs['kit-1'] = {
+    selections: {
+      wallTileSolution: 'WALL_TILE_KITCHEN_SPLASHBACK',
+    },
+    dimensions: {
+      wallTileAreaM2: 3,
+    },
+    counts: {
+      electricalMechanismsCount: 4,
+      plumbingWetPointsCount: 2,
+      drainageWetPointsCount: 1,
+    },
+    options: {
+      includeWallTile: true,
+      includeWallPaint: true,
+      includeCeilingPaint: true,
     },
   };
   measured.technicalSpecModel.instanceSpecs['common-1'] = {
@@ -608,9 +784,14 @@ async function run() {
     dimensions: {
       commonAreaM2: 20,
     },
-    counts: {},
+    counts: {
+      electricalMechanismsCount: 6,
+      electricalPanelCount: 1,
+    },
     options: {
       includeCommonCorridors: true,
+      includeWallPaint: true,
+      includeCeilingPaint: true,
     },
   };
 
@@ -682,11 +863,71 @@ async function run() {
       (line) => line.solutionCode === 'ELECTRICAL_ROOM_STD' && line.measurementCode === 'ELECTRICAL_POINTS'
     )
   );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'WALL_TILE_BATH_STD' && line.measurementCode === 'WALL_TILE_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'WALL_TILE_KITCHEN_SPLASHBACK' && line.measurementCode === 'WALL_TILE_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'PAINT_WALL_STD' && line.measurementCode === 'PAINT_WALL_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'PAINT_CEILING_STD' && line.measurementCode === 'PAINT_CEILING_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'WET_AREA_WATERPROOFING_STD' && line.measurementCode === 'WATERPROOFING_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'PARTITION_LINING_STD' && line.measurementCode === 'LINING_WALL_AREA'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'ELECTRICAL_MECHANISMS_STD' && line.measurementCode === 'ELECTRICAL_MECHANISMS_COUNT'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'ELECTRICAL_PANEL_BASIC' && line.measurementCode === 'ELECTRICAL_PANEL_UNITS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'PLUMBING_WET_ROOM_STD' && line.measurementCode === 'PLUMBING_WET_POINTS'
+    )
+  );
+  assert(
+    measuredInput.measurementResult.lines.some(
+      (line) => line.solutionCode === 'DRAINAGE_WET_ROOM_STD' && line.measurementCode === 'DRAINAGE_WET_POINTS'
+    )
+  );
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PARTITION_PLADUR_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PARTITION_LINING_STD_M2'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_CEILING_CONTINUOUS_STD_M2'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_FLOOR_TILE_STD_M2'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_DOOR_INTERIOR_STD_UD'));
   assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_ROOM_STD_PT'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_WALL_TILE_BATH_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_WALL_TILE_KITCHEN_SPLASHBACK_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PAINT_WALL_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PAINT_CEILING_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_WET_AREA_WATERPROOFING_STD_M2'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_MECHANISMS_STD_PT'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_ELECTRICAL_PANEL_BASIC_UD'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_PLUMBING_WET_ROOM_STD_PT'));
+  assert(measuredInput.recipeResult.lines.some((line) => line.recipeCode === 'RECIPE_DRAINAGE_WET_ROOM_STD_PT'));
 
   const inferredPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -748,6 +989,48 @@ async function run() {
         line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
     )
   );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'WALL_TILE_BATH_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'PAINT_WALL_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'WET_AREA_WATERPROOFING_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'PARTITION_LINING_STD' &&
+        line.materialPricing.some((material) => ['SUPPLIER_OFFER', 'CATALOG_REFERENCE'].includes(material.priceSource))
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'ELECTRICAL_MECHANISMS_STD' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
+  assert(
+    inferredPricing.lines.some(
+      (line) =>
+        line.solutionCode === 'ELECTRICAL_PANEL_BASIC' &&
+        line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+    )
+  );
 
   const confirmedPricing = await buildPricingResult(
     measuredInput.recipeResult,
@@ -806,6 +1089,27 @@ async function run() {
       (line) =>
         line.solutionCode === 'KITCHENETTE_120_BASIC' &&
         line.priceStatus === 'PRICE_PENDING_VALIDATION'
+    )
+  );
+
+  const wetBlocked = JSON.parse(JSON.stringify(measured));
+  wetBlocked.technicalSpecModel.instanceSpecs['bath-1'].dimensions.waterproofingAreaM2 = null;
+  wetBlocked.spatialModel.instances.find((instance) => instance.instanceId === 'bath-1').measurementDrivers.tilingSurfaceM2 = null;
+  wetBlocked.spatialModel.instances.find((instance) => instance.instanceId === 'bath-1').measurementDrivers.floorSurfaceM2 = null;
+  const wetBlockedInput = deriveInputFromSession(wetBlocked, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    !wetBlockedInput.measurementResult.lines.some(
+      (line) =>
+        line.solutionCode === 'WET_AREA_WATERPROOFING_STD' &&
+        line.measurementCode === 'WATERPROOFING_AREA' &&
+        line.status === 'MEASURED'
+    )
+  );
+  assert(
+    !wetBlockedInput.recipeResult.lines.some(
+      (line) =>
+        line.recipeCode === 'RECIPE_WET_AREA_WATERPROOFING_STD_M2' &&
+        line.status === 'RECIPE_RESOLVED'
     )
   );
 
@@ -1003,6 +1307,60 @@ async function run() {
       (line) => line.solutionCode === 'COMMON_AREA_INTENSIVE' && line.priceStatus === 'PRICE_INFERRED'
     )
   );
+
+  const wallTilePlus = JSON.parse(JSON.stringify(measured));
+  wallTilePlus.technicalSpecModel.instanceSpecs['bath-1'].selections.wallTileSolution = 'WALL_TILE_BATH_PLUS';
+  const wallTilePlusInput = deriveInputFromSession(wallTilePlus, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    wallTilePlusInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_WALL_TILE_BATH_PLUS_M2'
+    )
+  );
+
+  const paintWallPlus = JSON.parse(JSON.stringify(measured));
+  paintWallPlus.technicalSpecModel.projectSpecs.selections.wallPaintSolution = 'PAINT_WALL_PLUS';
+  const paintWallPlusInput = deriveInputFromSession(paintWallPlus, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    paintWallPlusInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_PAINT_WALL_PLUS_M2'
+    )
+  );
+
+  const ceilingPlus = JSON.parse(JSON.stringify(measured));
+  ceilingPlus.technicalSpecModel.projectSpecs.selections.ceilingSolution = 'CEILING_CONTINUOUS_PLUS';
+  const ceilingPlusInput = deriveInputFromSession(ceilingPlus, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    ceilingPlusInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_CEILING_CONTINUOUS_PLUS_M2'
+    )
+  );
+
+  const doorSliding = JSON.parse(JSON.stringify(measured));
+  doorSliding.technicalSpecModel.projectSpecs.selections.doorSolution = 'DOOR_SLIDING_STD';
+  const doorSlidingInput = deriveInputFromSession(doorSliding, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    doorSlidingInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_DOOR_SLIDING_STD_UD'
+    )
+  );
+
+  const doorRf = JSON.parse(JSON.stringify(measured));
+  doorRf.technicalSpecModel.projectSpecs.selections.doorSolution = 'DOOR_RF_BASIC';
+  const doorRfInput = deriveInputFromSession(doorRf, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    doorRfInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_DOOR_RF_BASIC_UD'
+    )
+  );
+
+  const windowThermal = JSON.parse(JSON.stringify(measured));
+  windowThermal.technicalSpecModel.projectSpecs.selections.windowSolution = 'WINDOW_THERMAL_PLUS';
+  const windowThermalInput = deriveInputFromSession(windowThermal, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    windowThermalInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_WINDOW_THERMAL_PLUS_UD'
+    )
+  );
   assert.equal(inferredPricing.coverage.priceCoveragePercent, 100);
   assert.equal(inferredPricing.coverage.pendingValidationCount, 0);
   assert(bathAdaptedPricing.coverage.pendingValidationCount > 0);
@@ -1063,9 +1421,13 @@ async function run() {
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'bath-1'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.spaceId === 'kit-1'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'LEVELING_LIGHT'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'WALL_TILE_BATH_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'PAINT_WALL_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'WET_AREA_WATERPROOFING_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'PARTITION_PLADUR_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'CEILING_CONTINUOUS_STD'));
   assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'ELECTRICAL_ROOM_STD'));
+  assert(canonicalPlanningProjection.activities.some((activity) => activity.provenance.solutionCode === 'ELECTRICAL_PANEL_BASIC'));
   assert(canonicalPlanningProjection.coverage.recipeCoveragePercent > 0);
   const canonicalProcurementProjection = await buildProcurementProjection({
     executionContext: measuredInput.executionContext,
@@ -1143,6 +1505,16 @@ async function run() {
       (line) => line.supportedSolutionCodes.includes('ELECTRICAL_ROOM_STD')
     )
   );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('WALL_TILE_BATH_STD')
+    )
+  );
+  assert(
+    canonicalProcurementProjection.procurementLines.some(
+      (line) => line.supportedSolutionCodes.includes('WET_AREA_WATERPROOFING_STD')
+    )
+  );
   const canonicalControlProjection = buildControlProjection({
     commercialRuntimeOutput: integratedTechnicalRuntime,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
@@ -1206,6 +1578,8 @@ async function run() {
                 ? 'BATHS'
                 : (line.supportedSolutionCodes[0] || '').startsWith('KITCHENETTE_')
                   ? 'KITCHENETTES'
+                  : (line.supportedSolutionCodes[0] || '').startsWith('WALL_TILE_') || (line.supportedSolutionCodes[0] || '').startsWith('PAINT_') || (line.supportedSolutionCodes[0] || '').startsWith('WET_AREA_')
+                    ? 'WALL_FINISHES'
                   : (line.supportedSolutionCodes[0] || '').startsWith('LEVELING_')
                     ? 'LEVELING'
                     : (line.supportedSolutionCodes[0] || '').startsWith('COMMON_AREA_')
@@ -1248,6 +1622,11 @@ async function run() {
   assert(
     canonicalControlProjection.deviationLines.some(
       (line) => ['PARTITIONS', 'CEILINGS', 'BASIC_MEP'].includes(line.bucketCode || '')
+    )
+  );
+  assert(
+    canonicalControlProjection.deviationLines.some(
+      (line) => line.bucketCode === 'WALL_FINISHES'
     )
   );
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
@@ -1297,6 +1676,11 @@ async function run() {
   assert(
     integratedTechnical.commercialEstimateProjection.commercialLines.some(
       (line) => line.code === 'INT-MEP' && line.supportedSolutionCodes.includes('ELECTRICAL_ROOM_STD')
+    )
+  );
+  assert(
+    integratedTechnical.commercialEstimateProjection.commercialLines.some(
+      (line) => line.code === 'INT-WALL' && line.supportedSolutionCodes.some((code) => code.startsWith('WALL_TILE_') || code.startsWith('PAINT_') || code.startsWith('WET_AREA_'))
     )
   );
   assert(

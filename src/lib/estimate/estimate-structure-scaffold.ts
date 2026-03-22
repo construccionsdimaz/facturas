@@ -9,6 +9,7 @@ export type IntegratedEstimateBucketCode =
   | 'KITCHENETTES'
   | 'LEVELING'
   | 'COMMON_AREAS'
+  | 'WALL_FINISHES'
   | 'PARTITIONS'
   | 'CEILINGS'
   | 'FLOORING'
@@ -86,6 +87,14 @@ const CANONICAL_BUCKET_SCAFFOLD: Record<
     unit: 'lot',
     order: 60,
   },
+  WALL_FINISHES: {
+    bucketCode: 'WALL_FINISHES',
+    chapter: '05 ACABADOS Y EQUIPAMIENTO',
+    code: 'INT-WALL',
+    description: 'Revestimientos verticales y pintura',
+    unit: 'lot',
+    order: 52,
+  },
   PARTITIONS: {
     bucketCode: 'PARTITIONS',
     chapter: '03 ALBANILERIA Y REDISTRIBUCION',
@@ -136,6 +145,7 @@ const LEGACY_CODE_TO_BUCKET: Partial<
   COCINAS_OFFICE: 'KITCHENETTES',
   PAVIMENTOS: 'LEVELING',
   ZONAS_COMUNES: 'COMMON_AREAS',
+  REVESTIMIENTOS_VERTICALES: 'WALL_FINISHES',
   TABIQUERIA: 'PARTITIONS',
   FALSOS_TECHOS: 'CEILINGS',
   CARPINTERIA: 'CARPENTRY',
@@ -152,6 +162,9 @@ function bucketFromHeuristicText(
   if (/COCINA|KITCHENETTE|OFFICE/.test(text)) return 'KITCHENETTES';
   if (/ZONAS COMUNES|PORTAL|PASILLOS|ESCALERAS/.test(text)) {
     return 'COMMON_AREAS';
+  }
+  if (/ALICAT|REVESTIMIENTO VERTICAL|PINTURA|IMPERMEAB/.test(text)) {
+    return 'WALL_FINISHES';
   }
   if (/NIVELACI|REGULARIZACI|PAVIMENT/.test(text)) return 'LEVELING';
   if (/TABIQU|PLADUR|ALBANILER/.test(text)) return 'PARTITIONS';

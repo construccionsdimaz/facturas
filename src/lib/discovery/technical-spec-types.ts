@@ -23,12 +23,14 @@ export type PartitionSolutionCode =
   | 'PARTITION_PLADUR_STD'
   | 'PARTITION_PLADUR_ACOUSTIC'
   | 'PARTITION_BRICK_STD'
-  | 'PARTITION_BLOCK_STD';
+  | 'PARTITION_BLOCK_STD'
+  | 'PARTITION_LINING_STD';
 
 export type CeilingSolutionCode =
   | 'CEILING_CONTINUOUS_STD'
   | 'CEILING_CONTINUOUS_INSULATED'
-  | 'CEILING_SUSPENDED_GRID';
+  | 'CEILING_SUSPENDED_GRID'
+  | 'CEILING_CONTINUOUS_PLUS';
 
 export type FlooringSolutionCode =
   | 'FLOOR_TILE_STD'
@@ -39,15 +41,31 @@ export type FlooringSolutionCode =
 export type CarpentrySolutionCode =
   | 'DOOR_INTERIOR_STD'
   | 'DOOR_INTERIOR_PLUS'
+  | 'DOOR_SLIDING_STD'
+  | 'DOOR_RF_BASIC'
   | 'WINDOW_STD'
   | 'WINDOW_IMPROVED'
+  | 'WINDOW_THERMAL_PLUS'
   | 'SHUTTER_STD';
 
 export type BasicMEPSolutionCode =
   | 'ELECTRICAL_ROOM_STD'
+  | 'ELECTRICAL_MECHANISMS_STD'
+  | 'ELECTRICAL_PANEL_BASIC'
   | 'LIGHTING_BASIC'
   | 'PLUMBING_POINT_STD'
-  | 'DRAINAGE_POINT_STD';
+  | 'PLUMBING_WET_ROOM_STD'
+  | 'DRAINAGE_POINT_STD'
+  | 'DRAINAGE_WET_ROOM_STD';
+
+export type WallFinishSolutionCode =
+  | 'WALL_TILE_BATH_STD'
+  | 'WALL_TILE_BATH_PLUS'
+  | 'WALL_TILE_KITCHEN_SPLASHBACK'
+  | 'PAINT_WALL_STD'
+  | 'PAINT_WALL_PLUS'
+  | 'PAINT_CEILING_STD'
+  | 'WET_AREA_WATERPROOFING_STD';
 
 export type VerticalSolutionCode =
   | RoomSolutionCode
@@ -55,6 +73,7 @@ export type VerticalSolutionCode =
   | KitchenetteSolutionCode
   | LevelingSolutionCode
   | CommonAreaSolutionCode
+  | WallFinishSolutionCode
   | PartitionSolutionCode
   | CeilingSolutionCode
   | FlooringSolutionCode
@@ -70,6 +89,7 @@ export type TechnicalSpecCoverage = {
   kitchenettes: boolean;
   leveling: boolean;
   commonAreas: boolean;
+  wallFinishes: boolean;
   partitions: boolean;
   ceilings: boolean;
   flooring: boolean;
@@ -83,7 +103,12 @@ export type TechnicalSpecSelection = {
   kitchenetteSolution?: KitchenetteSolutionCode;
   levelingSolution?: LevelingSolutionCode;
   commonAreaSolution?: CommonAreaSolutionCode;
+  wallTileSolution?: Extract<WallFinishSolutionCode, 'WALL_TILE_BATH_STD' | 'WALL_TILE_BATH_PLUS' | 'WALL_TILE_KITCHEN_SPLASHBACK'>;
+  wallPaintSolution?: Extract<WallFinishSolutionCode, 'PAINT_WALL_STD' | 'PAINT_WALL_PLUS'>;
+  ceilingPaintSolution?: Extract<WallFinishSolutionCode, 'PAINT_CEILING_STD'>;
+  waterproofingSolution?: Extract<WallFinishSolutionCode, 'WET_AREA_WATERPROOFING_STD'>;
   partitionSolution?: PartitionSolutionCode;
+  liningSolution?: Extract<PartitionSolutionCode, 'PARTITION_LINING_STD'>;
   ceilingSolution?: CeilingSolutionCode;
   flooringSolution?: FlooringSolutionCode;
   skirtingSolution?: Extract<FlooringSolutionCode, 'SKIRTING_STD'>;
@@ -91,9 +116,13 @@ export type TechnicalSpecSelection = {
   windowSolution?: Extract<CarpentrySolutionCode, 'WINDOW_STD' | 'WINDOW_IMPROVED'>;
   shutterSolution?: Extract<CarpentrySolutionCode, 'SHUTTER_STD'>;
   electricalSolution?: Extract<BasicMEPSolutionCode, 'ELECTRICAL_ROOM_STD'>;
+  electricalMechanismsSolution?: Extract<BasicMEPSolutionCode, 'ELECTRICAL_MECHANISMS_STD'>;
+  electricalPanelSolution?: Extract<BasicMEPSolutionCode, 'ELECTRICAL_PANEL_BASIC'>;
   lightingSolution?: Extract<BasicMEPSolutionCode, 'LIGHTING_BASIC'>;
   plumbingSolution?: Extract<BasicMEPSolutionCode, 'PLUMBING_POINT_STD'>;
+  plumbingWetSolution?: Extract<BasicMEPSolutionCode, 'PLUMBING_WET_ROOM_STD'>;
   drainageSolution?: Extract<BasicMEPSolutionCode, 'DRAINAGE_POINT_STD'>;
+  drainageWetSolution?: Extract<BasicMEPSolutionCode, 'DRAINAGE_WET_ROOM_STD'>;
 };
 
 export type TechnicalSpecPatch = {
@@ -104,6 +133,11 @@ export type TechnicalSpecPatch = {
     kitchenetteLinearMeters?: number | null;
     levelingAreaM2?: number | null;
     commonAreaM2?: number | null;
+    wallTileAreaM2?: number | null;
+    paintWallAreaM2?: number | null;
+    paintCeilingAreaM2?: number | null;
+    waterproofingAreaM2?: number | null;
+    liningWallAreaM2?: number | null;
     partitionWallAreaM2?: number | null;
     partitionHeightM?: number | null;
     ceilingAreaM2?: number | null;
@@ -120,6 +154,10 @@ export type TechnicalSpecPatch = {
     lightingPointsCount?: number | null;
     plumbingPointsCount?: number | null;
     drainagePointsCount?: number | null;
+    electricalMechanismsCount?: number | null;
+    electricalPanelCount?: number | null;
+    plumbingWetPointsCount?: number | null;
+    drainageWetPointsCount?: number | null;
   };
   options?: {
     hasBathroom?: boolean;
@@ -132,6 +170,10 @@ export type TechnicalSpecPatch = {
     partitionBoardsPerFace?: number | null;
     partitionThicknessMm?: number | null;
     acousticRequirementBasic?: boolean;
+    includeWallTile?: boolean;
+    includeWallPaint?: boolean;
+    includeCeilingPaint?: boolean;
+    includeWaterproofing?: boolean;
     includeSkirting?: boolean;
     includeShutter?: boolean;
   };
@@ -205,17 +247,29 @@ export const COMMON_AREA_SOLUTION_CODES: CommonAreaSolutionCode[] = [
   'COMMON_AREA_INTENSIVE',
 ];
 
+export const WALL_FINISH_SOLUTION_CODES: WallFinishSolutionCode[] = [
+  'WALL_TILE_BATH_STD',
+  'WALL_TILE_BATH_PLUS',
+  'WALL_TILE_KITCHEN_SPLASHBACK',
+  'PAINT_WALL_STD',
+  'PAINT_WALL_PLUS',
+  'PAINT_CEILING_STD',
+  'WET_AREA_WATERPROOFING_STD',
+];
+
 export const PARTITION_SOLUTION_CODES: PartitionSolutionCode[] = [
   'PARTITION_PLADUR_STD',
   'PARTITION_PLADUR_ACOUSTIC',
   'PARTITION_BRICK_STD',
   'PARTITION_BLOCK_STD',
+  'PARTITION_LINING_STD',
 ];
 
 export const CEILING_SOLUTION_CODES: CeilingSolutionCode[] = [
   'CEILING_CONTINUOUS_STD',
   'CEILING_CONTINUOUS_INSULATED',
   'CEILING_SUSPENDED_GRID',
+  'CEILING_CONTINUOUS_PLUS',
 ];
 
 export const FLOORING_SOLUTION_CODES: FlooringSolutionCode[] = [
@@ -228,16 +282,23 @@ export const FLOORING_SOLUTION_CODES: FlooringSolutionCode[] = [
 export const CARPENTRY_SOLUTION_CODES: CarpentrySolutionCode[] = [
   'DOOR_INTERIOR_STD',
   'DOOR_INTERIOR_PLUS',
+  'DOOR_SLIDING_STD',
+  'DOOR_RF_BASIC',
   'WINDOW_STD',
   'WINDOW_IMPROVED',
+  'WINDOW_THERMAL_PLUS',
   'SHUTTER_STD',
 ];
 
 export const BASIC_MEP_SOLUTION_CODES: BasicMEPSolutionCode[] = [
   'ELECTRICAL_ROOM_STD',
+  'ELECTRICAL_MECHANISMS_STD',
+  'ELECTRICAL_PANEL_BASIC',
   'LIGHTING_BASIC',
   'PLUMBING_POINT_STD',
+  'PLUMBING_WET_ROOM_STD',
   'DRAINAGE_POINT_STD',
+  'DRAINAGE_WET_ROOM_STD',
 ];
 
 export const SOLUTION_LABELS: Record<VerticalSolutionCode, string> = {
@@ -252,24 +313,40 @@ export const SOLUTION_LABELS: Record<VerticalSolutionCode, string> = {
   LEVELING_MEDIUM: 'Nivelacion media',
   COMMON_AREA_BASIC: 'Zona comun basica',
   COMMON_AREA_INTENSIVE: 'Zona comun intensiva',
+  WALL_TILE_BATH_STD: 'Alicatado bano estandar',
+  WALL_TILE_BATH_PLUS: 'Alicatado bano mejorado',
+  WALL_TILE_KITCHEN_SPLASHBACK: 'Frontal cocina alicatado',
+  PAINT_WALL_STD: 'Pintura paredes estandar',
+  PAINT_WALL_PLUS: 'Pintura paredes mejorada',
+  PAINT_CEILING_STD: 'Pintura techos estandar',
+  WET_AREA_WATERPROOFING_STD: 'Impermeabilizacion ligera zona humeda',
   PARTITION_PLADUR_STD: 'Tabiqueria pladur estandar',
   PARTITION_PLADUR_ACOUSTIC: 'Tabiqueria pladur acustica',
   PARTITION_BRICK_STD: 'Tabiqueria ladrillo hueco',
   PARTITION_BLOCK_STD: 'Tabiqueria bloque simple',
+  PARTITION_LINING_STD: 'Trasdosado basico',
   CEILING_CONTINUOUS_STD: 'Falso techo continuo estandar',
   CEILING_CONTINUOUS_INSULATED: 'Falso techo continuo con aislamiento',
   CEILING_SUSPENDED_GRID: 'Falso techo registrable',
+  CEILING_CONTINUOUS_PLUS: 'Falso techo continuo reforzado',
   FLOOR_TILE_STD: 'Pavimento porcelanico estandar',
   FLOOR_LAMINATE_STD: 'Pavimento laminado estandar',
   FLOOR_VINYL_STD: 'Pavimento vinilico estandar',
   SKIRTING_STD: 'Rodapie estandar',
   DOOR_INTERIOR_STD: 'Puerta interior estandar',
   DOOR_INTERIOR_PLUS: 'Puerta interior mejorada',
+  DOOR_SLIDING_STD: 'Puerta corredera estandar',
+  DOOR_RF_BASIC: 'Puerta RF basica',
   WINDOW_STD: 'Ventana estandar',
   WINDOW_IMPROVED: 'Ventana mejorada',
+  WINDOW_THERMAL_PLUS: 'Ventana con mejora termica',
   SHUTTER_STD: 'Persiana estandar',
   ELECTRICAL_ROOM_STD: 'Instalacion electrica basica por punto',
+  ELECTRICAL_MECHANISMS_STD: 'Mecanismos electricos estandar',
+  ELECTRICAL_PANEL_BASIC: 'Cuadro electrico basico',
   LIGHTING_BASIC: 'Iluminacion basica por punto',
   PLUMBING_POINT_STD: 'Fontaneria basica por punto',
+  PLUMBING_WET_ROOM_STD: 'Fontaneria humeda por punto',
   DRAINAGE_POINT_STD: 'Saneamiento basico por punto',
+  DRAINAGE_WET_ROOM_STD: 'Saneamiento humedo por punto',
 };

@@ -39,6 +39,7 @@ export type PlanningProjectionWorkPackage = {
     | 'KITCHENETTES'
     | 'LEVELING'
     | 'COMMON_AREAS'
+    | 'WALL_FINISHES'
     | 'PARTITIONS'
     | 'CEILINGS'
     | 'FLOORING'
@@ -107,6 +108,7 @@ const CANONICAL_WBS: Array<{
   { key: 'wbs-rooms', bucketCode: 'ROOMS', code: '05', name: 'Habitaciones y unidades tipo' },
   { key: 'wbs-baths', bucketCode: 'BATHS', code: '05B', name: 'Banos repetitivos' },
   { key: 'wbs-kitchenettes', bucketCode: 'KITCHENETTES', code: '05C', name: 'Kitchenettes' },
+  { key: 'wbs-wall-finishes', bucketCode: 'WALL_FINISHES', code: '05A', name: 'Revestimientos verticales y pintura' },
   { key: 'wbs-common', bucketCode: 'COMMON_AREAS', code: '06', name: 'Zonas comunes y remates' },
   { key: 'wbs-partitions', bucketCode: 'PARTITIONS', code: '03B', name: 'Tabiqueria interior' },
   { key: 'wbs-ceilings', bucketCode: 'CEILINGS', code: '04A', name: 'Falsos techos' },
@@ -131,6 +133,7 @@ function bucketFromSolutionCode(
   if (solutionCode.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (solutionCode.startsWith('LEVELING_')) return 'LEVELING';
   if (solutionCode.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (solutionCode.startsWith('WALL_TILE_') || solutionCode.startsWith('PAINT_') || solutionCode.startsWith('WET_AREA_')) return 'WALL_FINISHES';
   if (solutionCode.startsWith('PARTITION_')) return 'PARTITIONS';
   if (solutionCode.startsWith('CEILING_')) return 'CEILINGS';
   if (solutionCode.startsWith('FLOOR_') || solutionCode === 'SKIRTING_STD') return 'FLOORING';
@@ -151,6 +154,8 @@ function activityPrefix(bucketCode: PlanningProjectionWorkPackage['bucketCode'])
       return 'LEVEL';
     case 'COMMON_AREAS':
       return 'COMM';
+    case 'WALL_FINISHES':
+      return 'WALL';
     case 'PARTITIONS':
       return 'PART';
     case 'CEILINGS':
@@ -176,6 +181,7 @@ function activityNameForRecipe(
   if (recipeLine.solutionCode.startsWith('KITCHENETTE_')) return `Montaje ${label}`;
   if (recipeLine.solutionCode.startsWith('LEVELING_')) return `Nivelacion ${label}`;
   if (recipeLine.solutionCode.startsWith('COMMON_AREA_')) return `Acondicionamiento ${label}`;
+  if (recipeLine.solutionCode.startsWith('WALL_TILE_') || recipeLine.solutionCode.startsWith('PAINT_') || recipeLine.solutionCode.startsWith('WET_AREA_')) return `Acabados verticales ${label}`;
   if (recipeLine.solutionCode.startsWith('PARTITION_')) return `Tabiqueria ${label}`;
   if (recipeLine.solutionCode.startsWith('CEILING_')) return `Falso techo ${label}`;
   if (recipeLine.solutionCode.startsWith('FLOOR_') || recipeLine.solutionCode === 'SKIRTING_STD') return `Pavimentos ${label}`;
@@ -208,6 +214,22 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 28;
     case 'COMMON_AREA_INTENSIVE':
       return 20;
+    case 'WALL_TILE_BATH_STD':
+      return 16;
+    case 'WALL_TILE_BATH_PLUS':
+      return 14;
+    case 'WALL_TILE_KITCHEN_SPLASHBACK':
+      return 18;
+    case 'PAINT_WALL_STD':
+      return 70;
+    case 'PAINT_WALL_PLUS':
+      return 60;
+    case 'PAINT_CEILING_STD':
+      return 75;
+    case 'WET_AREA_WATERPROOFING_STD':
+      return 45;
+    case 'PARTITION_LINING_STD':
+      return 14;
     case 'PARTITION_PLADUR_STD':
       return 12;
     case 'PARTITION_PLADUR_ACOUSTIC':
@@ -220,6 +242,8 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 22;
     case 'CEILING_CONTINUOUS_INSULATED':
       return 18;
+    case 'CEILING_CONTINUOUS_PLUS':
+      return 16;
     case 'CEILING_SUSPENDED_GRID':
       return 26;
     case 'FLOOR_TILE_STD':
@@ -232,14 +256,21 @@ function measurementRatePerDay(line: MeasurementLine) {
       return 45;
     case 'DOOR_INTERIOR_STD':
     case 'DOOR_INTERIOR_PLUS':
+    case 'DOOR_SLIDING_STD':
+    case 'DOOR_RF_BASIC':
     case 'WINDOW_STD':
     case 'WINDOW_IMPROVED':
+    case 'WINDOW_THERMAL_PLUS':
     case 'SHUTTER_STD':
       return 2;
     case 'ELECTRICAL_ROOM_STD':
+    case 'ELECTRICAL_MECHANISMS_STD':
+    case 'ELECTRICAL_PANEL_BASIC':
     case 'LIGHTING_BASIC':
     case 'PLUMBING_POINT_STD':
+    case 'PLUMBING_WET_ROOM_STD':
     case 'DRAINAGE_POINT_STD':
+    case 'DRAINAGE_WET_ROOM_STD':
       return 12;
     default:
       return 10;
@@ -321,6 +352,7 @@ function coveredLegacyFamily(text: string) {
   if (/HABIT|ROOM|COLIVING/.test(upper)) return 'ROOMS';
   if (/BANO|BAÑO|SANITAR/.test(upper)) return 'BATHS';
   if (/COCINA|KITCH/.test(upper)) return 'KITCHENETTES';
+  if (/ALICAT|PINTURA|IMPERMEAB|REVESTIMIENTO/.test(upper)) return 'WALL_FINISHES';
   if (/NIVEL|REGULAR|PAVIMENT/.test(upper)) return 'LEVELING';
   if (/ZONA COMUN|COMMON|PORTAL|PASILLO|ESCALERA/.test(upper)) return 'COMMON_AREAS';
   if (/PLADUR|TABIQU|ALBANILER/.test(upper)) return 'PARTITIONS';

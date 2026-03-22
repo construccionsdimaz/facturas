@@ -101,6 +101,7 @@ function bucketFromSolutionCode(solutionCode: string): IntegratedEstimateBucketC
   if (solutionCode.startsWith('KITCHENETTE_')) return 'KITCHENETTES';
   if (solutionCode.startsWith('LEVELING_')) return 'LEVELING';
   if (solutionCode.startsWith('COMMON_AREA_')) return 'COMMON_AREAS';
+  if (solutionCode.startsWith('WALL_TILE_') || solutionCode.startsWith('PAINT_') || solutionCode.startsWith('WET_AREA_')) return 'WALL_FINISHES';
   if (solutionCode.startsWith('PARTITION_')) return 'PARTITIONS';
   if (solutionCode.startsWith('CEILING_')) return 'CEILINGS';
   if (solutionCode.startsWith('FLOOR_') || solutionCode === 'SKIRTING_STD') return 'FLOORING';

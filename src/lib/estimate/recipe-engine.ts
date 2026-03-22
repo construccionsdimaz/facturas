@@ -30,7 +30,16 @@ type RecipeMeasurementCode =
   | 'ELECTRICAL_POINTS'
   | 'LIGHTING_POINTS'
   | 'PLUMBING_POINTS'
-  | 'DRAINAGE_POINTS';
+  | 'DRAINAGE_POINTS'
+  | 'WALL_TILE_AREA'
+  | 'PAINT_WALL_AREA'
+  | 'PAINT_CEILING_AREA'
+  | 'WATERPROOFING_AREA'
+  | 'LINING_WALL_AREA'
+  | 'ELECTRICAL_MECHANISMS_COUNT'
+  | 'ELECTRICAL_PANEL_UNITS'
+  | 'PLUMBING_WET_POINTS'
+  | 'DRAINAGE_WET_POINTS';
 
 type RecipeTemplate = {
   recipeCode: RecipeCode;
@@ -86,6 +95,22 @@ const RECIPE_MAPPING_TABLE: Partial<Record<MappingKey, RecipeCode>> = {
   'LIGHTING_BASIC:LIGHTING_POINTS': 'RECIPE_LIGHTING_BASIC_PT',
   'PLUMBING_POINT_STD:PLUMBING_POINTS': 'RECIPE_PLUMBING_POINT_STD_PT',
   'DRAINAGE_POINT_STD:DRAINAGE_POINTS': 'RECIPE_DRAINAGE_POINT_STD_PT',
+  'WALL_TILE_BATH_STD:WALL_TILE_AREA': 'RECIPE_WALL_TILE_BATH_STD_M2',
+  'WALL_TILE_BATH_PLUS:WALL_TILE_AREA': 'RECIPE_WALL_TILE_BATH_PLUS_M2',
+  'WALL_TILE_KITCHEN_SPLASHBACK:WALL_TILE_AREA': 'RECIPE_WALL_TILE_KITCHEN_SPLASHBACK_M2',
+  'PAINT_WALL_STD:PAINT_WALL_AREA': 'RECIPE_PAINT_WALL_STD_M2',
+  'PAINT_WALL_PLUS:PAINT_WALL_AREA': 'RECIPE_PAINT_WALL_PLUS_M2',
+  'PAINT_CEILING_STD:PAINT_CEILING_AREA': 'RECIPE_PAINT_CEILING_STD_M2',
+  'WET_AREA_WATERPROOFING_STD:WATERPROOFING_AREA': 'RECIPE_WET_AREA_WATERPROOFING_STD_M2',
+  'PARTITION_LINING_STD:LINING_WALL_AREA': 'RECIPE_PARTITION_LINING_STD_M2',
+  'CEILING_CONTINUOUS_PLUS:CEILING_AREA': 'RECIPE_CEILING_CONTINUOUS_PLUS_M2',
+  'DOOR_SLIDING_STD:DOOR_UNITS': 'RECIPE_DOOR_SLIDING_STD_UD',
+  'DOOR_RF_BASIC:DOOR_UNITS': 'RECIPE_DOOR_RF_BASIC_UD',
+  'WINDOW_THERMAL_PLUS:WINDOW_UNITS': 'RECIPE_WINDOW_THERMAL_PLUS_UD',
+  'ELECTRICAL_MECHANISMS_STD:ELECTRICAL_MECHANISMS_COUNT': 'RECIPE_ELECTRICAL_MECHANISMS_STD_PT',
+  'ELECTRICAL_PANEL_BASIC:ELECTRICAL_PANEL_UNITS': 'RECIPE_ELECTRICAL_PANEL_BASIC_UD',
+  'PLUMBING_WET_ROOM_STD:PLUMBING_WET_POINTS': 'RECIPE_PLUMBING_WET_ROOM_STD_PT',
+  'DRAINAGE_WET_ROOM_STD:DRAINAGE_WET_POINTS': 'RECIPE_DRAINAGE_WET_ROOM_STD_PT',
 };
 
 const AUXILIARY_MEASUREMENT_CODES = new Set<RecipeMeasurementCode>(['ROOM_UNIT', 'BATH_UNIT']);
@@ -480,6 +505,158 @@ const RECIPE_TEMPLATES: Record<RecipeCode, RecipeTemplate> = {
     indirectFactor: 0.08,
     materials: [{ materialCode: 'MAT_DRAINAGE_POINT_STD', description: 'Material saneamiento por punto', quantityPerUnit: 1, unit: 'pt' }],
     labor: [{ laborCode: 'LAB_DRAINAGE_POINT_STD', description: 'Montaje punto de saneamiento', quantityPerUnit: 0.38, unit: 'h' }],
+  },
+  RECIPE_WALL_TILE_BATH_STD_M2: {
+    recipeCode: 'RECIPE_WALL_TILE_BATH_STD_M2',
+    description: 'Alicatado bano estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.08,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_WALL_TILE_BATH_STD', description: 'Revestimiento ceramico bano estandar', quantityPerUnit: 1.05, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WALL_TILE_BATH_STD', description: 'Colocacion alicatado bano estandar', quantityPerUnit: 0.62, unit: 'h' }],
+  },
+  RECIPE_WALL_TILE_BATH_PLUS_M2: {
+    recipeCode: 'RECIPE_WALL_TILE_BATH_PLUS_M2',
+    description: 'Alicatado bano mejorado por m2',
+    unit: 'm2',
+    wasteFactor: 0.09,
+    indirectFactor: 0.11,
+    materials: [{ materialCode: 'MAT_WALL_TILE_BATH_PLUS', description: 'Revestimiento ceramico bano mejorado', quantityPerUnit: 1.06, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WALL_TILE_BATH_PLUS', description: 'Colocacion alicatado bano mejorado', quantityPerUnit: 0.7, unit: 'h' }],
+  },
+  RECIPE_WALL_TILE_KITCHEN_SPLASHBACK_M2: {
+    recipeCode: 'RECIPE_WALL_TILE_KITCHEN_SPLASHBACK_M2',
+    description: 'Frente de cocina alicatado por m2',
+    unit: 'm2',
+    wasteFactor: 0.08,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_WALL_TILE_KITCH_SPLASHBACK', description: 'Revestimiento frente cocina', quantityPerUnit: 1.05, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WALL_TILE_KITCH_SPLASHBACK', description: 'Colocacion frente cocina', quantityPerUnit: 0.55, unit: 'h' }],
+  },
+  RECIPE_PAINT_WALL_STD_M2: {
+    recipeCode: 'RECIPE_PAINT_WALL_STD_M2',
+    description: 'Pintura pared estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_PAINT_WALL_STD', description: 'Pintura pared estandar', quantityPerUnit: 1.02, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_PAINT_WALL_STD', description: 'Aplicacion pintura pared estandar', quantityPerUnit: 0.18, unit: 'h' }],
+  },
+  RECIPE_PAINT_WALL_PLUS_M2: {
+    recipeCode: 'RECIPE_PAINT_WALL_PLUS_M2',
+    description: 'Pintura pared mejorada por m2',
+    unit: 'm2',
+    wasteFactor: 0.04,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_PAINT_WALL_PLUS', description: 'Pintura pared mejorada', quantityPerUnit: 1.03, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_PAINT_WALL_PLUS', description: 'Aplicacion pintura pared mejorada', quantityPerUnit: 0.21, unit: 'h' }],
+  },
+  RECIPE_PAINT_CEILING_STD_M2: {
+    recipeCode: 'RECIPE_PAINT_CEILING_STD_M2',
+    description: 'Pintura techo estandar por m2',
+    unit: 'm2',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_PAINT_CEILING_STD', description: 'Pintura techo estandar', quantityPerUnit: 1.02, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_PAINT_CEILING_STD', description: 'Aplicacion pintura techo estandar', quantityPerUnit: 0.16, unit: 'h' }],
+  },
+  RECIPE_WET_AREA_WATERPROOFING_STD_M2: {
+    recipeCode: 'RECIPE_WET_AREA_WATERPROOFING_STD_M2',
+    description: 'Impermeabilizacion ligera de zona humeda por m2',
+    unit: 'm2',
+    wasteFactor: 0.04,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_WATERPROOFING_STD', description: 'Lamina/liquido impermeabilizante ligero', quantityPerUnit: 1.05, unit: 'm2' }],
+    labor: [{ laborCode: 'LAB_WATERPROOFING_STD', description: 'Aplicacion impermeabilizacion ligera', quantityPerUnit: 0.24, unit: 'h' }],
+  },
+  RECIPE_PARTITION_LINING_STD_M2: {
+    recipeCode: 'RECIPE_PARTITION_LINING_STD_M2',
+    description: 'Trasdosado basico por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.08,
+    materials: [
+      { materialCode: 'MAT_PARTITION_LINING_FRAME', description: 'Perfileria trasdosado basico', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_LINING_BOARD', description: 'Placa trasdosado basico', quantityPerUnit: 1.05, unit: 'm2' },
+      { materialCode: 'MAT_PARTITION_LINING_FILL', description: 'Aislamiento trasdosado basico', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_PARTITION_LINING_STD', description: 'Montaje trasdosado basico', quantityPerUnit: 0.42, unit: 'h' }],
+  },
+  RECIPE_CEILING_CONTINUOUS_PLUS_M2: {
+    recipeCode: 'RECIPE_CEILING_CONTINUOUS_PLUS_M2',
+    description: 'Falso techo continuo plus por m2',
+    unit: 'm2',
+    wasteFactor: 0.05,
+    indirectFactor: 0.1,
+    materials: [
+      { materialCode: 'MAT_CEILING_CONT_PLUS_FRAME', description: 'Perfileria falso techo plus', quantityPerUnit: 1, unit: 'm2' },
+      { materialCode: 'MAT_CEILING_CONT_PLUS_BOARD', description: 'Placa falso techo plus', quantityPerUnit: 1.08, unit: 'm2' },
+      { materialCode: 'MAT_CEILING_CONT_PLUS_FILL', description: 'Aislamiento falso techo plus', quantityPerUnit: 1, unit: 'm2' },
+    ],
+    labor: [{ laborCode: 'LAB_CEILING_CONTINUOUS_PLUS', description: 'Montaje falso techo continuo plus', quantityPerUnit: 0.44, unit: 'h' }],
+  },
+  RECIPE_DOOR_SLIDING_STD_UD: {
+    recipeCode: 'RECIPE_DOOR_SLIDING_STD_UD',
+    description: 'Puerta corredera interior estandar por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_DOOR_SLIDING_STD_SET', description: 'Kit puerta corredera interior', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_DOOR_SLIDING_STD', description: 'Montaje puerta corredera interior', quantityPerUnit: 2.2, unit: 'h' }],
+  },
+  RECIPE_DOOR_RF_BASIC_UD: {
+    recipeCode: 'RECIPE_DOOR_RF_BASIC_UD',
+    description: 'Puerta RF basica por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.11,
+    materials: [{ materialCode: 'MAT_DOOR_RF_BASIC_SET', description: 'Kit puerta RF basica', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_DOOR_RF_BASIC', description: 'Montaje puerta RF basica', quantityPerUnit: 2.4, unit: 'h' }],
+  },
+  RECIPE_WINDOW_THERMAL_PLUS_UD: {
+    recipeCode: 'RECIPE_WINDOW_THERMAL_PLUS_UD',
+    description: 'Ventana termica mejorada por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.11,
+    materials: [{ materialCode: 'MAT_WINDOW_THERMAL_PLUS_SET', description: 'Ventana termica mejorada completa', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_WINDOW_THERMAL_PLUS', description: 'Colocacion ventana termica mejorada', quantityPerUnit: 2.3, unit: 'h' }],
+  },
+  RECIPE_ELECTRICAL_MECHANISMS_STD_PT: {
+    recipeCode: 'RECIPE_ELECTRICAL_MECHANISMS_STD_PT',
+    description: 'Mecanismo electrico estandar por punto',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.08,
+    materials: [{ materialCode: 'MAT_ELECTRICAL_MECHANISMS_STD', description: 'Mecanismo electrico estandar', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_ELECTRICAL_MECHANISMS_STD', description: 'Montaje mecanismo electrico estandar', quantityPerUnit: 0.18, unit: 'h' }],
+  },
+  RECIPE_ELECTRICAL_PANEL_BASIC_UD: {
+    recipeCode: 'RECIPE_ELECTRICAL_PANEL_BASIC_UD',
+    description: 'Cuadro electrico basico por ud',
+    unit: 'ud',
+    wasteFactor: 0.02,
+    indirectFactor: 0.1,
+    materials: [{ materialCode: 'MAT_ELECTRICAL_PANEL_BASIC', description: 'Cuadro electrico basico', quantityPerUnit: 1, unit: 'ud' }],
+    labor: [{ laborCode: 'LAB_ELECTRICAL_PANEL_BASIC', description: 'Montaje cuadro electrico basico', quantityPerUnit: 1.4, unit: 'h' }],
+  },
+  RECIPE_PLUMBING_WET_ROOM_STD_PT: {
+    recipeCode: 'RECIPE_PLUMBING_WET_ROOM_STD_PT',
+    description: 'Punto humedo de fontaneria por punto',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_PLUMBING_WET_ROOM_STD', description: 'Material fontaneria zona humeda', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_PLUMBING_WET_ROOM_STD', description: 'Montaje fontaneria zona humeda', quantityPerUnit: 0.48, unit: 'h' }],
+  },
+  RECIPE_DRAINAGE_WET_ROOM_STD_PT: {
+    recipeCode: 'RECIPE_DRAINAGE_WET_ROOM_STD_PT',
+    description: 'Punto humedo de saneamiento por punto',
+    unit: 'pt',
+    wasteFactor: 0.03,
+    indirectFactor: 0.09,
+    materials: [{ materialCode: 'MAT_DRAINAGE_WET_ROOM_STD', description: 'Material saneamiento zona humeda', quantityPerUnit: 1, unit: 'pt' }],
+    labor: [{ laborCode: 'LAB_DRAINAGE_WET_ROOM_STD', description: 'Montaje saneamiento zona humeda', quantityPerUnit: 0.44, unit: 'h' }],
   },
 };
 
