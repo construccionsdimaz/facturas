@@ -48,6 +48,16 @@ export default function PrintEstimatePage() {
       : parsedGenerationNotes.estimateStatus?.issuance.status === 'ISSUED_PROVISIONAL'
         ? 'emitido provisional'
         : 'no emitido';
+  const commercialLabel =
+    parsedGenerationNotes.estimateStatus?.commercialStatus === 'CONVERTED'
+      ? 'convertido'
+      : parsedGenerationNotes.estimateStatus?.commercialStatus === 'ISSUED_FINAL'
+        ? 'emitido final'
+        : parsedGenerationNotes.estimateStatus?.commercialStatus === 'ISSUED_PROVISIONAL'
+          ? 'emitido provisional'
+          : parsedGenerationNotes.estimateStatus?.commercialStatus === 'CANCELLED'
+            ? 'cancelado'
+            : 'no emitido';
 
   return (
     <div className="print-root" style={{ background: 'white' }}>
@@ -66,7 +76,7 @@ export default function PrintEstimatePage() {
           className="btn-primary"
           style={{ padding: '12px 32px', fontSize: '16px' }}
         >
-          🖨️ Imprimir: {readinessLabel} | {issuanceLabel}
+          🖨️ Imprimir: {readinessLabel} | {commercialLabel} | {issuanceLabel}
         </button>
       </div>
       <div className={styles.printWrapper}>

@@ -19,6 +19,13 @@ export type EstimateIssuanceStatus =
   | 'ISSUED_PROVISIONAL'
   | 'ISSUED_FINAL';
 
+export type EstimateCommercialStatus =
+  | 'DRAFT'
+  | 'ISSUED_PROVISIONAL'
+  | 'ISSUED_FINAL'
+  | 'CONVERTED'
+  | 'CANCELLED';
+
 export type EstimateLineEconomicStatus =
   | 'PARAMETRIC_PRELIMINARY'
   | 'PRICE_PENDING_VALIDATION'
@@ -62,6 +69,16 @@ export type EstimateIssuanceCapabilities = {
   canRevokeIssuance: boolean;
 };
 
+export type EstimateCommercialCapabilities = {
+  canEdit: boolean;
+  canIssueProvisional: boolean;
+  canIssueFinal: boolean;
+  canRevokeIssuance: boolean;
+  canConvert: boolean;
+  canPrepareAcceptance: boolean;
+  requiresFinalIssuanceBeforeConversion: boolean;
+};
+
 export type EstimateIssuanceRecord = {
   status: EstimateIssuanceStatus;
   issuedAt?: string | null;
@@ -100,6 +117,10 @@ export type EstimateStatusSnapshot = {
   issuance: EstimateIssuanceRecord;
   issuanceHistory: EstimateIssuanceHistoryEntry[];
   issuanceCapabilities: EstimateIssuanceCapabilities;
+  commercialStatus: EstimateCommercialStatus;
+  commercialReasons: string[];
+  commercialCapabilities: EstimateCommercialCapabilities;
+  nextCommercialAction: string | null;
 };
 
 export type EstimateLineEconomicSnapshot = {
@@ -155,6 +176,18 @@ function defaultIssuanceCapabilities(): EstimateIssuanceCapabilities {
     requiresOverrideForProvisional: false,
     requiresOverrideForFinal: false,
     canRevokeIssuance: false,
+  };
+}
+
+function defaultCommercialCapabilities(): EstimateCommercialCapabilities {
+  return {
+    canEdit: true,
+    canIssueProvisional: false,
+    canIssueFinal: false,
+    canRevokeIssuance: false,
+    canConvert: false,
+    canPrepareAcceptance: false,
+    requiresFinalIssuanceBeforeConversion: true,
   };
 }
 
@@ -342,6 +375,136 @@ export function deriveEstimateIssuanceCapabilities(params: {
   return capabilities;
 }
 
+function coerceCommercialStatus(value: unknown): EstimateCommercialStatus | null {
+  switch (value) {
+    case 'DRAFT':
+    case 'ISSUED_PROVISIONAL':
+    case 'ISSUED_FINAL':
+    case 'CONVERTED':
+    case 'CANCELLED':
+      return value;
+    default:
+      return null;
+  }
+}
+
+export function deriveEstimateCommercialStatus(params: {
+  readiness: EstimateReadiness;
+  issuance: EstimateIssuanceRecord;
+  issuanceCapabilities: EstimateIssuanceCapabilities;
+  lockedStatus?: EstimateCommercialStatus | null;
+}): {
+  commercialStatus: EstimateCommercialStatus;
+  reasons: string[];
+  capabilities: EstimateCommercialCapabilities;
+  nextAction: string | null;
+} {
+  const reasons: string[] = [];
+  const capabilities = defaultCommercialCapabilities();
+  let commercialStatus: EstimateCommercialStatus = 'DRAFT';
+  let nextAction: string | null = null;
+
+  if (params.lockedStatus === 'CONVERTED') {
+    commercialStatus = 'CONVERTED';
+    reasons.push('El presupuesto ya se ha convertido y no admite nueva emision ni revocacion.');
+    return {
+      commercialStatus,
+      reasons,
+      capabilities: {
+        ...capabilities,
+        canEdit: false,
+      },
+      nextAction: 'El flujo comercial posterior debe continuar desde la factura generada.',
+    };
+  }
+
+  if (params.lockedStatus === 'CANCELLED') {
+    commercialStatus = 'CANCELLED';
+    reasons.push('El presupuesto esta cancelado comercialmente y requiere reapertura explicita.');
+    return {
+      commercialStatus,
+      reasons,
+      capabilities: {
+        ...capabilities,
+        canEdit: false,
+      },
+      nextAction: 'Reabrir el presupuesto antes de cualquier nueva emision.',
+    };
+  }
+
+  if (params.issuance.status === 'ISSUED_FINAL') {
+    commercialStatus = 'ISSUED_FINAL';
+    reasons.push('El presupuesto se considera emitido final y habilita la conversion posterior.');
+    return {
+      commercialStatus,
+      reasons,
+      capabilities: {
+        ...capabilities,
+        canEdit: false,
+        canRevokeIssuance: true,
+        canConvert: true,
+        canPrepareAcceptance: true,
+        requiresFinalIssuanceBeforeConversion: false,
+      },
+      nextAction: 'Listo para aceptacion comercial y conversion posterior.',
+    };
+  }
+
+  if (params.issuance.status === 'ISSUED_PROVISIONAL') {
+    commercialStatus = 'ISSUED_PROVISIONAL';
+    reasons.push('El presupuesto ya fue enviado, pero solo como provisional.');
+    if (params.issuanceCapabilities.canIssueFinal) {
+      reasons.push('Requiere emision final antes de permitir la conversion.');
+    }
+    return {
+      commercialStatus,
+      reasons,
+      capabilities: {
+        ...capabilities,
+        canEdit: false,
+        canIssueFinal: params.issuanceCapabilities.canIssueFinal,
+        canRevokeIssuance: true,
+      },
+      nextAction: 'Emitir como final antes de aceptacion o conversion.',
+    };
+  }
+
+  commercialStatus = 'DRAFT';
+  reasons.push('El presupuesto aun no se considera enviado al cliente.');
+  if (params.issuanceCapabilities.canIssueFinal) {
+    nextAction = 'Emitir como final para habilitar aceptacion y conversion.';
+  } else if (params.issuanceCapabilities.canIssueProvisional) {
+    nextAction = params.issuanceCapabilities.requiresOverrideForProvisional
+      ? 'Solo puede emitirse provisionalmente con override explicito.'
+      : 'Emitir como provisional para compartirlo internamente o con el cliente.';
+  } else {
+    nextAction = 'Completar readiness suficiente antes de cualquier emision comercial.';
+  }
+
+  return {
+    commercialStatus,
+    reasons,
+    capabilities: {
+      ...capabilities,
+      canEdit: true,
+      canIssueProvisional: params.issuanceCapabilities.canIssueProvisional,
+      canIssueFinal: params.issuanceCapabilities.canIssueFinal,
+      canRevokeIssuance: false,
+    },
+    nextAction,
+  };
+}
+
+export function assertEstimateCanConvert(snapshot: EstimateStatusSnapshot) {
+  if (snapshot.commercialStatus === 'CONVERTED') {
+    throw new Error('El estimate ya esta convertido.');
+  }
+
+  if (snapshot.commercialStatus !== 'ISSUED_FINAL') {
+    throw new Error('Solo un estimate emitido final puede aceptarse o convertirse.');
+  }
+}
+
 export function buildEstimateStatusFromPipeline(params: {
   technicalSpecStatus: TechnicalSpecStatus;
   technicalCoveragePercent: number;
@@ -352,6 +515,7 @@ export function buildEstimateStatusFromPipeline(params: {
   manualOverride?: EstimateReadinessOverride | null;
   issuance?: EstimateIssuanceRecord | null;
   issuanceHistory?: EstimateIssuanceHistoryEntry[] | null;
+  commercialStatusOverride?: EstimateCommercialStatus | null;
 }): EstimateStatusSnapshot {
   const snapshot: EstimateStatusSnapshot = {
     technicalSpecStatus: params.technicalSpecStatus,
@@ -368,6 +532,10 @@ export function buildEstimateStatusFromPipeline(params: {
     issuance: params.issuance ?? defaultIssuance(),
     issuanceHistory: Array.isArray(params.issuanceHistory) ? params.issuanceHistory : [],
     issuanceCapabilities: defaultIssuanceCapabilities(),
+    commercialStatus: 'DRAFT',
+    commercialReasons: [],
+    commercialCapabilities: defaultCommercialCapabilities(),
+    nextCommercialAction: null,
   };
 
   snapshot.estimateMode = deriveEstimateModeFromPricing(snapshot);
@@ -380,6 +548,16 @@ export function buildEstimateStatusFromPipeline(params: {
     issuanceStatus: snapshot.issuance.status,
     manualOverride: snapshot.manualOverride,
   });
+  const commercial = deriveEstimateCommercialStatus({
+    readiness: snapshot.readiness,
+    issuance: snapshot.issuance,
+    issuanceCapabilities: snapshot.issuanceCapabilities,
+    lockedStatus: params.commercialStatusOverride ?? null,
+  });
+  snapshot.commercialStatus = commercial.commercialStatus;
+  snapshot.commercialReasons = commercial.reasons;
+  snapshot.commercialCapabilities = commercial.capabilities;
+  snapshot.nextCommercialAction = commercial.nextAction;
   return snapshot;
 }
 
@@ -749,6 +927,7 @@ export function parseGenerationNotes(value: unknown): GenerationNotesPayload {
         manualOverride,
         issuance,
         issuanceHistory,
+        commercialStatusOverride: coerceCommercialStatus(statusRecord.commercialStatus),
       });
 
       snapshot.estimateMode =

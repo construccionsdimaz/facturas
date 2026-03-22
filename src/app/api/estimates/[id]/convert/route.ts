@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import {
+  assertEstimateCanConvert,
+  parseGenerationNotes,
+  serializeGenerationNotes,
+} from '@/lib/estimate/estimate-status';
 
 export async function POST(
   request: Request,
@@ -12,6 +17,7 @@ export async function POST(
       where: { id },
       include: {
         items: true,
+        internalAnalysis: true,
       },
     });
 
@@ -21,6 +27,30 @@ export async function POST(
 
     if (estimate.status === 'CONVERTED') {
       return NextResponse.json({ error: 'Estimate already converted to invoice' }, { status: 400 });
+    }
+
+    if (!estimate.internalAnalysis) {
+      return NextResponse.json(
+        { error: 'El estimate no tiene analisis interno para gobernar su conversion.' },
+        { status: 400 }
+      );
+    }
+
+    const parsed = parseGenerationNotes(estimate.internalAnalysis.generationNotes);
+    if (!parsed.estimateStatus) {
+      return NextResponse.json(
+        { error: 'No existe estimateStatus persistido para validar la conversion.' },
+        { status: 400 }
+      );
+    }
+
+    try {
+      assertEstimateCanConvert(parsed.estimateStatus);
+    } catch (error: any) {
+      return NextResponse.json(
+        { error: error?.message || 'El estimate no puede convertirse todavia.' },
+        { status: 400 }
+      );
     }
 
     // 2. Determine next invoice number
@@ -73,6 +103,31 @@ export async function POST(
       data: {
         status: 'CONVERTED',
         invoiceId: newInvoice.id,
+        internalAnalysis: {
+          update: {
+            generationNotes: serializeGenerationNotes(
+              parsed.notes,
+              {
+                ...parsed.estimateStatus,
+                commercialStatus: 'CONVERTED',
+                commercialReasons: [
+                  'El presupuesto ya ha sido convertido en factura y queda bloqueado para nueva emision o revocacion.',
+                ],
+                commercialCapabilities: {
+                  canEdit: false,
+                  canIssueProvisional: false,
+                  canIssueFinal: false,
+                  canRevokeIssuance: false,
+                  canConvert: false,
+                  canPrepareAcceptance: false,
+                  requiresFinalIssuanceBeforeConversion: false,
+                },
+                nextCommercialAction: 'Continuar el flujo comercial desde la factura generada.',
+              },
+              parsed.integratedCostBuckets
+            ),
+          },
+        },
       },
     });
 

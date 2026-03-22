@@ -37,6 +37,9 @@ interface EstimateData {
     pendingValidationCount: number;
     readiness: 'DRAFT' | 'PARAMETRIC_PRELIMINARY' | 'PROVISIONAL_REVIEW_REQUIRED' | 'COMMERCIAL_READY' | 'TECHNICALLY_CLOSED';
     readinessReasons: string[];
+    commercialStatus: 'DRAFT' | 'ISSUED_PROVISIONAL' | 'ISSUED_FINAL' | 'CONVERTED' | 'CANCELLED';
+    commercialReasons: string[];
+    nextCommercialAction?: string | null;
     manualOverride?: {
       applied: boolean;
       reason: string;
@@ -82,6 +85,16 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
       : data.estimateStatus?.issuance.status === 'ISSUED_PROVISIONAL'
         ? 'Emitido provisional'
         : 'No emitido';
+  const commercialLabel =
+    data.estimateStatus?.commercialStatus === 'CONVERTED'
+      ? 'Convertido'
+      : data.estimateStatus?.commercialStatus === 'ISSUED_FINAL'
+        ? 'Emitido final'
+        : data.estimateStatus?.commercialStatus === 'ISSUED_PROVISIONAL'
+          ? 'Emitido provisional'
+          : data.estimateStatus?.commercialStatus === 'CANCELLED'
+            ? 'Cancelado'
+            : 'No emitido';
 
   return (
     <div className={styles.pdfContainer} id="pdf-estimate-template">
@@ -159,7 +172,7 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           }}
         >
           <div style={{ fontWeight: 700, marginBottom: '4px' }}>
-            Emision: {issuanceLabel} | Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
+            Estado comercial: {commercialLabel} | Emision: {issuanceLabel} | Readiness: {readinessLabel} | Estado tecnico: {data.estimateStatus.estimateMode}
           </div>
           <div>
             Cobertura tecnica {data.estimateStatus.technicalCoveragePercent}% | Receta {data.estimateStatus.recipeCoveragePercent}% | Precio {data.estimateStatus.priceCoveragePercent}% | Lineas pendientes {data.estimateStatus.pendingValidationCount}
@@ -167,6 +180,16 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           {data.estimateStatus.readinessReasons?.length > 0 && (
             <div style={{ marginTop: '6px' }}>
               {data.estimateStatus.readinessReasons.join(' | ')}
+            </div>
+          )}
+          {data.estimateStatus.commercialReasons?.length > 0 && (
+            <div style={{ marginTop: '6px' }}>
+              {data.estimateStatus.commercialReasons.join(' | ')}
+            </div>
+          )}
+          {data.estimateStatus.nextCommercialAction && (
+            <div style={{ marginTop: '6px', fontWeight: 600 }}>
+              Siguiente paso: {data.estimateStatus.nextCommercialAction}
             </div>
           )}
           {data.estimateStatus.estimateMode === 'PARAMETRIC_PRELIMINARY' && (

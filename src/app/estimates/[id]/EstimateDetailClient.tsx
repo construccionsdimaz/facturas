@@ -92,6 +92,21 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     }
   };
 
+  const commercialStatusLabel = (status?: string) => {
+    switch (status) {
+      case 'ISSUED_PROVISIONAL':
+        return 'Emitido provisional';
+      case 'ISSUED_FINAL':
+        return 'Emitido final';
+      case 'CONVERTED':
+        return 'Convertido';
+      case 'CANCELLED':
+        return 'Cancelado';
+      default:
+        return 'No emitido';
+    }
+  };
+
   const handlePrint = () => {
     window.open(`/estimates/${estimate.id}/print`, '_blank');
   };
@@ -216,6 +231,10 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   const parsedInternalNotes = estimate.internalAnalysis
     ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
     : { notes: [], estimateStatus: null };
+  const commercialCapabilities =
+    parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;
+  const canConvertEstimate =
+    estimate.status !== 'CONVERTED' && Boolean(commercialCapabilities?.canConvert);
 
   return (
     <div>
@@ -228,7 +247,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
           📄 Imprimir / Descargar PDF
         </button>
         
-        {estimate.status !== 'CONVERTED' && (
+        {canConvertEstimate && (
           <button
             className="btn-success"
             onClick={() => setShowConvertModal(true)}
@@ -253,7 +272,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             </button>
           )}
 
-        {estimate.status !== 'CONVERTED' && parsedInternalNotes.estimateStatus?.issuanceCapabilities.canIssueProvisional && (
+        {commercialCapabilities?.canIssueProvisional && (
           <button
             className="btn-secondary"
             onClick={() => handleIssue('PROVISIONAL')}
@@ -264,7 +283,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
           </button>
         )}
 
-        {estimate.status !== 'CONVERTED' && parsedInternalNotes.estimateStatus?.issuanceCapabilities.canIssueFinal && (
+        {commercialCapabilities?.canIssueFinal && (
           <button
             className="btn-secondary"
             onClick={() => handleIssue('FINAL')}
@@ -275,7 +294,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
           </button>
         )}
 
-        {estimate.status !== 'CONVERTED' && parsedInternalNotes.estimateStatus?.issuanceCapabilities.canRevokeIssuance && (
+        {commercialCapabilities?.canRevokeIssuance && (
           <button
             className="btn-secondary"
             onClick={handleRevokeIssuance}
@@ -368,6 +387,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               <div style={{ fontWeight: 700, marginBottom: '6px' }}>
                 Readiness: {readinessLabel(parsedInternalNotes.estimateStatus.readiness)} | Estado tecnico: {parsedInternalNotes.estimateStatus.estimateMode}
               </div>
+              <div style={{ fontSize: '13px', marginBottom: '6px' }}>
+                Estado comercial: {commercialStatusLabel(parsedInternalNotes.estimateStatus.commercialStatus)}
+              </div>
               <div style={{ fontSize: '13px' }}>
                 Cobertura tecnica {parsedInternalNotes.estimateStatus.technicalCoveragePercent}% | Receta {parsedInternalNotes.estimateStatus.recipeCoveragePercent}% | Precio {parsedInternalNotes.estimateStatus.priceCoveragePercent}% | Lineas pendientes {parsedInternalNotes.estimateStatus.pendingValidationCount}
               </div>
@@ -386,6 +408,16 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
                 {parsedInternalNotes.estimateStatus.issuance.issuedBy ? ` | Por ${parsedInternalNotes.estimateStatus.issuance.issuedBy}` : ''}
                 {parsedInternalNotes.estimateStatus.issuance.issuedAt ? ` | ${parsedInternalNotes.estimateStatus.issuance.issuedAt}` : ''}
               </div>
+              {parsedInternalNotes.estimateStatus.commercialReasons.length > 0 && (
+                <div style={{ fontSize: '13px', marginTop: '6px' }}>
+                  {parsedInternalNotes.estimateStatus.commercialReasons.join(' | ')}
+                </div>
+              )}
+              {parsedInternalNotes.estimateStatus.nextCommercialAction && (
+                <div style={{ fontSize: '13px', marginTop: '6px', fontWeight: 600 }}>
+                  Siguiente paso: {parsedInternalNotes.estimateStatus.nextCommercialAction}
+                </div>
+              )}
               {parsedInternalNotes.estimateStatus.issuance.issuanceReason && (
                 <div style={{ fontSize: '13px', marginTop: '6px' }}>
                   Motivo de emision: {parsedInternalNotes.estimateStatus.issuance.issuanceReason}
@@ -506,9 +538,13 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
 
       <div style={{ textAlign: 'center', padding: '20px' }}>
         <p style={{ color: 'var(--text-secondary)', marginBottom: '24px' }}>
-          {estimate.status === 'CONVERTED' 
-            ? 'Este presupuesto ya ha sido convertido en factura.' 
-            : 'Puedes previsualizar el presupuesto e imprimirlo, o convertirlo directamente en factura cuando el cliente lo acepte.'}
+          {estimate.status === 'CONVERTED'
+            ? 'Este presupuesto ya ha sido convertido en factura.'
+            : parsedInternalNotes.estimateStatus?.commercialStatus === 'ISSUED_FINAL'
+              ? 'Emitido final: listo para aceptacion comercial y conversion posterior.'
+              : parsedInternalNotes.estimateStatus?.commercialStatus === 'ISSUED_PROVISIONAL'
+                ? 'Emitido provisional: requiere emision final antes de conversion o aceptacion final.'
+                : 'No emitido: no se considera enviado al cliente y no puede convertirse todavia.'}
         </p>
       </div>
 

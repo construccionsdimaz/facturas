@@ -40,6 +40,7 @@ async function run() {
   const { integratePricingIntoEstimateProposal } = require(path.join(srcRoot, 'lib/estimate/estimate-integration.ts'));
   const {
     applyEstimateReadinessOverride,
+    assertEstimateCanConvert,
     buildEstimateStatusFromPipeline,
     issueEstimate,
     revokeEstimateIssuance,
@@ -792,6 +793,8 @@ async function run() {
     hasHybridBuckets: false,
   });
   assert.equal(commercialReadyStatus.readiness, 'COMMERCIAL_READY');
+  assert.equal(commercialReadyStatus.commercialStatus, 'DRAFT');
+  assert.equal(commercialReadyStatus.commercialCapabilities.canConvert, false);
   const issuedCommercialReady = issueEstimate(commercialReadyStatus, {
     mode: 'FINAL',
     actor: 'Admin',
@@ -799,6 +802,9 @@ async function run() {
   });
   assert.equal(issuedCommercialReady.issuance.status, 'ISSUED_FINAL');
   assert.equal(issuedCommercialReady.issuance.manualOverrideUsed, false);
+  assert.equal(issuedCommercialReady.commercialStatus, 'ISSUED_FINAL');
+  assert.equal(issuedCommercialReady.commercialCapabilities.canConvert, true);
+  assert.doesNotThrow(() => assertEstimateCanConvert(issuedCommercialReady));
   const technicallyClosedStatus = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',
     technicalCoveragePercent: 100,
@@ -814,6 +820,7 @@ async function run() {
     timestamp: '2026-03-22T12:05:00.000Z',
   });
   assert.equal(issuedClosed.issuance.status, 'ISSUED_FINAL');
+  assert.equal(issuedClosed.commercialStatus, 'ISSUED_FINAL');
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
   assert(
@@ -849,6 +856,9 @@ async function run() {
     timestamp: '2026-03-22T10:10:00.000Z',
   });
   assert.equal(issuedProvisional.issuance.status, 'ISSUED_PROVISIONAL');
+  assert.equal(issuedProvisional.commercialStatus, 'ISSUED_PROVISIONAL');
+  assert.equal(issuedProvisional.commercialCapabilities.canConvert, false);
+  assert.throws(() => assertEstimateCanConvert(issuedProvisional), /emitido final/);
   const issuedWithOverride = issueEstimate(provisionalStatus, {
     mode: 'FINAL',
     actor: 'Admin',
@@ -858,12 +868,14 @@ async function run() {
   });
   assert.equal(issuedWithOverride.issuance.status, 'ISSUED_FINAL');
   assert.equal(issuedWithOverride.issuance.manualOverrideUsed, true);
+  assert.equal(issuedWithOverride.commercialStatus, 'ISSUED_FINAL');
   const revoked = revokeEstimateIssuance(issuedWithOverride, {
     actor: 'Admin',
     reason: 'Se detecto un cambio pendiente',
     timestamp: '2026-03-22T10:20:00.000Z',
   });
   assert.equal(revoked.issuance.status, 'NOT_ISSUED');
+  assert.equal(revoked.commercialStatus, 'DRAFT');
   assert.equal(revoked.issuanceHistory[revoked.issuanceHistory.length - 1].action, 'REVOKED');
   const overriddenStatus = applyEstimateReadinessOverride(provisionalStatus, {
     reason: 'Validado manualmente para envio al cliente',

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import styles from "../../invoices/[id]/page.module.css";
 import Link from "next/link";
 import EstimateDetailClient from "@/app/estimates/[id]/EstimateDetailClient";
+import { parseGenerationNotes } from "@/lib/estimate/estimate-status";
 
 export const dynamic = 'force-dynamic';
 
@@ -25,12 +26,25 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
 
   if (!estimate) return notFound();
 
+  const parsedGenerationNotes = estimate.internalAnalysis
+    ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
+    : { notes: [], estimateStatus: null, integratedCostBuckets: [] };
+  const commercialStatus = parsedGenerationNotes.estimateStatus?.commercialStatus;
+
   const statusLabels: Record<string, string> = {
     DRAFT: 'Borrador',
     SENT: 'Enviado',
     ACCEPTED: 'Aceptado',
     REJECTED: 'Rechazado',
     CONVERTED: 'Convertido',
+  };
+
+  const commercialStatusLabels: Record<string, string> = {
+    DRAFT: 'No emitido',
+    ISSUED_PROVISIONAL: 'Emitido provisional',
+    ISSUED_FINAL: 'Emitido final',
+    CONVERTED: 'Convertido',
+    CANCELLED: 'Cancelado',
   };
 
   const statusBadgeClass = (status: string) => {
@@ -52,10 +66,10 @@ export default async function EstimateDetailPage({ params }: { params: Promise<{
           <h1 className="text-gradient">Presupuesto {estimate.number}</h1>
         </div>
         <div className={styles.actions + " no-print"}>
-          <span className={`badge badge-${statusBadgeClass(estimate.status)}`}
+          <span className={`badge badge-${statusBadgeClass(commercialStatus === 'CONVERTED' ? 'CONVERTED' : estimate.status)}`}
             style={{ fontSize: '14px', padding: '8px 16px' }}
           >
-            {statusLabels[estimate.status] || estimate.status}
+            {commercialStatusLabels[commercialStatus || ''] || statusLabels[estimate.status] || estimate.status}
           </span>
           {estimate.status === 'DRAFT' && (
             <Link href={`/estimates/${id}/edit`}>
