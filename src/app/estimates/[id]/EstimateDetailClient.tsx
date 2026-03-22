@@ -6,6 +6,7 @@ import ConfirmationModal from '@/components/ConfirmationModal';
 import { formatCurrency } from '@/lib/format';
 import { parseGenerationNotes, parseLineEconomicStatus } from '@/lib/estimate/estimate-status';
 import type { CommercialEstimateProjection } from '@/lib/estimate/commercial-estimate-projection';
+import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
 
 interface EstimateData {
   id: string;
@@ -313,7 +314,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
   const parsedInternalNotes = estimate.internalAnalysis
     ? parseGenerationNotes(estimate.internalAnalysis.generationNotes)
     : { notes: [], estimateStatus: null };
+  const commercialRuntimeOutput = (parsedInternalNotes.commercialRuntimeOutput || null) as CommercialEstimateRuntimeOutput | null;
   const commercialProjection = (parsedInternalNotes.commercialEstimateProjection || null) as CommercialEstimateProjection | null;
+  const activeProjection = commercialRuntimeOutput?.projection || commercialProjection;
   const commercialCapabilities =
     parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;
   const acceptanceCapabilities =
@@ -508,9 +511,14 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               <div style={{ fontSize: '13px', marginBottom: '6px' }}>
                 Estado comercial: {commercialStatusLabel(parsedInternalNotes.estimateStatus.commercialStatus)}
               </div>
-              {commercialProjection && (
+              {commercialRuntimeOutput && (
                 <div style={{ fontSize: '13px', marginBottom: '6px' }}>
-                  Proyeccion comercial: {commercialProjection.source}
+                  Runtime comercial: {commercialRuntimeOutput.source}
+                </div>
+              )}
+              {activeProjection && (
+                <div style={{ fontSize: '13px', marginBottom: '6px' }}>
+                  Proyeccion comercial: {activeProjection.source}
                 </div>
               )}
               <div style={{ fontSize: '13px', marginBottom: '6px' }}>
@@ -609,9 +617,9 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             </div>
           )}
 
-          {(commercialProjection?.buckets || parsedInternalNotes.integratedCostBuckets)?.length ? (
+          {(commercialRuntimeOutput?.projection?.buckets || activeProjection?.buckets || parsedInternalNotes.integratedCostBuckets)?.length ? (
             <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
-              {(commercialProjection?.buckets || parsedInternalNotes.integratedCostBuckets || []).map((bucket) => (
+              {(commercialRuntimeOutput?.projection?.buckets || activeProjection?.buckets || parsedInternalNotes.integratedCostBuckets || []).map((bucket) => (
                 <div key={bucket.bucketCode} className="glass-panel" style={{ padding: '12px' }}>
                   <div style={{ fontWeight: 700 }}>{bucket.bucketCode}</div>
                   <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
@@ -630,6 +638,35 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
             </div>
           ) : null}
 
+          {commercialRuntimeOutput?.lines?.length ? (
+            <div style={{ display: 'grid', gap: '8px', marginBottom: '16px' }}>
+              {commercialRuntimeOutput.lines.map((line) => (
+                <div key={line.id} className="glass-panel" style={{ padding: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>{line.chapter}</div>
+                      <div>{line.description}</div>
+                      <div style={{ fontSize: '12px', color: '#fcd34d', marginTop: '6px' }}>
+                        {line.economicStatus.economicStatus} | {line.economicStatus.priceSource} | {line.economicStatus.costSource}
+                        {line.economicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
+                        {line.provisional ? ' | Comercial provisional' : ''}
+                        {line.generatedFrom ? ` | ${line.generatedFrom}` : ''}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right', minWidth: '220px' }}>
+                      <div>{line.quantity} {line.unit}</div>
+                      <div style={{ fontWeight: 700, marginTop: '4px' }}>
+                        Interno {formatCurrency(line.internalCost || 0)} | Comercial {formatCurrency(line.commercialPrice || 0)}
+                        {line.provisional ? ' (provisional)' : ''}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : null}
+
+          {!commercialRuntimeOutput?.lines?.length ? (
           <div style={{ display: 'grid', gap: '8px' }}>
             {estimate.internalAnalysis.lines.map((line, index) => {
               const lineEconomicStatus = parseLineEconomicStatus(line.appliedAssumptions);
@@ -669,6 +706,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
               );
             })}
           </div>
+          ) : null}
         </div>
       )}
 

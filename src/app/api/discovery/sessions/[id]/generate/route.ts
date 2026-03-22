@@ -91,7 +91,7 @@ export async function POST(
         false,
     });
 
-    const { proposal } = integratePricingIntoEstimateProposal(
+    const { proposal, runtimeOutput } = integratePricingIntoEstimateProposal(
       {
         ...parametricProposal,
         estimateStatus,
@@ -130,6 +130,8 @@ export async function POST(
           : null,
     });
     proposal.commercialEstimateProjection.status = proposal.estimateStatus;
+    proposal.commercialRuntimeOutput.status = proposal.estimateStatus;
+    proposal.commercialRuntimeOutput.projection.status = proposal.estimateStatus;
 
     if (derivedInput.pricingResult?.estimateMode === 'PARAMETRIC_PRELIMINARY') {
       proposal.notes.push(
@@ -176,6 +178,14 @@ export async function POST(
       assumptions: evaluation.assumptions,
       confidenceScore: evaluation.confidenceScore,
       confidenceLevel: evaluation.confidenceLevel,
+      commercialRuntimeOutput: {
+        ...runtimeOutput,
+        status: proposal.estimateStatus,
+        projection: {
+          ...runtimeOutput.projection,
+          status: proposal.estimateStatus,
+        },
+      },
       proposal,
       editorUrl: `/estimates/new?discoverySessionId=${session.id}${session.projectId ? `&projectId=${session.projectId}` : ''}`,
     });

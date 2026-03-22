@@ -71,7 +71,9 @@ export async function POST(
             generationNotes: serializeGenerationNotes(
               parsed.notes,
               nextStatus,
-              parsed.integratedCostBuckets
+              parsed.integratedCostBuckets,
+              parsed.commercialEstimateProjection,
+              parsed.commercialRuntimeOutput
             ),
           },
         },

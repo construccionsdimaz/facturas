@@ -5,19 +5,26 @@ import type { PricingResult } from './pricing-types';
 import type { RecipeResult } from './recipe-types';
 import type { EstimateStatusSnapshot } from './estimate-status';
 import {
-  applyCommercialEstimateProjectionToProposal,
   buildCommercialEstimateProjection,
   type CommercialEstimateProjection,
   type IntegratedEstimateBucketCode,
   type IntegratedEstimateCostBucket,
 } from './commercial-estimate-projection';
+import {
+  adaptCommercialRuntimeOutputToLegacyProposal,
+  buildCommercialEstimateRuntimeOutput,
+  type CommercialEstimateRuntimeOutput,
+} from './commercial-estimate-runtime';
 
 export type { CommercialEstimateProjection, IntegratedEstimateBucketCode, IntegratedEstimateCostBucket };
+export type { CommercialEstimateRuntimeOutput };
 
 type IntegratedProposalResult = {
+  runtimeOutput: CommercialEstimateRuntimeOutput;
   proposal: GeneratedEstimateProposal & {
     integratedCostBuckets: IntegratedEstimateCostBucket[];
     commercialEstimateProjection: CommercialEstimateProjection;
+    commercialRuntimeOutput: CommercialEstimateRuntimeOutput;
   };
 };
 
@@ -39,8 +46,13 @@ export function integratePricingIntoEstimateProposal(
     executionContext: options?.executionContext,
     estimateStatus: options?.estimateStatus || proposal.estimateStatus,
   });
+  const runtimeOutput = buildCommercialEstimateRuntimeOutput({
+    projection,
+    baseProposal: proposal,
+  });
 
   return {
-    proposal: applyCommercialEstimateProjectionToProposal(proposal, projection),
+    runtimeOutput,
+    proposal: adaptCommercialRuntimeOutputToLegacyProposal(runtimeOutput, proposal),
   };
 }

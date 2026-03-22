@@ -418,8 +418,17 @@ function NewEstimateContent() {
           estimateStatus: internalProposal.estimateStatus,
           integratedCostBuckets: internalProposal.integratedCostBuckets || [],
           commercialEstimateProjection: internalProposal.commercialEstimateProjection || null,
-          summary: internalProposal.summary,
-          lines: internalProposal.lines,
+          commercialRuntimeOutput: internalProposal.commercialRuntimeOutput || null,
+          summary: internalProposal.commercialRuntimeOutput?.summary || internalProposal.summary,
+          lines: (internalProposal.commercialRuntimeOutput?.lines || internalProposal.lines).map((line: any) => ({
+            ...line,
+            laborHours: 'laborHours' in line ? line.laborHours : 0,
+            laborCost: 'laborCost' in line ? line.laborCost : 0,
+            materialCost: 'materialCost' in line ? line.materialCost : 0,
+            associatedCost: 'associatedCost' in line ? line.associatedCost : 0,
+            kind: 'kind' in line ? line.kind : line.provisional ? 'PROVISIONAL' : 'DIRECT',
+            source: 'source' in line ? line.source : internalProposal.source,
+          })),
         } : undefined,
       };
       const res = await fetch('/api/estimates', {

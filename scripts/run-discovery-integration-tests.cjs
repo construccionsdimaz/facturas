@@ -344,11 +344,18 @@ async function run() {
     structuralWorks: false,
   });
   const parametricIntegrated = integratePricingIntoEstimateProposal(parametricProposal);
+  assert(parametricIntegrated.runtimeOutput);
   assert.equal(parametricIntegrated.proposal.commercialEstimateProjection.source, 'PARAMETRIC_FALLBACK');
+  assert.equal(parametricIntegrated.runtimeOutput.source, 'PARAMETRIC_FALLBACK');
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.costSource === 'PARAMETRIC_MASTER'));
   assert(parametricIntegrated.proposal.lines.every((line) => line.economicStatus.commercialPriceProvisional === false));
   assert(
     parametricIntegrated.proposal.commercialEstimateProjection.commercialLines.every(
+      (line) => line.generatedFrom === 'LEGACY_FALLBACK'
+    )
+  );
+  assert(
+    parametricIntegrated.runtimeOutput.lines.every(
       (line) => line.generatedFrom === 'LEGACY_FALLBACK'
     )
   );
@@ -780,7 +787,9 @@ async function run() {
     structuralWorks: measuredInput.structuralWorks,
   });
   const integratedTechnical = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).proposal;
+  const integratedTechnicalRuntime = integratePricingIntoEstimateProposal(technicalProposal, inferredPricing).runtimeOutput;
   assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnical.commercialEstimateProjection.source));
+  assert(['TECHNICAL_PIPELINE', 'HYBRID'].includes(integratedTechnicalRuntime.source));
   assert(integratedTechnical.integratedCostBuckets.length > 0);
   assert(
     integratedTechnical.integratedCostBuckets.some(
@@ -801,6 +810,11 @@ async function run() {
         line.costSource === 'RECIPE_PRICED' &&
         line.supportedSolutionCodes.length > 0 &&
         line.generatedFrom === 'TECHNICAL'
+    )
+  );
+  assert(
+    integratedTechnicalRuntime.lines.some(
+      (line) => line.costSource === 'RECIPE_PRICED' && line.generatedFrom === 'TECHNICAL'
     )
   );
   assert(
@@ -877,7 +891,9 @@ async function run() {
   assert.equal(issuedClosed.commercialStatus, 'ISSUED_FINAL');
 
   const integratedMixed = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).proposal;
+  const integratedMixedRuntime = integratePricingIntoEstimateProposal(technicalProposal, bathAdaptedPricing).runtimeOutput;
   assert.equal(integratedMixed.commercialEstimateProjection.source, 'HYBRID');
+  assert.equal(integratedMixedRuntime.source, 'HYBRID');
   assert(
     integratedMixed.integratedCostBuckets.some(
       (bucket) =>
@@ -892,6 +908,11 @@ async function run() {
         line.generatedFrom === 'HYBRID' &&
         line.provisional === true &&
         line.pricingLineIds.length > 0
+    )
+  );
+  assert(
+    integratedMixedRuntime.lines.some(
+      (line) => line.generatedFrom === 'HYBRID' && line.provisional === true
     )
   );
   assert(
@@ -971,13 +992,16 @@ async function run() {
     estimateStatus: integratedTechnical.estimateStatus,
     integratedCostBuckets: integratedTechnical.integratedCostBuckets,
     commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
+    commercialRuntimeOutput: integratedTechnicalRuntime,
     summary: integratedTechnical.summary,
     lines: integratedTechnical.lines,
   });
   assert(normalizedInternalAnalysis);
   assert.equal(normalizedInternalAnalysis.commercialEstimateProjection.source, integratedTechnical.commercialEstimateProjection.source);
+  assert.equal(normalizedInternalAnalysis.commercialRuntimeOutput.source, integratedTechnicalRuntime.source);
   const createPayload = toEstimateInternalAnalysisCreate(normalizedInternalAnalysis);
   assert(createPayload.generationNotes.commercialEstimateProjection);
+  assert(createPayload.generationNotes.commercialRuntimeOutput);
 
   const convertedLocked = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',

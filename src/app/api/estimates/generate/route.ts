@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { generateEstimateProposal } from '@/lib/automation/estimate-generator';
+import { integratePricingIntoEstimateProposal } from '@/lib/estimate/estimate-integration';
 
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const proposal = await generateEstimateProposal({
+    const parametricProposal = await generateEstimateProposal({
       workType: body.workType,
       siteType: body.siteType,
       scopeType: body.scopeType,
@@ -22,7 +23,12 @@ export async function POST(request: Request) {
       structuralWorks: Boolean(body.structuralWorks),
     });
 
-    return NextResponse.json(proposal);
+    const { proposal, runtimeOutput } = integratePricingIntoEstimateProposal(parametricProposal);
+
+    return NextResponse.json({
+      commercialRuntimeOutput: runtimeOutput,
+      proposal,
+    });
   } catch (error) {
     console.error('Error generating estimate proposal:', error);
     return NextResponse.json(

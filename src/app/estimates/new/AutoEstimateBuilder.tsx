@@ -10,6 +10,7 @@ import type {
   CommercialEstimateProjection,
   IntegratedEstimateCostBucket,
 } from '@/lib/estimate/commercial-estimate-projection';
+import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
 
 export type ProposalLine = {
   chapter: string;
@@ -55,6 +56,7 @@ export type Proposal = {
   estimateStatus: EstimateStatusSnapshot;
   integratedCostBuckets?: IntegratedEstimateCostBucket[];
   commercialEstimateProjection?: CommercialEstimateProjection;
+  commercialRuntimeOutput?: CommercialEstimateRuntimeOutput;
 };
 
 export type EstimateItem = {
@@ -71,18 +73,20 @@ export function mapProposalToEstimateDraft(proposal: Proposal): {
   chapters: string[];
   proposal: Proposal;
 } {
-  const items: EstimateItem[] = proposal.lines.map((line, index) => ({
+  const sourceLines = proposal.commercialRuntimeOutput?.lines || proposal.lines;
+  const sourceChapters = proposal.commercialRuntimeOutput?.chapters || proposal.chapters;
+  const items: EstimateItem[] = sourceLines.map((line, index) => ({
     id: `auto-${index + 1}`,
-    description: `${line.description} (${line.kind})`,
+    description: `${line.description}${'kind' in line ? ` (${line.kind})` : line.provisional ? ' (PROVISIONAL)' : ''}`,
     quantity: line.quantity,
-    price: line.commercialPrice / Math.max(line.quantity, 0.0001),
+    price: (line.commercialPrice ?? 0) / Math.max(line.quantity, 0.0001),
     unit: line.unit,
     chapter: line.chapter,
   }));
 
   return {
     items,
-    chapters: proposal.chapters,
+    chapters: sourceChapters,
     proposal,
   };
 }
@@ -169,7 +173,7 @@ export default function AutoEstimateBuilder({
       }
 
       const data = await res.json();
-      setProposal(data);
+      setProposal(data.proposal || data);
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : 'Error generando propuesta';
       alert(message);
@@ -378,9 +382,9 @@ export default function AutoEstimateBuilder({
 	            <div style={{ fontWeight: 700 }}>
 	              {proposal.source || 'MASTER'}{proposal.typologyCode ? ` | ${proposal.typologyCode}` : ''}
 	            </div>
-              {proposal.commercialEstimateProjection && (
+              {(proposal.commercialRuntimeOutput || proposal.commercialEstimateProjection) && (
                 <div style={{ marginTop: '6px', fontSize: '13px', color: 'var(--text-secondary)' }}>
-                  Proyeccion comercial: {proposal.commercialEstimateProjection.source}
+                  Proyeccion comercial: {proposal.commercialRuntimeOutput?.source || proposal.commercialEstimateProjection?.source}
                 </div>
               )}
 	            {proposal.notes.length > 0 && (
@@ -393,26 +397,26 @@ export default function AutoEstimateBuilder({
 	          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px' }}>
             <div className="glass-panel" style={{ padding: '14px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Coste interno</div>
-              <strong>{formatCurrency(proposal.summary.internalCost)}</strong>
+              <strong>{formatCurrency(proposal.commercialRuntimeOutput?.summary.internalCost || proposal.summary.internalCost)}</strong>
             </div>
             <div className="glass-panel" style={{ padding: '14px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Margen</div>
-              <strong>{formatCurrency(proposal.summary.marginAmount)}</strong>
+              <strong>{formatCurrency(proposal.commercialRuntimeOutput?.summary.marginAmount || proposal.summary.marginAmount)}</strong>
             </div>
             <div className="glass-panel" style={{ padding: '14px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Subtotal comercial</div>
-              <strong>{formatCurrency(proposal.summary.commercialSubtotal)}</strong>
+              <strong>{formatCurrency(proposal.commercialRuntimeOutput?.summary.commercialSubtotal || proposal.summary.commercialSubtotal)}</strong>
             </div>
             <div className="glass-panel" style={{ padding: '14px' }}>
               <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>Total con IVA</div>
-              <strong>{formatCurrency(proposal.summary.commercialTotal)}</strong>
+              <strong>{formatCurrency(proposal.commercialRuntimeOutput?.summary.commercialTotal || proposal.summary.commercialTotal)}</strong>
             </div>
           </div>
 
           <div>
             <h4 style={{ marginBottom: '8px' }}>Desglose automatico</h4>
             <div style={{ display: 'grid', gap: '8px' }}>
-	              {proposal.lines.map((line) => (
+	              {(proposal.commercialRuntimeOutput?.lines || proposal.lines).map((line) => (
 	                <div key={`${line.chapter}-${line.description}`} className="glass-panel" style={{ padding: '12px' }}>
 	                  <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px' }}>
 	                    <div>
@@ -422,12 +426,13 @@ export default function AutoEstimateBuilder({
                           {line.economicStatus.economicStatus} | {line.economicStatus.priceSource} | {line.economicStatus.costSource}
                           {line.economicStatus.pendingValidation ? ' | Pendiente de validacion' : ''}
                           {line.economicStatus.commercialPriceProvisional ? ' | Comercial provisional' : ''}
+                          {'generatedFrom' in line ? ` | ${line.generatedFrom}` : ''}
                         </div>
 	                    </div>
 	                    <div style={{ textAlign: 'right' }}>
 	                      <div>{line.quantity.toFixed(2)} {line.unit}</div>
                       <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                        MO {formatCurrency(line.laborCost)} | Mat {formatCurrency(line.materialCost)} | Asoc {formatCurrency(line.associatedCost)}
+                        MO {formatCurrency('laborCost' in line ? line.laborCost : 0)} | Mat {formatCurrency('materialCost' in line ? line.materialCost : 0)} | Asoc {formatCurrency('associatedCost' in line ? line.associatedCost : 0)}
                       </div>
                     </div>
                   </div>
@@ -436,11 +441,11 @@ export default function AutoEstimateBuilder({
             </div>
           </div>
 
-          {(proposal.commercialEstimateProjection?.buckets || proposal.integratedCostBuckets)?.length ? (
+          {(proposal.commercialRuntimeOutput?.projection?.buckets || proposal.commercialEstimateProjection?.buckets || proposal.integratedCostBuckets)?.length ? (
             <div style={{ marginTop: '20px' }}>
               <h4 style={{ marginBottom: '8px' }}>Buckets tecnicos integrados</h4>
               <div style={{ display: 'grid', gap: '8px' }}>
-                {(proposal.commercialEstimateProjection?.buckets || proposal.integratedCostBuckets || []).map((bucket) => (
+                {(proposal.commercialRuntimeOutput?.projection?.buckets || proposal.commercialEstimateProjection?.buckets || proposal.integratedCostBuckets || []).map((bucket) => (
                   <div key={bucket.bucketCode} className="glass-panel" style={{ padding: '12px' }}>
                     <div style={{ fontWeight: 600 }}>{bucket.bucketCode}</div>
                     <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>

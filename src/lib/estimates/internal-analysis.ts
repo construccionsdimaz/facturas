@@ -10,6 +10,7 @@ import type {
   CommercialEstimateProjection,
   IntegratedEstimateCostBucket,
 } from '@/lib/estimate/commercial-estimate-projection';
+import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
 
 export type InternalAnalysisLineInput = {
   chapter: string;
@@ -54,6 +55,7 @@ export type EstimateInternalAnalysisInput = {
   estimateStatus?: EstimateStatusSnapshot | null;
   integratedCostBuckets?: IntegratedEstimateCostBucket[];
   commercialEstimateProjection?: CommercialEstimateProjection | null;
+  commercialRuntimeOutput?: CommercialEstimateRuntimeOutput | null;
   summary: InternalAnalysisSummaryInput;
   lines: InternalAnalysisLineInput[];
 };
@@ -129,6 +131,12 @@ export function normalizeInternalAnalysis(input: any): EstimateInternalAnalysisI
         : input.commercialEstimateProjection && typeof input.commercialEstimateProjection === 'object'
           ? (input.commercialEstimateProjection as CommercialEstimateProjection)
           : null,
+    commercialRuntimeOutput:
+      parsedNotes.commercialRuntimeOutput && typeof parsedNotes.commercialRuntimeOutput === 'object'
+        ? (parsedNotes.commercialRuntimeOutput as CommercialEstimateRuntimeOutput)
+        : input.commercialRuntimeOutput && typeof input.commercialRuntimeOutput === 'object'
+          ? (input.commercialRuntimeOutput as CommercialEstimateRuntimeOutput)
+          : null,
     summary,
     lines,
   };
@@ -152,7 +160,8 @@ export function toEstimateInternalAnalysisCreate(input: EstimateInternalAnalysis
       input.notes,
       input.estimateStatus,
       input.integratedCostBuckets,
-      input.commercialEstimateProjection
+      input.commercialEstimateProjection,
+      input.commercialRuntimeOutput
     ),
     lines: {
       create: input.lines.map((line) => ({
