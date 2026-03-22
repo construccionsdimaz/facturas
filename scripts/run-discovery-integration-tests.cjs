@@ -63,6 +63,7 @@ async function run() {
     revokeEstimateAcceptance,
   } = require(path.join(srcRoot, 'lib/estimate/estimate-status.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
+  const { resolveProjectSourcingPolicy } = require(path.join(srcRoot, 'lib/procurement/project-sourcing-policy.ts'));
   const { buildProcurementProjection } = require(path.join(srcRoot, 'lib/procurement/procurement-projection.ts'));
   const { buildControlProjection } = require(path.join(srcRoot, 'lib/control/control-projection.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
@@ -1437,6 +1438,67 @@ async function run() {
   assert(restrictedBathTile);
   assert.equal(restrictedBathTile.materialPricing[0].priceSource, 'CATALOG_REFERENCE');
 
+  const resolvedFastestProjectPolicy = resolveProjectSourcingPolicy({
+    executionContext: measuredInput.executionContext,
+    projectPolicy: {
+      strategy: 'FASTEST',
+      allowedSupplierNames: ['Ceramica Fast', 'Ceramica Preferida'],
+      preferredSuppliersByFamily: {
+        CERAMICS: ['Ceramica Preferida'],
+      },
+      useOnlyPreferredByFamily: {
+        CERAMICS: false,
+      },
+      zoneHint: 'Barcelona',
+      maxLeadTimeDays: 3,
+      updatedAt: '2026-03-22T10:00:00.000Z',
+    },
+  });
+  assert.equal(resolvedFastestProjectPolicy.source, 'PROJECT_OVERRIDE');
+  assert.equal(resolvedFastestProjectPolicy.policy.strategy, 'FASTEST');
+  assert.deepEqual(resolvedFastestProjectPolicy.policy.allowedSupplierNames, ['Ceramica Fast', 'Ceramica Preferida']);
+
+  const projectFastestPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: resolvedFastestProjectPolicy.policy,
+    }
+  );
+  const projectFastestBathTile = projectFastestPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(projectFastestBathTile);
+  assert.equal(projectFastestBathTile.materialPricing[0].supplierName, 'Ceramica Fast');
+  assert.equal(projectFastestBathTile.materialPricing[0].sourcingStrategy, 'FASTEST');
+
+  const resolvedPreferredProjectPolicy = resolveProjectSourcingPolicy({
+    executionContext: measuredInput.executionContext,
+    projectPolicy: {
+      strategy: 'PREFERRED',
+      preferredSuppliersByFamily: {
+        CERAMICS: ['Ceramica Preferida'],
+      },
+      useOnlyPreferredByFamily: {
+        CERAMICS: true,
+      },
+    },
+  });
+
+  const projectPreferredPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: resolvedPreferredProjectPolicy.policy,
+    }
+  );
+  const projectPreferredBathTile = projectPreferredPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(projectPreferredBathTile);
+  assert.equal(projectPreferredBathTile.materialPricing[0].supplierName, 'Ceramica Preferida');
+  assert(projectPreferredBathTile.materialPricing[0].sourcingReason.includes('preferido'));
+
   const confirmedPricing = await buildPricingResult(
     measuredInput.recipeResult,
     measuredInput.executionContext,
@@ -1990,6 +2052,33 @@ async function run() {
   assert(
     canonicalProcurementProjection.procurementLines.some(
       (line) => line.supportedSolutionCodes.includes('PLUMBING_WET_ROOM_PLUS') && Boolean(line.supplierOfferId)
+    )
+  );
+  const preferredOnlyProjectPolicy = resolveProjectSourcingPolicy({
+    executionContext: measuredInput.executionContext,
+    projectPolicy: {
+      strategy: 'PREFERRED',
+      preferredSuppliersByFamily: {
+        CERAMICS: ['Ceramica Preferida'],
+      },
+      useOnlyPreferredByFamily: {
+        CERAMICS: true,
+      },
+    },
+  });
+  const policyDrivenProcurementProjection = await buildProcurementProjection({
+    executionContext: measuredInput.executionContext,
+    recipeResult: measuredInput.recipeResult,
+    pricingResult: projectPreferredPricing,
+    sourcingPolicy: preferredOnlyProjectPolicy.policy,
+    includeDiscoveryHints: false,
+    materialLookupOverride: procurementLookupOverride,
+  });
+  assert(
+    policyDrivenProcurementProjection.procurementLines.some(
+      (line) =>
+        line.materialCode === 'ACA-WALL-STD' &&
+        line.sourcingStrategy === 'PREFERRED'
     )
   );
   const canonicalControlProjection = buildControlProjection({

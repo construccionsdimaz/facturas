@@ -5,6 +5,7 @@ import {
   buildProcurementProjection,
   procurementProjectionLineToProjectSupply,
 } from '@/lib/procurement/procurement-projection';
+import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
 
 function makeExistingKey(params: {
   projectActivityId?: string | null;
@@ -76,11 +77,16 @@ export async function POST(
     const latestEstimate = project.estimates[0];
     const derivedInput = (latestEstimate?.discoverySession?.derivedInput as any) || null;
 
+    const resolvedSourcingPolicy = resolveProjectSourcingPolicy({
+      executionContext: derivedInput?.executionContext || null,
+      projectPolicy: project.sourcingPolicy,
+    });
+
     const procurementProjection = await buildProcurementProjection({
       executionContext: derivedInput?.executionContext || null,
       recipeResult: derivedInput?.recipeResult || null,
       pricingResult: derivedInput?.pricingResult || null,
-      sourcingPolicy: derivedInput?.pricingResult?.sourcingPolicy || undefined,
+      sourcingPolicy: resolvedSourcingPolicy.policy,
       includeDiscoveryHints: mode !== 'estimate',
       projectActivities: activities.map((activity) => ({
         id: activity.id,
@@ -171,6 +177,8 @@ export async function POST(
     return NextResponse.json({
       created: created.length,
       source: procurementProjection.source,
+      sourcingPolicySource: resolvedSourcingPolicy.source,
+      sourcingStrategy: resolvedSourcingPolicy.policy.strategy,
       supplies: created,
       issues: uniqueIssues(issues),
       discoveryContextUsed: Boolean(derivedInput?.executionContext),

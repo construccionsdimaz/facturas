@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
+import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
 
 export async function GET(
   req: Request,
@@ -69,12 +70,17 @@ export async function POST(
         };
 
     const derivedInput = (latestEstimate?.discoverySession?.derivedInput as any) || null;
+    const resolvedSourcingPolicy = resolveProjectSourcingPolicy({
+      executionContext: derivedInput?.executionContext || null,
+      projectPolicy: project?.sourcingPolicy,
+    });
     const procurementProjection =
       derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
         ? await buildProcurementProjection({
             executionContext: derivedInput?.executionContext || null,
             recipeResult: derivedInput?.recipeResult || null,
             pricingResult: derivedInput?.pricingResult || null,
+            sourcingPolicy: resolvedSourcingPolicy.policy,
             includeDiscoveryHints: true,
             projectActivities: activities.map((activity: any) => ({
               id: activity.id,
@@ -100,6 +106,7 @@ export async function POST(
       },
       commercialEstimateProjection: commercialReadModel.commercialEstimateProjection,
       commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput,
+      sourcingPolicy: resolvedSourcingPolicy,
       procurementProjection,
       activities: activities.map((a: any) => ({
         id: a.id,

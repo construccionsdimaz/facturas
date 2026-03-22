@@ -7,6 +7,7 @@ import { generateEstimateProposal } from '@/lib/automation/estimate-generator';
 import { buildPricingResult } from '@/lib/estimate/pricing-engine';
 import { buildEstimateStatusFromPipeline } from '@/lib/estimate/estimate-status';
 import { integratePricingIntoEstimateProposal } from '@/lib/estimate/estimate-integration';
+import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
 
 export async function POST(
   request: Request,
@@ -51,9 +52,17 @@ export async function POST(
       evaluation.confidenceLevel
     );
 
+    const resolvedSourcingPolicy = resolveProjectSourcingPolicy({
+      executionContext: derivedInput.executionContext,
+      projectPolicy: session.project?.sourcingPolicy,
+    });
+
     const pricingResult = await buildPricingResult(
       derivedInput.recipeResult,
-      derivedInput.executionContext
+      derivedInput.executionContext,
+      {
+        sourcingPolicyOverride: resolvedSourcingPolicy.policy,
+      },
     );
 
     derivedInput.pricingResult = pricingResult;

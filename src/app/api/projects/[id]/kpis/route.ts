@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
 import { buildControlProjection } from '@/lib/control/control-projection';
+import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
 
 function getBaselineActivities(snapshotData: any) {
   if (Array.isArray(snapshotData)) return snapshotData;
@@ -112,12 +113,20 @@ export async function GET(
           commercialEstimateProjection: null,
         };
     const derivedInput = (latestEstimate?.discoverySession?.derivedInput as any) || null;
+    const resolvedSourcingPolicy = resolveProjectSourcingPolicy({
+      executionContext: derivedInput?.executionContext || null,
+      projectPolicy: (await (db as any).project.findUnique({
+        where: { id },
+        select: { sourcingPolicy: true },
+      }))?.sourcingPolicy,
+    });
     const procurementProjection =
       derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
         ? await buildProcurementProjection({
             executionContext: derivedInput?.executionContext || null,
             recipeResult: derivedInput?.recipeResult || null,
             pricingResult: derivedInput?.pricingResult || null,
+            sourcingPolicy: resolvedSourcingPolicy.policy,
             includeDiscoveryHints: true,
             projectActivities: activities.map((activity: any) => ({
               id: activity.id,

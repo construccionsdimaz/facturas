@@ -4,6 +4,13 @@
 
 import { useState, useEffect } from 'react';
 import styles from '@/app/invoices/page.module.css';
+import {
+  SOURCING_FAMILIES,
+  SOURCING_STRATEGIES,
+  type ProjectSourcingPolicy,
+  type SourcingFamily,
+  type SourcingStrategy,
+} from '@/lib/procurement/sourcing-policy';
 
 interface MaterialOption {
   id: string;
@@ -67,6 +74,37 @@ interface Supply {
   observations?: string;
 }
 
+type SourcingPolicyResponse = {
+  policy: ProjectSourcingPolicy & { updatedAt?: string | null };
+  defaultPolicy: ProjectSourcingPolicy;
+  hasProjectOverride: boolean;
+  source: 'PROJECT_OVERRIDE' | 'DEFAULT';
+};
+
+function emptyPolicy(): ProjectSourcingPolicy {
+  return {
+    strategy: 'BALANCED',
+    allowedSupplierIds: [],
+    allowedSupplierNames: [],
+    preferredSuppliersByFamily: {},
+    useOnlyPreferredSuppliers: false,
+    useOnlyPreferredByFamily: {},
+    zoneHint: '',
+    maxLeadTimeDays: null,
+  };
+}
+
+function parseCsv(text: string) {
+  return Array.from(
+    new Set(
+      text
+        .split(',')
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  );
+}
+
 export default function ProjectProcurementTab({ projectId }: { projectId: string }) {
   const [supplies, setSupplies] = useState<Supply[]>([]);
   const [materials, setMaterials] = useState<MaterialOption[]>([]);
@@ -78,6 +116,10 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
   const [activities, setActivities] = useState<any[]>([]);
   const [locations, setLocations] = useState<any[]>([]);
   const [wbsItems, setWbsItems] = useState<any[]>([]);
+  const [policyState, setPolicyState] = useState<SourcingPolicyResponse | null>(null);
+  const [policyForm, setPolicyForm] = useState<ProjectSourcingPolicy>(emptyPolicy());
+  const [policyMessage, setPolicyMessage] = useState<string | null>(null);
+  const [isSavingPolicy, setIsSavingPolicy] = useState(false);
 
   const [formData, setFormData] = useState<any>({
     description: '',
@@ -129,6 +171,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
   useEffect(() => {
     fetchData();
     fetchHelpers();
+    fetchPolicy();
   }, [projectId]);
 
   const fetchData = async () => {
@@ -155,6 +198,66 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
     } catch (e) { console.error(e); }
   };
 
+  const fetchPolicy = async () => {
+    try {
+      const res = await fetch(`/api/projects/${projectId}/sourcing-policy`);
+      if (!res.ok) return;
+      const data = (await res.json()) as SourcingPolicyResponse;
+      setPolicyState(data);
+      setPolicyForm({
+        strategy: data.policy.strategy,
+        allowedSupplierIds: data.policy.allowedSupplierIds || [],
+        allowedSupplierNames: data.policy.allowedSupplierNames || [],
+        preferredSuppliersByFamily: data.policy.preferredSuppliersByFamily || {},
+        useOnlyPreferredSuppliers: Boolean(data.policy.useOnlyPreferredSuppliers),
+        useOnlyPreferredByFamily: data.policy.useOnlyPreferredByFamily || {},
+        zoneHint: data.policy.zoneHint || '',
+        maxLeadTimeDays: data.policy.maxLeadTimeDays ?? null,
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const savePolicy = async () => {
+    setIsSavingPolicy(true);
+    setPolicyMessage(null);
+    try {
+      const payload: ProjectSourcingPolicy = {
+        strategy: policyForm.strategy,
+        allowedSupplierIds: policyForm.allowedSupplierIds?.length ? policyForm.allowedSupplierIds : undefined,
+        allowedSupplierNames: policyForm.allowedSupplierNames?.length ? policyForm.allowedSupplierNames : undefined,
+        preferredSuppliersByFamily: policyForm.preferredSuppliersByFamily,
+        useOnlyPreferredSuppliers: Boolean(policyForm.useOnlyPreferredSuppliers),
+        useOnlyPreferredByFamily: policyForm.useOnlyPreferredByFamily,
+        zoneHint: policyForm.zoneHint || null,
+        maxLeadTimeDays:
+          typeof policyForm.maxLeadTimeDays === 'number' && Number.isFinite(policyForm.maxLeadTimeDays)
+            ? policyForm.maxLeadTimeDays
+            : null,
+      };
+
+      const res = await fetch(`/api/projects/${projectId}/sourcing-policy`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ policy: payload }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'No se pudo guardar la politica de sourcing');
+      }
+
+      const data = (await res.json()) as SourcingPolicyResponse;
+      setPolicyState(data);
+      setPolicyMessage('Politica de sourcing guardada y activa para esta obra.');
+    } catch (error: any) {
+      setPolicyMessage(error.message || 'Error guardando politica de sourcing');
+    } finally {
+      setIsSavingPolicy(false);
+    }
+  };
+
   const handleAutoGenerateSupplies = async () => {
     try {
       const res = await fetch(`/api/projects/${projectId}/supplies/auto`, {
@@ -164,7 +267,7 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
           replaceExisting: false,
           onlyCritical: false,
           mode: autoSource,
-          strategy: 'BALANCED',
+          strategy: policyForm.strategy,
         })
       });
 
@@ -273,9 +376,154 @@ export default function ProjectProcurementTab({ projectId }: { projectId: string
   const critical = supplies.filter(s => s.priority === 'CRITICA' && s.status !== 'RECIBIDA').length;
   const delayed = supplies.filter(s => s.scheduleRisk === 'RETRASO' || s.scheduleRisk === 'SIN_OFERTA').length;
   const received = supplies.filter(s => s.status === 'RECIBIDA').length;
+  const supplierNames = Array.from(
+    new Set(
+      materials.flatMap((material) => material.offers.map((offer) => offer.supplier.name)).filter(Boolean),
+    ),
+  ).sort((left, right) => left.localeCompare(right));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+      <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+          <div>
+            <h3 style={{ margin: 0 }}>Politica de sourcing activa</h3>
+            <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginTop: '6px' }}>
+              {policyState?.source === 'PROJECT_OVERRIDE'
+                ? 'Override de obra activo. Pricing y procurement lo usan de forma prioritaria.'
+                : 'La obra esta usando defaults del motor hasta que definas un override propio.'}
+            </div>
+          </div>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <span className="status-badge" style={{ background: 'rgba(59,130,246,0.18)', color: '#93c5fd' }}>
+              {policyForm.strategy}
+            </span>
+            <span className="status-badge" style={{ background: policyState?.source === 'PROJECT_OVERRIDE' ? 'rgba(16,185,129,0.18)' : 'rgba(245,158,11,0.18)', color: policyState?.source === 'PROJECT_OVERRIDE' ? '#86efac' : '#fcd34d' }}>
+              {policyState?.source === 'PROJECT_OVERRIDE' ? 'PROJECT OVERRIDE' : 'DEFAULT'}
+            </span>
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px' }}>
+          <div className="formGroup">
+            <label>Estrategia de seleccion</label>
+            <select
+              className="input-modern"
+              value={policyForm.strategy}
+              onChange={(e) => setPolicyForm({ ...policyForm, strategy: e.target.value as SourcingStrategy })}
+            >
+              {SOURCING_STRATEGIES.map((strategy) => (
+                <option key={strategy} value={strategy}>{strategy}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="formGroup">
+            <label>Zone hint / zona logistica</label>
+            <input
+              className="input-modern"
+              value={policyForm.zoneHint || ''}
+              onChange={(e) => setPolicyForm({ ...policyForm, zoneHint: e.target.value })}
+              placeholder="Barcelona, Baix Llobregat, Madrid norte..."
+            />
+          </div>
+
+          <div className="formGroup">
+            <label>Proveedores permitidos (coma separada)</label>
+            <input
+              className="input-modern"
+              value={(policyForm.allowedSupplierNames || []).join(', ')}
+              onChange={(e) => setPolicyForm({ ...policyForm, allowedSupplierNames: parseCsv(e.target.value) })}
+              list={`supplier-options-${projectId}`}
+              placeholder="Acabats Mediterrani, Electro BCN..."
+            />
+            <datalist id={`supplier-options-${projectId}`}>
+              {supplierNames.map((name) => <option key={name} value={name} />)}
+            </datalist>
+          </div>
+
+          <div className="formGroup">
+            <label>Lead time maximo (dias)</label>
+            <input
+              type="number"
+              className="input-modern"
+              value={policyForm.maxLeadTimeDays ?? ''}
+              onChange={(e) => setPolicyForm({ ...policyForm, maxLeadTimeDays: e.target.value ? Number(e.target.value) : null })}
+              placeholder="Sin limite"
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '12px' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px' }}>
+            <input
+              type="checkbox"
+              checked={Boolean(policyForm.useOnlyPreferredSuppliers)}
+              onChange={(e) => setPolicyForm({ ...policyForm, useOnlyPreferredSuppliers: e.target.checked })}
+            />
+            Usar solo proveedores preferidos cuando exista preferencia definida
+          </label>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px' }}>
+          {SOURCING_FAMILIES.map((family) => (
+            <div key={family} style={{ padding: '14px', border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center' }}>
+                <strong style={{ fontSize: '13px' }}>{family}</strong>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(policyForm.useOnlyPreferredByFamily?.[family])}
+                    onChange={(e) =>
+                      setPolicyForm({
+                        ...policyForm,
+                        useOnlyPreferredByFamily: {
+                          ...(policyForm.useOnlyPreferredByFamily || {}),
+                          [family]: e.target.checked,
+                        },
+                      })
+                    }
+                  />
+                  Solo preferidos
+                </label>
+              </div>
+              <input
+                className="input-modern"
+                value={(policyForm.preferredSuppliersByFamily?.[family] || []).join(', ')}
+                onChange={(e) =>
+                  setPolicyForm({
+                    ...policyForm,
+                    preferredSuppliersByFamily: {
+                      ...(policyForm.preferredSuppliersByFamily || {}),
+                      [family]: parseCsv(e.target.value),
+                    },
+                  })
+                }
+                list={`supplier-options-${projectId}`}
+                placeholder="Proveedor preferido por familia"
+              />
+              <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                Default motor: {(policyState?.defaultPolicy.preferredSuppliersByFamily?.[family] || []).join(', ') || 'sin preferencia'}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+            {policyState?.policy.updatedAt
+              ? `Actualizada: ${new Date(policyState.policy.updatedAt).toLocaleString()}`
+              : 'Aun sin persistencia explicita en la obra; se aplican defaults.'}
+          </div>
+          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            {policyMessage && <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>{policyMessage}</span>}
+            <button className="btn-primary" onClick={savePolicy} disabled={isSavingPolicy}>
+              {isSavingPolicy ? 'Guardando...' : 'Guardar politica'}
+            </button>
+          </div>
+        </div>
+      </div>
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
         <div className="glass-panel" style={{ padding: '24px', textAlign: 'center' }}>
           <div style={{ fontSize: '32px', fontWeight: 'bold' }}>{total}</div>

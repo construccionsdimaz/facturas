@@ -326,6 +326,8 @@ model Project {
   observations       String?
   setupStatus        String    @default("INCOMPLETE") // INCOMPLETE, IN_PREPARATION, READY_FOR_PLANNING, VALIDATED
   status             String    @default("ACTIVE") // ACTIVE, COMPLETED
+  sourcingPolicy     Json?
+  sourcingPolicyUpdatedAt DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

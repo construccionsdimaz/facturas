@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { readCommercialEstimateReadModel } from '@/lib/estimates/internal-analysis';
 import { buildProcurementProjection } from '@/lib/procurement/procurement-projection';
 import { buildControlProjection } from '@/lib/control/control-projection';
+import { resolveProjectSourcingPolicy } from '@/lib/procurement/project-sourcing-policy';
 
 export async function GET(
   req: Request,
@@ -57,12 +58,17 @@ export async function GET(
         };
 
     const derivedInput = (latestEstimate?.discoverySession?.derivedInput as any) || null;
+    const resolvedSourcingPolicy = resolveProjectSourcingPolicy({
+      executionContext: derivedInput?.executionContext || null,
+      projectPolicy: project.sourcingPolicy,
+    });
     const procurementProjection =
       derivedInput?.executionContext || derivedInput?.recipeResult || derivedInput?.pricingResult
         ? await buildProcurementProjection({
             executionContext: derivedInput?.executionContext || null,
             recipeResult: derivedInput?.recipeResult || null,
             pricingResult: derivedInput?.pricingResult || null,
+            sourcingPolicy: resolvedSourcingPolicy.policy,
             includeDiscoveryHints: true,
             projectActivities: project.activities.map((activity: any) => ({
               id: activity.id,
@@ -92,6 +98,7 @@ export async function GET(
 
     return NextResponse.json({
       source: controlProjection.source,
+      sourcingPolicy: resolvedSourcingPolicy,
       controlProjection,
     });
   } catch (error) {

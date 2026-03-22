@@ -19,6 +19,27 @@ export type SourcingFamily =
   | 'BATH'
   | 'GENERAL';
 
+export const SOURCING_STRATEGIES: SourcingStrategy[] = [
+  'CHEAPEST',
+  'FASTEST',
+  'BALANCED',
+  'PREFERRED',
+];
+
+export const SOURCING_FAMILIES: SourcingFamily[] = [
+  'CERAMICS',
+  'PAINT',
+  'WATERPROOFING',
+  'PLASTERBOARD',
+  'ELECTRICAL',
+  'PLUMBING',
+  'DRAINAGE',
+  'CARPENTRY',
+  'KITCHEN',
+  'BATH',
+  'GENERAL',
+];
+
 export type ProjectSourcingPolicy = {
   strategy: SourcingStrategy;
   allowedSupplierIds?: string[];
@@ -100,7 +121,13 @@ export function mergeProjectSourcingPolicy(
       ...(base.useOnlyPreferredByFamily || {}),
       ...(override.useOnlyPreferredByFamily || {}),
     },
-    allowedSupplierIds: override.allowedSupplierIds || base.allowedSupplierIds,
-    allowedSupplierNames: override.allowedSupplierNames || base.allowedSupplierNames,
+    allowedSupplierIds:
+      override.allowedSupplierIds !== undefined
+        ? override.allowedSupplierIds
+        : base.allowedSupplierIds,
+    allowedSupplierNames:
+      override.allowedSupplierNames !== undefined
+        ? override.allowedSupplierNames
+        : base.allowedSupplierNames,
   };
 }
