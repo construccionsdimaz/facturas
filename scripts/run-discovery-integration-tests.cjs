@@ -44,6 +44,9 @@ async function run() {
     toEstimateInternalAnalysisCreate,
   } = require(path.join(srcRoot, 'lib/estimates/internal-analysis.ts'));
   const {
+    materializeEstimateOperationalView,
+  } = require(path.join(srcRoot, 'lib/estimate/estimate-runtime-materialization.ts'));
+  const {
     acceptEstimate,
     applyEstimateReadinessOverride,
     assertEstimateCanConvert,
@@ -1030,6 +1033,29 @@ async function run() {
   assert.equal(legacyReadModel.source, 'LEGACY');
   assert.equal(legacyReadModel.commercialRuntimeOutput, null);
   assert.equal(legacyReadModel.commercialEstimateProjection, null);
+  const runtimeMaterialized = materializeEstimateOperationalView({
+    generationNotes: createPayload.generationNotes,
+    legacyItems: [
+      { description: 'Legacy old line', quantity: 1, price: 999, unit: 'ud', chapter: '99 LEGACY' },
+    ],
+  });
+  assert.equal(runtimeMaterialized.source, 'RUNTIME_OUTPUT');
+  assert(runtimeMaterialized.legacyItems.length > 0);
+  assert(
+    runtimeMaterialized.legacyItems.every(
+      (item) => item.chapter !== '99 LEGACY'
+    )
+  );
+  const projectionMaterialized = materializeEstimateOperationalView({
+    commercialEstimateProjection: integratedTechnical.commercialEstimateProjection,
+  });
+  assert.equal(projectionMaterialized.source, 'PROJECTION');
+  const legacyMaterialized = materializeEstimateOperationalView({
+    legacyItems: [
+      { description: 'Legacy fallback', quantity: 2, price: 50, unit: 'ud', chapter: '01 GENERAL' },
+    ],
+  });
+  assert.equal(legacyMaterialized.source, 'LEGACY');
 
   const convertedLocked = buildEstimateStatusFromPipeline({
     technicalSpecStatus: 'READY_FOR_MEASUREMENT',

@@ -5,6 +5,7 @@ import {
   readCommercialEstimateReadModel,
   toEstimateInternalAnalysisCreate,
 } from '@/lib/estimates/internal-analysis';
+import { materializeEstimateOperationalView } from '@/lib/estimate/estimate-runtime-materialization';
 
 export async function GET(
   request: Request,
@@ -60,6 +61,30 @@ export async function PUT(
     const body = await request.json();
     const { number, clientId, subtotal, taxAmount, total, items, status, validUntil, language, issueDate, discoverySessionId } = body;
     const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
+    const operational = materializeEstimateOperationalView({
+      generationNotes: internalAnalysis
+        ? {
+            notes: internalAnalysis.notes,
+            estimateStatus: internalAnalysis.estimateStatus,
+            integratedCostBuckets: internalAnalysis.integratedCostBuckets,
+            commercialEstimateProjection: internalAnalysis.commercialEstimateProjection,
+            commercialRuntimeOutput: internalAnalysis.commercialRuntimeOutput,
+          }
+        : undefined,
+      commercialRuntimeOutput: internalAnalysis?.commercialRuntimeOutput,
+      commercialEstimateProjection: internalAnalysis?.commercialEstimateProjection,
+      estimateStatus: internalAnalysis?.estimateStatus,
+      legacyItems: Array.isArray(items)
+        ? items.map((item: any) => ({
+            description: item.description,
+            quantity: item.quantity,
+            price: item.price,
+            unit: item.unit || 'ud',
+            chapter: item.chapter || '01 GENERAL',
+          }))
+        : [],
+      legacySummary: internalAnalysis?.summary,
+    });
 
     if (discoverySessionId) {
       const session = await db.discoverySession.findUnique({
@@ -105,16 +130,16 @@ export async function PUT(
       data: {
         number,
         clientId,
-        subtotal,
-        taxAmount,
-        total,
+        subtotal: operational.summary.commercialSubtotal,
+        taxAmount: operational.summary.vatAmount,
+        total: operational.summary.commercialTotal,
         status,
         language,
         discoverySessionId: discoverySessionId || null,
         issueDate: issueDate ? new Date(issueDate) : undefined,
         validUntil: validUntil ? new Date(validUntil) : null,
         items: {
-          create: items.map((item: any) => ({
+          create: operational.legacyItems.map((item: any) => ({
             description: item.description,
             quantity: item.quantity,
             price: item.price,

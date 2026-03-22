@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import styles from '@/app/invoices/new/page.module.css';
 import { formatCurrency } from '@/lib/format';
 import { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from '@/app/estimates/new/AutoEstimateBuilder';
+import { materializeEstimateOperationalView } from '@/lib/estimate/estimate-runtime-materialization';
 
 interface EstimateItem {
   id: string;
@@ -68,8 +69,21 @@ export default function EditEstimatePage() {
       setLinkedProjectId(estimate.projectId || '');
       if (estimate.language) setLanguage(estimate.language);
 
-      const loadedItems = estimate.items.map((item: any) => ({
-        id: item.id,
+      const operational = materializeEstimateOperationalView({
+        commercialRuntimeOutput: estimate.commercialRuntimeOutput,
+        commercialEstimateProjection: estimate.commercialEstimateProjection,
+        estimateStatus: estimate.commercialReadModel?.commercialRuntimeOutput?.status || null,
+        legacyItems: estimate.items.map((item: any) => ({
+          description: item.description,
+          quantity: item.quantity,
+          price: item.price,
+          unit: item.unit || 'ud',
+          chapter: item.chapter || '01 GENERAL',
+        })),
+      });
+
+      const loadedItems = operational.legacyItems.map((item: any, index: number) => ({
+        id: `${estimateId}-${index + 1}`,
         description: item.description,
         quantity: item.quantity,
         price: item.price,
@@ -78,7 +92,9 @@ export default function EditEstimatePage() {
       }));
       setItems(loadedItems);
 
-      const uniqueChapters = Array.from(new Set(loadedItems.map((i: any) => i.chapter))) as string[];
+      const uniqueChapters = operational.chapters.length
+        ? operational.chapters
+        : (Array.from(new Set(loadedItems.map((i: any) => i.chapter))) as string[]);
       if (uniqueChapters.length === 0) uniqueChapters.push('01 GENERAL');
       setChapters(uniqueChapters.sort());
 

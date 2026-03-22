@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { normalizeInternalAnalysis, toEstimateInternalAnalysisCreate } from '@/lib/estimates/internal-analysis';
+import { materializeEstimateOperationalView } from '@/lib/estimate/estimate-runtime-materialization';
 
 function sanitizeEstimateItems(items: any[] = []) {
   return items
@@ -43,7 +44,23 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId, discoverySessionId } = body;
     const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
-    const normalizedItems = sanitizeEstimateItems(items);
+    const operational = materializeEstimateOperationalView({
+      generationNotes: internalAnalysis
+        ? {
+            notes: internalAnalysis.notes,
+            estimateStatus: internalAnalysis.estimateStatus,
+            integratedCostBuckets: internalAnalysis.integratedCostBuckets,
+            commercialEstimateProjection: internalAnalysis.commercialEstimateProjection,
+            commercialRuntimeOutput: internalAnalysis.commercialRuntimeOutput,
+          }
+        : undefined,
+      commercialRuntimeOutput: internalAnalysis?.commercialRuntimeOutput,
+      commercialEstimateProjection: internalAnalysis?.commercialEstimateProjection,
+      estimateStatus: internalAnalysis?.estimateStatus,
+      legacyItems: sanitizeEstimateItems(items),
+      legacySummary: internalAnalysis?.summary,
+    });
+    const normalizedItems = sanitizeEstimateItems(operational.legacyItems);
 
     // Resolve Demo User
     let user = await db.user.findFirst();
@@ -137,9 +154,9 @@ export async function POST(request: Request) {
         number,
         userId: user.id,
         clientId,
-        subtotal,
-        taxAmount,
-        total,
+        subtotal: operational.summary.commercialSubtotal,
+        taxAmount: operational.summary.vatAmount,
+        total: operational.summary.commercialTotal,
         language: language || 'ES',
         projectId: projectId || null,
         discoverySessionId: discoverySessionId || null,

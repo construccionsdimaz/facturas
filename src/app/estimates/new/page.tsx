@@ -7,6 +7,7 @@ import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import { formatCurrency } from '@/lib/format';
 import AutoEstimateBuilder, { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from './AutoEstimateBuilder';
 import { applyEstimateReadinessOverride } from '@/lib/estimate/estimate-status';
+import { materializeEstimateOperationalView } from '@/lib/estimate/estimate-runtime-materialization';
 
 interface EstimateItem {
   id: string;
@@ -371,8 +372,30 @@ function NewEstimateContent() {
   const canSaveEstimate = Boolean(selectedClientId) && meaningfulItems.length > 0 && invalidItems.length === 0;
 
   const applyAutoProposal = (payload: { items: EstimateItem[]; chapters: string[]; proposal: GeneratedProposal }) => {
-    setItems(payload.items);
-    setChapters(payload.chapters);
+    const operational = materializeEstimateOperationalView({
+      commercialRuntimeOutput: payload.proposal.commercialRuntimeOutput || null,
+      commercialEstimateProjection: payload.proposal.commercialEstimateProjection || null,
+      estimateStatus: payload.proposal.estimateStatus,
+      legacyItems: payload.items.map((item) => ({
+        description: item.description,
+        quantity: item.quantity,
+        price: item.price,
+        unit: item.unit,
+        chapter: item.chapter,
+      })),
+      legacySummary: payload.proposal.summary,
+    });
+    setItems(
+      operational.legacyItems.map((item, index) => ({
+        id: `${Date.now()}-${index}`,
+        description: item.description,
+        quantity: item.quantity,
+        price: item.price,
+        unit: item.unit,
+        chapter: item.chapter,
+      }))
+    );
+    setChapters(operational.chapters);
     setInternalProposal(payload.proposal);
   };
 
@@ -395,9 +418,9 @@ function NewEstimateContent() {
       const estimateData = {
         number: estimateNumber,
         clientId: selectedClientId,
-        subtotal,
-        taxAmount,
-        total,
+        subtotal: internalProposal?.commercialRuntimeOutput?.summary.commercialSubtotal || subtotal,
+        taxAmount: internalProposal?.commercialRuntimeOutput?.summary.vatAmount || taxAmount,
+        total: internalProposal?.commercialRuntimeOutput?.summary.commercialTotal || total,
         language,
         issueDate: issueDate || undefined,
         validUntil: validUntil || undefined,
@@ -501,6 +524,7 @@ function NewEstimateContent() {
           paymentMethod: settings?.paymentMethod,
           bankAccount: settings?.bankAccount,
           dataProtection: settings?.dataProtection,
+          commercialRuntimeOutput: internalProposal?.commercialRuntimeOutput,
           estimateStatus: internalProposal?.estimateStatus
         }} />
       </div>
