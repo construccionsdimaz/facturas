@@ -80,6 +80,7 @@ export async function POST(
       executionContext: derivedInput?.executionContext || null,
       recipeResult: derivedInput?.recipeResult || null,
       pricingResult: derivedInput?.pricingResult || null,
+      sourcingPolicy: derivedInput?.pricingResult?.sourcingPolicy || undefined,
       includeDiscoveryHints: mode !== 'estimate',
       projectActivities: activities.map((activity) => ({
         id: activity.id,

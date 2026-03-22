@@ -1342,6 +1342,101 @@ async function run() {
     )
   );
 
+  const multiOfferCeramicLookup = {
+    ...pricingLookupOverride,
+    'ACA-WALL-STD': {
+      id: 'mat-wall-std-multi',
+      code: 'ACA-WALL-STD',
+      offers: [
+        { id: 'offer-cer-cheap', supplierId: 'sup-cer-cheap', unitCost: 17.8, unit: 'm2', leadTimeDays: 8, isPreferred: false, supplier: { id: 'sup-cer-cheap', name: 'Ceramica Cheap', address: 'Girona' } },
+        { id: 'offer-cer-fast', supplierId: 'sup-cer-fast', unitCost: 31.5, unit: 'm2', leadTimeDays: 1, isPreferred: false, supplier: { id: 'sup-cer-fast', name: 'Ceramica Fast', address: 'Barcelona' } },
+        { id: 'offer-cer-pref', supplierId: 'sup-cer-pref', unitCost: 22.4, unit: 'm2', leadTimeDays: 2, isPreferred: true, supplier: { id: 'sup-cer-pref', name: 'Ceramica Preferida', address: 'Barcelona' } },
+      ],
+    },
+  };
+
+  const cheapestPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: {
+        strategy: 'CHEAPEST',
+      },
+    }
+  );
+  const cheapestBathTile = cheapestPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(cheapestBathTile);
+  assert.equal(cheapestBathTile.materialPricing[0].supplierName, 'Ceramica Cheap');
+
+  const fastestPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: {
+        strategy: 'FASTEST',
+      },
+    }
+  );
+  const fastestBathTile = fastestPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(fastestBathTile);
+  assert.equal(fastestBathTile.materialPricing[0].supplierName, 'Ceramica Fast');
+
+  const balancedPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: {
+        strategy: 'BALANCED',
+      },
+    }
+  );
+  const balancedBathTile = balancedPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(balancedBathTile);
+  assert.equal(balancedBathTile.materialPricing[0].supplierName, 'Ceramica Preferida');
+
+  const preferredPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: {
+        strategy: 'PREFERRED',
+        preferredSuppliersByFamily: {
+          CERAMICS: ['Ceramica Preferida'],
+        },
+      },
+    }
+  );
+  const preferredBathTile = preferredPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(preferredBathTile);
+  assert.equal(preferredBathTile.materialPricing[0].supplierName, 'Ceramica Preferida');
+  assert(
+    preferredBathTile.materialPricing[0].sourcingReason.includes('proveedor preferido')
+  );
+
+  const restrictedPricing = await buildPricingResult(
+    measuredInput.recipeResult,
+    measuredInput.executionContext,
+    {
+      materialLookupOverride: multiOfferCeramicLookup,
+      preferredSuppliersOverride,
+      sourcingPolicyOverride: {
+        strategy: 'PREFERRED',
+        allowedSupplierNames: ['Proveedor Inexistente'],
+      },
+    }
+  );
+  const restrictedBathTile = restrictedPricing.lines.find((line) => line.solutionCode === 'WALL_TILE_BATH_STD');
+  assert(restrictedBathTile);
+  assert.equal(restrictedBathTile.materialPricing[0].priceSource, 'CATALOG_REFERENCE');
+
   const confirmedPricing = await buildPricingResult(
     measuredInput.recipeResult,
     measuredInput.executionContext,
@@ -2493,6 +2588,25 @@ async function run() {
     )
   );
 
+  const sourcingFocusFamilies = [
+    'WALL_TILE_BATH_STD',
+    'WET_AREA_WATERPROOFING_STD',
+    'PARTITION_LINING_STD',
+    'ELECTRICAL_MECHANISMS_STD',
+    'ELECTRICAL_PANEL_BASIC',
+    'PLUMBING_WET_ROOM_STD',
+    'DRAINAGE_WET_ROOM_STD',
+  ];
+  const sourcingFocusLines = inferredPricing.lines.filter((line) =>
+    sourcingFocusFamilies.includes(line.solutionCode)
+  );
+  const sourcingFocusSupplierOfferLines = sourcingFocusLines.filter((line) =>
+    line.materialPricing.some((material) => material.priceSource === 'SUPPLIER_OFFER')
+  ).length;
+  const sourcingFocusInferredOnlyLines = sourcingFocusLines.filter((line) =>
+    line.materialPricing.every((material) => material.priceSource !== 'SUPPLIER_OFFER')
+  ).length;
+
   console.log('Discovery integration tests passed.');
   console.log(
     JSON.stringify(
@@ -2503,6 +2617,14 @@ async function run() {
           inferredLineSolutionCodes: Array.from(
             new Set(phase3InferredLines.map((line) => line.solutionCode))
           ),
+        },
+        sourcingFoundationStats: {
+          supplierOfferLines: inferredPricing.coverage.supplierOfferLines,
+          preferredSupplierLines: inferredPricing.coverage.preferredSupplierLines,
+          catalogReferenceLines: inferredPricing.coverage.catalogReferenceLines,
+          parametricReferenceLines: inferredPricing.coverage.parametricReferenceLines,
+          focusFamilySupplierOfferLines: sourcingFocusSupplierOfferLines,
+          focusFamilyInferredOnlyLines: sourcingFocusInferredOnlyLines,
         },
       },
       null,

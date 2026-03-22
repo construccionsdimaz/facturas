@@ -1,4 +1,9 @@
 import type { VerticalSolutionCode } from '@/lib/discovery/technical-spec-types';
+import type {
+  ProjectSourcingPolicy,
+  SourcingFamily,
+  SourcingStrategy,
+} from '@/lib/procurement/sourcing-policy';
 import type { RecipeLaborCode, RecipeMaterialCode } from './recipe-types';
 
 export type PriceStatus =
@@ -18,8 +23,16 @@ export type PricingMaterial = {
   materialCode: RecipeMaterialCode;
   quantity: number;
   unit: string;
+  procurementMaterialCode?: string | null;
+  sourcingFamily?: SourcingFamily;
+  sourcingStrategy?: SourcingStrategy;
+  sourcingReason?: string;
+  candidateOfferCount?: number;
+  eligibleOfferCount?: number;
   supplierId?: string;
+  supplierName?: string | null;
   supplierOfferId?: string;
+  leadTimeDays?: number | null;
   unitCost?: number | null;
   totalCost?: number | null;
   currency: 'EUR';
@@ -56,12 +69,18 @@ export type PricingLine = {
 export type PricingResult = {
   status: 'READY' | 'PARTIAL' | 'BLOCKED';
   lines: PricingLine[];
+  sourcingPolicy: ProjectSourcingPolicy;
   coverage: {
     confirmedLines: number;
     inferredLines: number;
     pendingLines: number;
     priceCoveragePercent: number;
     pendingValidationCount: number;
+    supplierOfferLines: number;
+    preferredSupplierLines: number;
+    catalogReferenceLines: number;
+    parametricReferenceLines: number;
+    missingLines: number;
   };
   estimateMode: 'PARAMETRIC_PRELIMINARY' | 'RECIPE_PRICED' | 'MIXED';
   warnings: string[];
@@ -95,11 +114,15 @@ export type PricingEngineOptions = {
         unit: string;
         leadTimeDays: number | null;
         isPreferred?: boolean | null;
-        supplier?: { id: string; name: string } | null;
+        validFrom?: Date | string | null;
+        validUntil?: Date | string | null;
+        status?: string | null;
+        supplier?: { id: string; name: string; address?: string | null } | null;
       }>;
     }
   >;
   preferredSuppliersOverride?: Record<string, { id: string; name: string }>;
-  sourcingStrategy?: 'CHEAPEST' | 'FASTEST' | 'PREFERRED' | 'BALANCED';
+  sourcingStrategy?: SourcingStrategy;
+  sourcingPolicyOverride?: Partial<ProjectSourcingPolicy>;
   referenceDate?: Date;
 };

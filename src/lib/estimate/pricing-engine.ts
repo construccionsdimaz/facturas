@@ -1,7 +1,11 @@
 import { db } from '@/lib/db';
 import type { ExecutionContext } from '@/lib/discovery/types';
 import { ensureProcurementCatalog } from '@/lib/procurement/catalog';
-import { chooseSupplierOffer } from '@/lib/procurement/sourcing';
+import { resolveRecipeMaterialSourcing } from '@/lib/procurement/material-resolution';
+import {
+  createDefaultProjectSourcingPolicy,
+  mergeProjectSourcingPolicy,
+} from '@/lib/procurement/sourcing-policy';
 import type { RecipeLine, RecipeLaborCode, RecipeMaterialCode, RecipeResult } from './recipe-types';
 import type {
   PricingEngineOptions,
@@ -219,7 +223,10 @@ type OfferRecord = {
   unit: string;
   leadTimeDays: number | null;
   isPreferred: boolean | null;
-  supplier: { id: string; name: string } | null;
+  validFrom?: Date | null;
+  validUntil?: Date | null;
+  status?: string | null;
+  supplier: { id: string; name: string; address?: string | null } | null;
 };
 
 type MaterialLookup = Record<
@@ -251,7 +258,7 @@ async function loadMaterialLookup(): Promise<MaterialLookup> {
         where: { status: 'ACTIVA' },
         include: {
           supplier: {
-            select: { id: true, name: true },
+            select: { id: true, name: true, address: true },
           },
         },
       },
@@ -271,7 +278,10 @@ async function loadMaterialLookup(): Promise<MaterialLookup> {
           unit: offer.unit,
           leadTimeDays: offer.leadTimeDays,
           isPreferred: offer.isPreferred,
-          supplier: offer.supplier ? { id: offer.supplier.id, name: offer.supplier.name } : null,
+          validFrom: offer.validFrom,
+          validUntil: offer.validUntil,
+          status: offer.status,
+          supplier: offer.supplier ? { id: offer.supplier.id, name: offer.supplier.name, address: (offer.supplier as any).address || null } : null,
         })),
       },
     ])
@@ -297,6 +307,7 @@ async function loadPreferredSuppliers() {
     select: {
       id: true,
       name: true,
+      address: true,
     },
   });
 
@@ -311,14 +322,21 @@ async function priceMaterial(
   material: RecipeLine['materials'][number],
   materialLookup: MaterialLookup,
   preferredSuppliers: Record<string, { id: string; name: string }>,
+  executionContext: ExecutionContext,
   options: PricingEngineOptions
 ): Promise<PricingMaterial> {
+  const sourcingPolicy = mergeProjectSourcingPolicy(
+    createDefaultProjectSourcingPolicy(executionContext),
+    options.sourcingPolicyOverride,
+  );
+
   const manual = options.manualOverrides?.materials?.[material.materialCode];
   if (manual && isValidCost(manual.unitCost)) {
     return {
       materialCode: material.materialCode,
       quantity: material.quantity,
       unit: material.unit,
+      procurementMaterialCode: MATERIAL_BINDINGS[material.materialCode]?.procurementMaterialCode || null,
       supplierId: manual.supplierId,
       supplierOfferId: manual.supplierOfferId,
       unitCost: round(manual.unitCost),
@@ -326,6 +344,13 @@ async function priceMaterial(
       currency: 'EUR',
       priceStatus: 'PRICE_CONFIRMED',
       priceSource: 'MANUAL_OVERRIDE',
+      sourcingFamily: undefined,
+      sourcingStrategy: sourcingPolicy.strategy,
+      sourcingReason: 'Precio confirmado mediante override manual.',
+      candidateOfferCount: 0,
+      eligibleOfferCount: 0,
+      supplierName: null,
+      leadTimeDays: null,
     };
   }
 
@@ -335,90 +360,52 @@ async function priceMaterial(
       materialCode: material.materialCode,
       quantity: material.quantity,
       unit: material.unit,
+      procurementMaterialCode: null,
       unitCost: null,
       totalCost: null,
       currency: 'EUR',
       priceStatus: 'PRICE_PENDING_VALIDATION',
       priceSource: 'MISSING',
+      sourcingFamily: undefined,
+      sourcingStrategy: sourcingPolicy.strategy,
+      sourcingReason: 'Material sin binding de pricing.',
+      candidateOfferCount: 0,
+      eligibleOfferCount: 0,
+      supplierName: null,
+      leadTimeDays: null,
     };
   }
 
-  if (binding.procurementMaterialCode) {
-    const materialData = materialLookup[binding.procurementMaterialCode];
-    if (materialData?.offers?.length) {
-      const chosen = chooseSupplierOffer(
-        materialData.offers,
-        null,
-        options.sourcingStrategy || 'BALANCED',
-        options.referenceDate || new Date()
-      );
-      if (chosen.offer && isValidCost(chosen.offer.unitCost)) {
-        return {
-          materialCode: material.materialCode,
-          quantity: material.quantity,
-          unit: material.unit,
-          supplierId: chosen.offer.supplier?.id,
-          supplierOfferId: chosen.offer.id,
-          unitCost: round(chosen.offer.unitCost),
-          totalCost: round(material.quantity * chosen.offer.unitCost),
-          currency: 'EUR',
-          priceStatus: 'PRICE_CONFIRMED',
-          priceSource: 'SUPPLIER_OFFER',
-        };
-      }
-    }
-  }
-
-  if (binding.preferredSupplierName && isValidCost(binding.preferredUnitCost)) {
-    const supplier = preferredSuppliers[binding.preferredSupplierName];
-    return {
-      materialCode: material.materialCode,
-      quantity: material.quantity,
-      unit: material.unit,
-      supplierId: supplier?.id,
-      unitCost: round(binding.preferredUnitCost!),
-      totalCost: round(material.quantity * binding.preferredUnitCost!),
-      currency: 'EUR',
-      priceStatus: 'PRICE_INFERRED',
-      priceSource: 'PREFERRED_SUPPLIER',
-    };
-  }
-
-  if (isValidCost(binding.catalogReferenceUnitCost)) {
-    return {
-      materialCode: material.materialCode,
-      quantity: material.quantity,
-      unit: material.unit,
-      unitCost: round(binding.catalogReferenceUnitCost!),
-      totalCost: round(material.quantity * binding.catalogReferenceUnitCost!),
-      currency: 'EUR',
-      priceStatus: 'PRICE_INFERRED',
-      priceSource: 'CATALOG_REFERENCE',
-    };
-  }
-
-  if (isValidCost(binding.parametricReferenceUnitCost)) {
-    return {
-      materialCode: material.materialCode,
-      quantity: material.quantity,
-      unit: material.unit,
-      unitCost: round(binding.parametricReferenceUnitCost!),
-      totalCost: round(material.quantity * binding.parametricReferenceUnitCost!),
-      currency: 'EUR',
-      priceStatus: 'PRICE_INFERRED',
-      priceSource: 'PARAMETRIC_REFERENCE',
-    };
-  }
+  const resolution = resolveRecipeMaterialSourcing({
+    materialCode: material.materialCode,
+    binding,
+    materialLookup: binding.procurementMaterialCode
+      ? materialLookup[binding.procurementMaterialCode]
+      : null,
+    preferredSuppliers,
+    policy: sourcingPolicy,
+    referenceDate: options.referenceDate || new Date(),
+  });
 
   return {
     materialCode: material.materialCode,
     quantity: material.quantity,
     unit: material.unit,
-    unitCost: null,
-    totalCost: null,
+    procurementMaterialCode: resolution.procurementMaterialCode || null,
+    sourcingFamily: resolution.sourcingFamily,
+    sourcingStrategy: resolution.strategyUsed,
+    sourcingReason: resolution.reason,
+    candidateOfferCount: resolution.candidateOfferCount,
+    eligibleOfferCount: resolution.eligibleOfferCount,
+    supplierId: resolution.supplierId,
+    supplierName: resolution.supplierName || null,
+    supplierOfferId: resolution.supplierOfferId,
+    leadTimeDays: resolution.leadTimeDays ?? null,
+    unitCost: isValidCost(resolution.unitCost) ? round(resolution.unitCost!) : null,
+    totalCost: isValidCost(resolution.unitCost) ? round(material.quantity * resolution.unitCost!) : null,
     currency: 'EUR',
-    priceStatus: 'PRICE_PENDING_VALIDATION',
-    priceSource: 'MISSING',
+    priceStatus: resolution.priceStatus,
+    priceSource: resolution.priceSource,
   };
 }
 
@@ -514,16 +501,27 @@ export async function buildPricingResult(
   executionContext: ExecutionContext,
   options: PricingEngineOptions = {}
 ): Promise<PricingResult> {
+  const sourcingPolicy = mergeProjectSourcingPolicy(
+    createDefaultProjectSourcingPolicy(executionContext),
+    options.sourcingPolicyOverride,
+  );
+
   if (!recipeResult) {
     return {
       status: 'BLOCKED',
       lines: [],
+      sourcingPolicy,
       coverage: {
         confirmedLines: 0,
         inferredLines: 0,
         pendingLines: 0,
         priceCoveragePercent: 0,
         pendingValidationCount: 0,
+        supplierOfferLines: 0,
+        preferredSupplierLines: 0,
+        catalogReferenceLines: 0,
+        parametricReferenceLines: 0,
+        missingLines: 0,
       },
       estimateMode: deriveEstimateModeFromPricing({
         technicalSpecStatus: 'INCOMPLETE',
@@ -558,7 +556,10 @@ export async function buildPricingResult(
     recipeResult.lines.map(async (recipeLine) => {
       const materialPricing = await Promise.all(
         recipeLine.materials.map((material) =>
-          priceMaterial(material, materialLookup, preferredSuppliers, options)
+          priceMaterial(material, materialLookup, preferredSuppliers, executionContext, {
+            ...options,
+            sourcingPolicyOverride: sourcingPolicy,
+          })
         )
       );
       const laborPricing = recipeLine.labor.map((labor) => priceLabor(labor, options));
@@ -618,6 +619,7 @@ export async function buildPricingResult(
   const confirmedLines = lines.filter((line) => line.priceStatus === 'PRICE_CONFIRMED').length;
   const inferredLines = lines.filter((line) => line.priceStatus === 'PRICE_INFERRED').length;
   const pendingLines = lines.filter((line) => line.priceStatus === 'PRICE_PENDING_VALIDATION').length;
+  const allMaterialPricing = lines.flatMap((line) => line.materialPricing);
   const priceCoveragePercent =
     lines.length === 0 ? 0 : Math.round(((confirmedLines + inferredLines) / lines.length) * 100);
   const pendingValidationCount = pendingLines;
@@ -631,12 +633,18 @@ export async function buildPricingResult(
   return {
     status,
     lines,
+    sourcingPolicy,
     coverage: {
       confirmedLines,
       inferredLines,
       pendingLines,
       priceCoveragePercent,
       pendingValidationCount,
+      supplierOfferLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'SUPPLIER_OFFER')).length,
+      preferredSupplierLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'PREFERRED_SUPPLIER')).length,
+      catalogReferenceLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'CATALOG_REFERENCE')).length,
+      parametricReferenceLines: lines.filter((line) => line.materialPricing.some((item) => item.priceSource === 'PARAMETRIC_REFERENCE')).length,
+      missingLines: allMaterialPricing.filter((item) => item.priceSource === 'MISSING').length,
     },
     estimateMode: deriveEstimateModeFromPricing({
       technicalSpecStatus: executionContext.project.technicalSpecStatus || 'INCOMPLETE',

@@ -3,7 +3,6 @@ import type { RecipeResult, RecipeMaterialCode, RecipeLine } from '@/lib/estimat
 import type {
   PricingResult,
   PricingLine,
-  PricingMaterial,
   PriceSource,
   PriceStatus,
 } from '@/lib/estimate/pricing-types';
@@ -11,6 +10,7 @@ import { MATERIAL_BINDINGS } from '@/lib/estimate/pricing-engine';
 import { ensureProcurementCatalog } from './catalog';
 import { buildDiscoverySupplyHints, type DiscoverySupplyHint } from './discovery-context';
 import { chooseSupplierOffer } from './sourcing';
+import type { ProjectSourcingPolicy, SourcingStrategy } from './sourcing-policy';
 
 type ProcurementProjectionSource = 'RECIPE_DRIVEN' | 'HYBRID' | 'DISCOVERY_HINTS';
 
@@ -76,10 +76,13 @@ export type ProcurementProjectionLine = {
   supportedPricingLineIds: string[];
   supportedSolutionCodes: string[];
   supplierId?: string;
+  supplierName?: string | null;
   supplierOfferId?: string;
   materialId?: string | null;
   priceStatus?: PriceStatus | null;
   priceSource?: PriceSource | 'DISCOVERY_HINT' | 'ACTIVITY_FALLBACK' | null;
+  sourcingStrategy?: SourcingStrategy | null;
+  sourcingReason?: string | null;
   generatedFrom: ProcurementLineGeneratedFrom;
   requiredOnSiteDate?: string | null;
   planningLinkage?: ProcurementPlanningLinkage | null;
@@ -115,6 +118,7 @@ type ProcurementProjectionInput = {
   includeDiscoveryHints?: boolean;
   referenceDate?: Date;
   projectActivities?: ProjectActivityInput[];
+  sourcingPolicy?: ProjectSourcingPolicy;
   materialLookupOverride?: Record<string, MaterialLookupRecord>;
 };
 
@@ -326,6 +330,7 @@ function activityFallbackLine(
   activity: ProjectActivityInput,
   materialLookup: Record<string, MaterialLookupRecord>,
   referenceDate: Date,
+  sourcingStrategy: SourcingStrategy,
 ) {
   return (activity.standardActivity?.materialTemplates || []).map((template, index) => {
     const code = template.material.code || `ACTIVITY:${template.materialId}`;
@@ -337,7 +342,7 @@ function activityFallbackLine(
       requiredOnSiteDate: activity.plannedStartDate ? new Date(activity.plannedStartDate).toISOString() : null,
     };
     const suggestion = lookup?.offers?.length
-      ? chooseSupplierOffer(lookup.offers, linkage.requiredOnSiteDate, 'BALANCED', referenceDate)
+      ? chooseSupplierOffer(lookup.offers, linkage.requiredOnSiteDate, sourcingStrategy, referenceDate)
       : { offer: null };
     const unit = template.unit || lookup?.baseUnit || template.material.baseUnit || 'ud';
 
@@ -354,10 +359,13 @@ function activityFallbackLine(
       supportedPricingLineIds: [],
       supportedSolutionCodes: [],
       supplierId: suggestion.offer?.supplier?.id,
+      supplierName: suggestion.offer?.supplier?.name || null,
       supplierOfferId: suggestion.offer?.id,
       materialId: lookup?.id || template.material.id,
       priceStatus: suggestion.offer ? 'PRICE_CONFIRMED' : 'PRICE_PENDING_VALIDATION',
       priceSource: suggestion.offer ? 'SUPPLIER_OFFER' : 'ACTIVITY_FALLBACK',
+      sourcingStrategy,
+      sourcingReason: suggestion.offer ? suggestion.reason : 'Fallback legacy de actividad sin oferta real.',
       generatedFrom: 'LEGACY_ACTIVITY_FALLBACK',
       requiredOnSiteDate: linkage.requiredOnSiteDate,
       planningLinkage: linkage,
@@ -423,7 +431,7 @@ export async function buildProcurementProjection(
         ? chooseSupplierOffer(
             lookup.offers,
             planningLinkage?.requiredOnSiteDate || null,
-            'BALANCED',
+            input.sourcingPolicy?.strategy || 'BALANCED',
             referenceDate,
           )
         : { offer: null };
@@ -445,10 +453,13 @@ export async function buildProcurementProjection(
         supportedPricingLineIds: pricingLine ? [pricingLine.id] : [],
         supportedSolutionCodes: [recipeLine.solutionCode],
         supplierId: pricingMaterial?.supplierId || fallbackSuggestion.offer?.supplier?.id,
+        supplierName: pricingMaterial?.supplierName || fallbackSuggestion.offer?.supplier?.name || null,
         supplierOfferId: pricingMaterial?.supplierOfferId || fallbackSuggestion.offer?.id,
         materialId: lookup?.id || null,
         priceStatus: pricingMaterial?.priceStatus || (fallbackSuggestion.offer ? 'PRICE_CONFIRMED' : null),
         priceSource: pricingMaterial?.priceSource || (fallbackSuggestion.offer ? 'SUPPLIER_OFFER' : null),
+        sourcingStrategy: pricingMaterial?.sourcingStrategy || input.sourcingPolicy?.strategy || 'BALANCED',
+        sourcingReason: pricingMaterial?.sourcingReason || (fallbackSuggestion.offer ? fallbackSuggestion.reason : null),
         generatedFrom: 'RECIPE',
         requiredOnSiteDate: planningLinkage?.requiredOnSiteDate || null,
         planningLinkage,
@@ -490,7 +501,7 @@ export async function buildProcurementProjection(
       ? chooseSupplierOffer(
           lookup.offers,
           planningLinkage?.requiredOnSiteDate || null,
-          'BALANCED',
+          input.sourcingPolicy?.strategy || 'BALANCED',
           referenceDate,
         )
       : { offer: null };
@@ -508,10 +519,13 @@ export async function buildProcurementProjection(
       supportedPricingLineIds: [],
       supportedSolutionCodes: [],
       supplierId: suggestion.offer?.supplier?.id,
+      supplierName: suggestion.offer?.supplier?.name || null,
       supplierOfferId: suggestion.offer?.id,
       materialId: lookup?.id || null,
       priceStatus: suggestion.offer ? 'PRICE_CONFIRMED' : null,
       priceSource: suggestion.offer ? 'SUPPLIER_OFFER' : 'DISCOVERY_HINT',
+      sourcingStrategy: input.sourcingPolicy?.strategy || 'BALANCED',
+      sourcingReason: suggestion.offer ? suggestion.reason : 'Necesidad derivada por discovery hint sin oferta elegible.',
       generatedFrom: 'DISCOVERY_HINT',
       requiredOnSiteDate: planningLinkage?.requiredOnSiteDate || null,
       planningLinkage,
@@ -536,7 +550,12 @@ export async function buildProcurementProjection(
 
   if (procurementLines.size === 0 && input.projectActivities?.length) {
     for (const activity of input.projectActivities) {
-      for (const line of activityFallbackLine(activity, materialLookup, referenceDate)) {
+      for (const line of activityFallbackLine(
+        activity,
+        materialLookup,
+        referenceDate,
+        input.sourcingPolicy?.strategy || 'BALANCED',
+      )) {
         const key = projectionLineKey({
           materialCode: line.materialCode,
           unit: line.unit,
@@ -630,6 +649,7 @@ export function procurementProjectionLineToProjectSupply(
 
   const observations = [
     `Generado desde procurement projection (${line.generatedFrom}).`,
+    line.sourcingReason ? `Sourcing: ${line.sourcingReason}` : null,
     line.supportedRecipeLineIds.length
       ? `Recipe lines: ${line.supportedRecipeLineIds.join(', ')}.`
       : null,
@@ -669,7 +689,10 @@ export function procurementProjectionLineToProjectSupply(
     suggestedUnitCost: line.unitCost ?? null,
     expectedUnitCost: line.unitCost ?? null,
     expectedTotalCost: line.expectedTotalCost ?? null,
-    suggestedSupplierReason: line.priceSource ? `Fuente de precio: ${line.priceSource}` : null,
+    suggestedSupplierReason:
+      line.priceSource || line.sourcingReason
+        ? [`Fuente de precio: ${line.priceSource || 'N/A'}`, line.sourcingReason].filter(Boolean).join(' | ')
+        : null,
     scheduleRisk: line.requiredOnSiteDate ? 'PENDIENTE_ANALISIS' : 'SIN_FECHA',
     isCriticalForSchedule: line.generatedFrom === 'RECIPE',
     observations,
