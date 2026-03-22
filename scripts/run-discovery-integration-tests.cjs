@@ -36,7 +36,6 @@ async function run() {
   const { createEmptyDiscoverySessionData, createDefaultTemplate } = require(path.join(srcRoot, 'lib/discovery/defaults.ts'));
   const { deriveInputFromSession } = require(path.join(srcRoot, 'lib/discovery/derive-input.ts'));
   const { resolveSpatialModelToExecutionContext } = require(path.join(srcRoot, 'lib/discovery/resolve-spatial-model.ts'));
-  const { measureExecutionContext } = require(path.join(srcRoot, 'lib/estimate/measurement-engine.ts'));
   const { buildDiscoverySupplyHints } = require(path.join(srcRoot, 'lib/procurement/discovery-context.ts'));
   const { generateEstimateProposal } = require(path.join(srcRoot, 'lib/automation/estimate-generator.ts'));
   const { generatePlanningBlueprint } = require(path.join(srcRoot, 'lib/automation/planning-generator.ts'));
@@ -362,10 +361,45 @@ async function run() {
 
   const measuredInput = deriveInputFromSession(measured, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
   assert(measuredInput.measurementResult);
+  assert(measuredInput.recipeResult);
   assert.equal(measuredInput.measurementResult.status, 'READY');
   assert(measuredInput.measurementResult.coverage.measuredLines > 0);
+  assert.equal(measuredInput.recipeResult.status, 'READY');
+  assert(
+    measuredInput.recipeResult.lines.some(
+      (line) =>
+        line.measurementLineId.endsWith('ROOM_AREA') &&
+        line.recipeCode === 'RECIPE_ROOM_STD_COLIVING_BASIC_M2' &&
+        line.status === 'RECIPE_RESOLVED'
+    )
+  );
+  assert(
+    measuredInput.recipeResult.lines.some(
+      (line) =>
+        line.measurementLineId.endsWith('BATH_AREA') &&
+        line.recipeCode === 'RECIPE_BATH_STD_COMPACT_M2' &&
+        line.status === 'RECIPE_RESOLVED'
+    )
+  );
+  assert(
+    measuredInput.recipeResult.lines.some(
+      (line) =>
+        line.measurementLineId.endsWith('KITCHENETTE_LENGTH') &&
+        line.recipeCode === 'RECIPE_KITCHENETTE_120_BASIC_ML' &&
+        line.status === 'RECIPE_RESOLVED'
+    )
+  );
+  assert(
+    !measuredInput.recipeResult.lines.some(
+      (line) => line.measurementLineId.endsWith('ROOM_UNIT') || line.measurementLineId.endsWith('BATH_UNIT')
+    )
+  );
   assert.equal(
     measuredInput.measurementResult.lines.filter((line) => line.measurementCode === 'KITCHENETTE_LENGTH').length,
+    1
+  );
+  assert.equal(
+    measuredInput.recipeResult.lines.filter((line) => line.recipeCode === 'RECIPE_KITCHENETTE_120_BASIC_ML').length,
     1
   );
 
@@ -374,9 +408,16 @@ async function run() {
   partial.spatialModel.instances.find((instance) => instance.instanceId === 'kit-1').measurementDrivers.linearMeters = null;
   const partialInput = deriveInputFromSession(partial, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
   assert.equal(partialInput.measurementResult.status, 'PARTIAL');
+  assert.equal(partialInput.recipeResult.status, 'PARTIAL');
   assert(
     partialInput.measurementResult.lines.some(
       (line) => line.measurementCode === 'KITCHENETTE_LENGTH' && line.status === 'BLOCKED'
+    )
+  );
+  assert(
+    partialInput.recipeResult.lines.some(
+      (line) =>
+        line.recipeCode === 'RECIPE_KITCHENETTE_120_BASIC_ML' && line.status === 'RECIPE_MISSING'
     )
   );
 
@@ -385,9 +426,16 @@ async function run() {
   assumed.spatialModel.instances.find((instance) => instance.instanceId === 'room-1').measurementDrivers.floorSurfaceM2 = null;
   const assumedInput = deriveInputFromSession(assumed, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
   assert.equal(assumedInput.measurementResult.status, 'PARTIAL');
+  assert.equal(assumedInput.recipeResult.status, 'PARTIAL');
   assert(
     assumedInput.measurementResult.lines.some(
       (line) => line.measurementCode === 'LEVELING_AREA' && line.status === 'ASSUMED'
+    )
+  );
+  assert(
+    assumedInput.recipeResult.lines.some(
+      (line) =>
+        line.recipeCode === 'RECIPE_LEVELING_LIGHT_M2' && line.status === 'RECIPE_PARTIAL'
     )
   );
 
@@ -406,11 +454,73 @@ async function run() {
       (line) => line.measurementCode === 'ROOM_UNIT' && line.status === 'PARTIAL'
     )
   );
+  assert(
+    blockedInput.recipeResult.lines.some(
+      (line) =>
+        line.recipeCode === 'RECIPE_ROOM_STD_COLIVING_BASIC_M2' && line.status === 'RECIPE_MISSING'
+    )
+  );
 
   const noDoubleCountKitchen = measuredInput.measurementResult.lines.filter(
     (line) => line.measurementCode === 'KITCHENETTE_LENGTH'
   );
   assert.equal(noDoubleCountKitchen.length, 1);
+
+  const roomPlus = JSON.parse(JSON.stringify(measured));
+  roomPlus.technicalSpecModel.groupSpecs['room-group'].selections.roomSolution = 'ROOM_STD_COLIVING_PLUS';
+  const roomPlusInput = deriveInputFromSession(roomPlus, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    roomPlusInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_ROOM_STD_COLIVING_PLUS_M2'
+    )
+  );
+
+  const bathMedium = JSON.parse(JSON.stringify(measured));
+  bathMedium.technicalSpecModel.groupSpecs['room-group'].selections.bathSolution = 'BATH_STD_MEDIUM';
+  const bathMediumInput = deriveInputFromSession(bathMedium, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    bathMediumInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_BATH_STD_MEDIUM_M2'
+    )
+  );
+
+  const bathAdapted = JSON.parse(JSON.stringify(measured));
+  bathAdapted.technicalSpecModel.groupSpecs['room-group'].selections.bathSolution = 'BATH_ADAPTED';
+  const bathAdaptedInput = deriveInputFromSession(bathAdapted, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    bathAdaptedInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_BATH_ADAPTED_M2'
+    )
+  );
+
+  const kitchenetteComplete = JSON.parse(JSON.stringify(measured));
+  kitchenetteComplete.technicalSpecModel.groupSpecs['room-group'].selections.kitchenetteSolution = 'KITCHENETTE_180_COMPLETE';
+  kitchenetteComplete.technicalSpecModel.groupSpecs['room-group'].dimensions.kitchenetteLinearMeters = 1.8;
+  kitchenetteComplete.spatialModel.instances.find((instance) => instance.instanceId === 'kit-1').measurementDrivers.linearMeters = 1.8;
+  const kitchenetteCompleteInput = deriveInputFromSession(kitchenetteComplete, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    kitchenetteCompleteInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_KITCHENETTE_180_COMPLETE_ML'
+    )
+  );
+
+  const levelingMedium = JSON.parse(JSON.stringify(measured));
+  levelingMedium.technicalSpecModel.floorSpecs['pf'].selections.levelingSolution = 'LEVELING_MEDIUM';
+  const levelingMediumInput = deriveInputFromSession(levelingMedium, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    levelingMediumInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_LEVELING_MEDIUM_M2'
+    )
+  );
+
+  const commonIntensive = JSON.parse(JSON.stringify(measured));
+  commonIntensive.technicalSpecModel.instanceSpecs['common-1'].selections.commonAreaSolution = 'COMMON_AREA_INTENSIVE';
+  const commonIntensiveInput = deriveInputFromSession(commonIntensive, 'VIABILIDAD_INTERNA', 'AFINADO', [], [], 'ALTA');
+  assert(
+    commonIntensiveInput.recipeResult.lines.some(
+      (line) => line.recipeCode === 'RECIPE_COMMON_AREA_INTENSIVE_M2'
+    )
+  );
 
   console.log('Discovery integration tests passed.');
 }

@@ -8,6 +8,7 @@ import type {
 import type { TechnicalSpecModel } from './technical-spec-types';
 import type { ResolvedTechnicalSpecSummary } from './technical-spec-types';
 import type { MeasurementResult } from '@/lib/estimate/measurement-types';
+import type { RecipeResult } from '@/lib/estimate/recipe-types';
 
 export type DiscoverySessionStatus =
   | 'DRAFT'
@@ -750,6 +751,7 @@ export type DerivedInput = {
   executionConstraints: DiscoverySessionData['executionConstraints'];
   executionContext: ExecutionContext;
   measurementResult?: MeasurementResult;
+  recipeResult?: RecipeResult;
   certainty: {
     byBlock: DiscoverySessionData['certainty']['byBlock'];
     confidenceLevel: 'BAJA' | 'MEDIA' | 'ALTA';
