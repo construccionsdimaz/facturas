@@ -5,6 +5,7 @@ import type {
   SiteType,
   WorkType,
 } from '@/lib/automation/types';
+import type { TechnicalSpecModel } from './technical-spec-types';
 
 export type DiscoverySessionStatus =
   | 'DRAFT'
@@ -699,6 +700,7 @@ export type DiscoverySessionData = {
     subtypes: DiscoverySubtypeCode[];
     complexityProfile: ComplexityProfile;
   };
+  technicalSpecModel: TechnicalSpecModel;
 };
 
 export type DerivedInput = {

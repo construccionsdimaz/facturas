@@ -54,6 +54,15 @@ export function buildDiscoverySummary(
     estimated.push(
       `Modelo estructurado con ${data.spatialModel.floors.filter((floor) => floor.selected).length} plantas, ${data.spatialModel.groups.length} grupos y ${data.spatialModel.instances.length} instancias`
     );
+    const technicalStatusLabel =
+      data.technicalSpecModel.status === 'READY_FOR_MEASUREMENT'
+        ? 'especificacion tecnica MVP lista para medicion'
+        : 'especificacion tecnica MVP incompleta';
+    if (data.technicalSpecModel.status === 'READY_FOR_MEASUREMENT') {
+      confirmed.push(technicalStatusLabel);
+    } else {
+      pending.push(technicalStatusLabel);
+    }
   }
 
   const includedByUs = Object.entries(data.inclusions)

@@ -3,8 +3,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import StructuredSpatialEditor from './StructuredSpatialEditor';
+import TechnicalSpecEditor from './TechnicalSpecEditor';
 import { AREA_ACTION_CATALOG, DISCOVERY_STEPS, INCLUSION_FAMILIES, WORK_CODE_LABELS } from '@/lib/discovery/catalogs';
 import { createEmptyDiscoverySessionData } from '@/lib/discovery/defaults';
+import { ensureTechnicalSpecModel } from '@/lib/discovery/technical-spec-defaults';
 import { deriveInputFromSession } from '@/lib/discovery/derive-input';
 import { evaluateDiscoveryForGenerate } from '@/lib/discovery/guard';
 import { shouldSuggestStructuredMode } from '@/lib/discovery/resolve-spatial-model';
@@ -33,6 +35,13 @@ function parseBooleanSelect(value: string): boolean | null {
 
 function prettyEnum(value: string) {
   return value.toLowerCase().replaceAll('_', ' ');
+}
+
+function hydrateSessionData(input: DiscoverySessionData): DiscoverySessionData {
+  return {
+    ...input,
+    technicalSpecModel: ensureTechnicalSpecModel((input as any).technicalSpecModel),
+  };
 }
 
 function SummaryPanel({
@@ -116,7 +125,7 @@ export default function DiscoveryWizard() {
           setBudgetGoal(existingData.budgetGoal);
           setPrecisionMode(existingData.precisionMode);
           setCompletionStep(existingData.completionStep || 1);
-          setSessionData(existingData.sessionData as DiscoverySessionData);
+          setSessionData(hydrateSessionData(existingData.sessionData as DiscoverySessionData));
           return;
         }
 
@@ -150,7 +159,7 @@ export default function DiscoveryWizard() {
         setBudgetGoal(data.budgetGoal);
         setPrecisionMode(data.precisionMode);
         setCompletionStep(data.completionStep || 1);
-        setSessionData(data.sessionData as DiscoverySessionData);
+        setSessionData(hydrateSessionData(data.sessionData as DiscoverySessionData));
       } catch (error: any) {
         alert(error.message || 'Error iniciando discovery');
       } finally {
@@ -291,8 +300,8 @@ export default function DiscoveryWizard() {
       const res = await fetch(`/api/discovery/sessions/${sessionId}/generate`, { method: 'POST' });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'No se pudo generar la propuesta');
-      if (typeof window !== 'undefined') window.sessionStorage.setItem(`discovery-proposal:${sessionId}`, JSON.stringify(data.proposal));
-      router.push(data.editorUrl);
+        if (typeof window !== 'undefined') window.sessionStorage.setItem(`discovery-proposal:${sessionId}`, JSON.stringify(data.proposal));
+        router.push(data.editorUrl);
     } catch (error: any) {
       alert(error.message || 'Error generando propuesta');
     } finally {
@@ -372,10 +381,47 @@ export default function DiscoveryWizard() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>{sessionData.areas.map((area) => <div key={area.areaId} style={{ padding: '14px', borderRadius: '10px', border: area.selected ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)', background: area.selected ? 'rgba(59,130,246,0.08)' : 'rgba(255,255,255,0.02)' }}><label style={{ display: 'flex', gap: '8px', alignItems: 'center', fontWeight: 600 }}><input type="checkbox" checked={area.selected} onChange={(e) => toggleArea(area.areaId, e.target.checked)} />{area.label}</label>{area.selected && <div style={{ marginTop: '10px', display: 'grid', gap: '10px' }}><input className="input-modern" type="number" placeholder="m2 aprox." value={area.approxSizeM2 || ''} onChange={(e) => updateArea(area.areaId, { approxSizeM2: Number(e.target.value) || null, certainty: 'ESTIMADO' })} /><input className="input-modern" type="text" placeholder="Estado actual" value={area.currentState?.summary || ''} onChange={(e) => updateArea(area.areaId, { currentState: { summary: e.target.value, exists: null, certainty: e.target.value ? 'ESTIMADO' : 'PENDIENTE' } })} /><input className="input-modern" type="text" placeholder="Estado futuro" value={area.targetState?.summary || ''} onChange={(e) => updateArea(area.areaId, { targetState: { summary: e.target.value, exists: null, certainty: e.target.value ? 'ESTIMADO' : 'PENDIENTE' } })} /></div>}</div>)}</div>
         </div>)}
 
-        {completionStep === 5 && (sessionData.modelingStrategy === 'STRUCTURED_REPETITIVE' ? <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}><div className="formGroup"><label>Intensidad global</label><select className="input-modern" value={sessionData.interventionProfile.globalIntensity} onChange={(e) => updateSession((current) => ({ ...current, interventionProfile: { globalIntensity: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="SUPERFICIAL">Superficial</option><option value="PARCIAL">Parcial</option><option value="MEDIA">Media</option><option value="INTEGRAL">Integral</option><option value="INTEGRAL_CON_REDISTRIBUCION">Integral con redistribución</option><option value="INTEGRAL_TECNICA">Integral técnica</option></select></div><div className="formGroup"><label>Acabado global</label><select className="input-modern" value={sessionData.finishProfile.globalLevel} onChange={(e) => updateSession((current) => ({ ...current, finishProfile: { ...current.finishProfile, globalLevel: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="BASICO">Básico</option><option value="MEDIO">Medio</option><option value="MEDIO_ALTO">Medio-alto</option><option value="ALTO">Alto</option><option value="PREMIUM">Premium</option></select></div></div>
-          <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)' }}>Instancias modeladas: {sessionData.spatialModel.instances.length}. Las diferencias entre grupo e instancia se resuelven antes de entrar en estimate, planning y procurement.</div>
-        </div> : <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}><div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}><div className="formGroup"><label>Intensidad global</label><select className="input-modern" value={sessionData.interventionProfile.globalIntensity} onChange={(e) => updateSession((current) => ({ ...current, interventionProfile: { globalIntensity: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="SUPERFICIAL">Superficial</option><option value="PARCIAL">Parcial</option><option value="MEDIA">Media</option><option value="INTEGRAL">Integral</option><option value="INTEGRAL_CON_REDISTRIBUCION">Integral con redistribución</option><option value="INTEGRAL_TECNICA">Integral técnica</option></select></div><div className="formGroup"><label>Acabado global</label><select className="input-modern" value={sessionData.finishProfile.globalLevel} onChange={(e) => updateSession((current) => ({ ...current, finishProfile: { ...current.finishProfile, globalLevel: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="BASICO">Básico</option><option value="MEDIO">Medio</option><option value="MEDIO_ALTO">Medio-alto</option><option value="ALTO">Alto</option><option value="PREMIUM">Premium</option></select></div></div><div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>{selectedAreas.map((area) => { const areaActions = sessionData.actionsByArea.find((item) => item.areaId === area.areaId)?.actions || []; const availableActions = AREA_ACTION_CATALOG[area.areaType] || []; return <div key={area.areaId} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}><h4 style={{ marginTop: 0 }}>{area.label}</h4><div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>{availableActions.map((actionCode) => { const selected = areaActions.some((action) => action.actionCode === actionCode); return <label key={actionCode} style={{ padding: '8px 10px', borderRadius: '999px', border: selected ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)', background: selected ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)' }}><input type="checkbox" checked={selected} onChange={(e) => toggleAction(area.areaId, actionCode, e.target.checked)} style={{ marginRight: '8px' }} />{prettyEnum(actionCode)}</label>; })}</div>{areaActions.length > 0 && <div style={{ display: 'grid', gap: '10px', marginTop: '10px' }}>{areaActions.map((action) => <div key={action.actionCode} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}><div style={{ fontWeight: 600, gridColumn: '1 / -1' }}>{prettyEnum(action.actionCode)}</div><select className="input-modern" value={action.coverage || 'TOTAL'} onChange={(e) => updateAction(area.areaId, action.actionCode, { coverage: e.target.value as any })}><option value="TOTAL">Total</option><option value="PARCIAL">Parcial</option><option value="PENDIENTE">Pendiente</option></select><select className="input-modern" value={action.replaceMode || 'SUSTITUIR'} onChange={(e) => updateAction(area.areaId, action.actionCode, { replaceMode: e.target.value as any })}><option value="SUSTITUIR">Sustituir</option><option value="CONSERVAR">Conservar</option><option value="MEZCLA">Mezcla</option><option value="USA_CRITERIO">Usa criterio</option><option value="PENDIENTE">Pendiente</option></select><input className="input-modern" type="number" placeholder="Cantidad aprox." value={action.quantityHint?.value || ''} onChange={(e) => updateAction(area.areaId, action.actionCode, { quantityHint: { unit: action.quantityHint?.unit || 'UD', value: Number(e.target.value) || null, certainty: action.quantityHint?.certainty || 'ESTIMADO' } })} /><select className="input-modern" value={action.quantityHint?.unit || 'UD'} onChange={(e) => updateAction(area.areaId, action.actionCode, { quantityHint: { unit: e.target.value as any, value: action.quantityHint?.value || null, certainty: action.quantityHint?.certainty || 'ESTIMADO' } })}><option value="UD">Ud</option><option value="M2">m2</option><option value="ML">ml</option><option value="LOTE">Lote</option></select><select className="input-modern" value={action.certainty} onChange={(e) => updateAction(area.areaId, action.actionCode, { certainty: e.target.value as CertaintyLevel })}><option value="CONFIRMADO">Confirmado</option><option value="ESTIMADO">Estimado</option><option value="SUPUESTO">Supuesto</option><option value="PENDIENTE">Pendiente</option></select></div>)}</div>}</div>; })}</div></div>)}
+        {completionStep === 5 && (
+          sessionData.modelingStrategy === 'STRUCTURED_REPETITIVE' ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div className="formGroup">
+                  <label>Intensidad global</label>
+                  <select className="input-modern" value={sessionData.interventionProfile.globalIntensity} onChange={(e) => updateSession((current) => ({ ...current, interventionProfile: { globalIntensity: e.target.value as any, certainty: 'CONFIRMADO' } }))}>
+                    <option value="SUPERFICIAL">Superficial</option>
+                    <option value="PARCIAL">Parcial</option>
+                    <option value="MEDIA">Media</option>
+                    <option value="INTEGRAL">Integral</option>
+                    <option value="INTEGRAL_CON_REDISTRIBUCION">Integral con redistribución</option>
+                    <option value="INTEGRAL_TECNICA">Integral técnica</option>
+                  </select>
+                </div>
+                <div className="formGroup">
+                  <label>Acabado global</label>
+                  <select className="input-modern" value={sessionData.finishProfile.globalLevel} onChange={(e) => updateSession((current) => ({ ...current, finishProfile: { ...current.finishProfile, globalLevel: e.target.value as any, certainty: 'CONFIRMADO' } }))}>
+                    <option value="BASICO">Básico</option>
+                    <option value="MEDIO">Medio</option>
+                    <option value="MEDIO_ALTO">Medio-alto</option>
+                    <option value="ALTO">Alto</option>
+                    <option value="PREMIUM">Premium</option>
+                  </select>
+                </div>
+              </div>
+              <div className="glass-panel" style={{ padding: '16px', background: 'rgba(255,255,255,0.02)' }}>
+                Instancias modeladas: {sessionData.spatialModel.instances.length}. Las diferencias entre grupo e instancia se resuelven antes de entrar en estimate, planning y procurement.
+              </div>
+              <TechnicalSpecEditor data={sessionData} onChange={updateSession} />
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
+                <div className="formGroup"><label>Intensidad global</label><select className="input-modern" value={sessionData.interventionProfile.globalIntensity} onChange={(e) => updateSession((current) => ({ ...current, interventionProfile: { globalIntensity: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="SUPERFICIAL">Superficial</option><option value="PARCIAL">Parcial</option><option value="MEDIA">Media</option><option value="INTEGRAL">Integral</option><option value="INTEGRAL_CON_REDISTRIBUCION">Integral con redistribución</option><option value="INTEGRAL_TECNICA">Integral técnica</option></select></div>
+                <div className="formGroup"><label>Acabado global</label><select className="input-modern" value={sessionData.finishProfile.globalLevel} onChange={(e) => updateSession((current) => ({ ...current, finishProfile: { ...current.finishProfile, globalLevel: e.target.value as any, certainty: 'CONFIRMADO' } }))}><option value="BASICO">Básico</option><option value="MEDIO">Medio</option><option value="MEDIO_ALTO">Medio-alto</option><option value="ALTO">Alto</option><option value="PREMIUM">Premium</option></select></div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>{selectedAreas.map((area) => { const areaActions = sessionData.actionsByArea.find((item) => item.areaId === area.areaId)?.actions || []; const availableActions = AREA_ACTION_CATALOG[area.areaType] || []; return <div key={area.areaId} style={{ border: '1px solid rgba(255,255,255,0.08)', borderRadius: '12px', padding: '16px' }}><h4 style={{ marginTop: 0 }}>{area.label}</h4><div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>{availableActions.map((actionCode) => { const selected = areaActions.some((action) => action.actionCode === actionCode); return <label key={actionCode} style={{ padding: '8px 10px', borderRadius: '999px', border: selected ? '1px solid #3b82f6' : '1px solid rgba(255,255,255,0.08)', background: selected ? 'rgba(59,130,246,0.12)' : 'rgba(255,255,255,0.03)' }}><input type="checkbox" checked={selected} onChange={(e) => toggleAction(area.areaId, actionCode, e.target.checked)} style={{ marginRight: '8px' }} />{prettyEnum(actionCode)}</label>; })}</div>{areaActions.length > 0 && <div style={{ display: 'grid', gap: '10px', marginTop: '10px' }}>{areaActions.map((action) => <div key={action.actionCode} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px', padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px' }}><div style={{ fontWeight: 600, gridColumn: '1 / -1' }}>{prettyEnum(action.actionCode)}</div><select className="input-modern" value={action.coverage || 'TOTAL'} onChange={(e) => updateAction(area.areaId, action.actionCode, { coverage: e.target.value as any })}><option value="TOTAL">Total</option><option value="PARCIAL">Parcial</option><option value="PENDIENTE">Pendiente</option></select><select className="input-modern" value={action.replaceMode || 'SUSTITUIR'} onChange={(e) => updateAction(area.areaId, action.actionCode, { replaceMode: e.target.value as any })}><option value="SUSTITUIR">Sustituir</option><option value="CONSERVAR">Conservar</option><option value="MEZCLA">Mezcla</option><option value="USA_CRITERIO">Usa criterio</option><option value="PENDIENTE">Pendiente</option></select><input className="input-modern" type="number" placeholder="Cantidad aprox." value={action.quantityHint?.value || ''} onChange={(e) => updateAction(area.areaId, action.actionCode, { quantityHint: { unit: action.quantityHint?.unit || 'UD', value: Number(e.target.value) || null, certainty: action.quantityHint?.certainty || 'ESTIMADO' } })} /><select className="input-modern" value={action.quantityHint?.unit || 'UD'} onChange={(e) => updateAction(area.areaId, action.actionCode, { quantityHint: { unit: e.target.value as any, value: action.quantityHint?.value || null, certainty: action.quantityHint?.certainty || 'ESTIMADO' } })}><option value="UD">Ud</option><option value="M2">m2</option><option value="ML">ml</option><option value="LOTE">Lote</option></select><select className="input-modern" value={action.certainty} onChange={(e) => updateAction(area.areaId, action.actionCode, { certainty: e.target.value as CertaintyLevel })}><option value="CONFIRMADO">Confirmado</option><option value="ESTIMADO">Estimado</option><option value="SUPUESTO">Supuesto</option><option value="PENDIENTE">Pendiente</option></select></div>)}</div>}</div>; })}</div>
+            </div>
+          )
+        )}
 
         {completionStep === 6 && <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}><div className="formGroup"><label>Restricciones comunidad</label><select className="input-modern" value={String(sessionData.executionConstraints.communityRestrictions)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, communityRestrictions: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Restricciones horarias</label><select className="input-modern" value={String(sessionData.executionConstraints.timeRestrictions)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, timeRestrictions: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Obra por fases</label><select className="input-modern" value={String(sessionData.executionConstraints.worksInPhases)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, worksInPhases: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Urgencia</label><select className="input-modern" value={String(sessionData.executionConstraints.urgent)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, urgent: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Licencia pendiente</label><select className="input-modern" value={String(sessionData.executionConstraints.licensePending)} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, licensePending: parseBooleanSelect(e.target.value) } }))}><option value="null">No lo sé</option><option value="true">Sí</option><option value="false">No</option></select></div><div className="formGroup"><label>Dificultad logística</label><select className="input-modern" value={sessionData.executionConstraints.logisticsDifficulty || 'PENDIENTE'} onChange={(e) => updateSession((current) => ({ ...current, executionConstraints: { ...current.executionConstraints, logisticsDifficulty: e.target.value as any } }))}><option value="PENDIENTE">Pendiente</option><option value="BAJA">Baja</option><option value="MEDIA">Media</option><option value="ALTA">Alta</option><option value="MUY_ALTA">Muy alta</option></select></div></div>

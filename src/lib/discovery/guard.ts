@@ -48,6 +48,15 @@ export function evaluateDiscoveryForGenerate(data: DiscoverySessionData): Discov
     if (data.spatialModel.groups.length === 0 && data.spatialModel.instances.length === 0) {
       blockers.push('En modo estructurado hace falta definir al menos un grupo o una instancia real.');
     }
+
+    if (data.technicalSpecModel.status !== 'READY_FOR_MEASUREMENT') {
+      warnings.push({
+        code: 'TECH_SPEC_INCOMPLETE',
+        severity: 'WARNING',
+        message: 'La especificacion tecnica del vertical MVP sigue incompleta. El estimate se tratara como parametrico preliminar.',
+        relatedTo: 'SPATIAL_MODEL',
+      });
+    }
   }
 
   if (!data.assetContext.areaM2) {

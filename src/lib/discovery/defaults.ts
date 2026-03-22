@@ -6,6 +6,7 @@ import {
   DERIVED_INPUT_VERSION,
   INCLUSION_FAMILIES,
 } from './catalogs';
+import { createEmptyTechnicalSpecModel } from './technical-spec-defaults';
 import type {
   AreaType,
   DiscoveryArea,
@@ -202,6 +203,7 @@ export function createEmptyDiscoverySessionData(assetType: DiscoveryAssetType = 
         procurementSensitivity: 'MEDIA',
       },
     },
+    technicalSpecModel: createEmptyTechnicalSpecModel(),
   };
 }
 
