@@ -49,6 +49,7 @@ export default function EditEstimatePage() {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [estimateNumber, setEstimateNumber] = useState('');
   const [validUntil, setValidUntil] = useState('');
+  const [issueDate, setIssueDate] = useState('');
   const [status, setStatus] = useState('DRAFT');
   const [language, setLanguage] = useState('ES');
   const [isSaving, setIsSaving] = useState(false);
@@ -130,6 +131,7 @@ export default function EditEstimatePage() {
       setSelectedClientId(estimate.clientId);
       setClientSearch(estimate.client?.name || '');
       setValidUntil(estimate.validUntil ? estimate.validUntil.split('T')[0] : '');
+      setIssueDate(estimate.issueDate ? estimate.issueDate.split('T')[0] : '');
       setStatus(estimate.status);
       setDiscoverySessionId(estimate.discoverySessionId || '');
       setLinkedProjectId(estimate.projectId || '');
@@ -361,6 +363,7 @@ export default function EditEstimatePage() {
           taxAmount: effectiveRuntimeOutput?.summary.vatAmount || taxAmount,
           total: effectiveRuntimeOutput?.summary.commercialTotal || total,
           status,
+          issueDate: issueDate || undefined,
           validUntil: validUntil || null,
           language,
           discoverySessionId: discoverySessionId || null,
@@ -547,7 +550,12 @@ export default function EditEstimatePage() {
               </div>
               <div className={styles.formGroup}>
                 <label>Fecha Emision</label>
-                <input type="date" className="input-modern" disabled defaultValue={new Date().toISOString().split('T')[0]} />
+                <input 
+                  type="date" 
+                  className="input-modern" 
+                  value={issueDate}
+                  onChange={(e) => setIssueDate(e.target.value)} 
+                />
               </div>
               <div className={styles.formGroup}>
                 <label>Valido hasta</label>
