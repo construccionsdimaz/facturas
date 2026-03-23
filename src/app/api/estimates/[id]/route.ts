@@ -139,6 +139,7 @@ export async function PUT(
         issueDate: issueDate ? new Date(issueDate) : undefined,
         validUntil: validUntil ? new Date(validUntil) : null,
         taxRate: typeof body.taxRate === 'number' ? body.taxRate : undefined,
+        conditions: body.conditions || undefined,
         items: {
           create: operational.legacyItems.map((item: any) => ({
             description: item.description,

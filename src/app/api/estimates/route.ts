@@ -42,7 +42,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId, discoverySessionId } = body;
+    const { number, clientId, subtotal, taxAmount, total, items, validUntil, language, projectId, discoverySessionId, conditions } = body;
     const internalAnalysis = normalizeInternalAnalysis(body.internalAnalysis);
     const operational = materializeEstimateOperationalView({
       generationNotes: internalAnalysis
@@ -161,6 +161,7 @@ export async function POST(request: Request) {
         projectId: projectId || null,
         discoverySessionId: discoverySessionId || null,
         validUntil: validUntil ? new Date(validUntil) : null,
+        conditions: conditions || [],
         items: {
           create: normalizedItems.map((item: any) => ({
             description: item.description,

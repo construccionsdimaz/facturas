@@ -3,6 +3,7 @@ import { translations, Language } from '@/lib/translations';
 import { formatCurrency } from '@/lib/format';
 import React from 'react';
 import type { CommercialEstimateRuntimeOutput } from '@/lib/estimate/commercial-estimate-runtime';
+import { ESTIMATE_CLAUSES } from '@/lib/estimate-clauses';
 
 interface EstimateData {
   number: string;
@@ -63,6 +64,7 @@ interface EstimateData {
       manualOverrideUsed?: boolean;
     };
   };
+  conditions?: string[];
 }
 
 export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
@@ -87,38 +89,6 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
     chaptersMap[ch].push(item);
   });
   const chapterNames = Object.keys(chaptersMap).sort();
-  const readinessLabel =
-    data.estimateStatus?.readiness === 'TECHNICALLY_CLOSED'
-      ? 'Tecnicamente cerrado'
-      : data.estimateStatus?.readiness === 'COMMERCIAL_READY'
-        ? 'Listo para emitir'
-        : data.estimateStatus?.readiness === 'PROVISIONAL_REVIEW_REQUIRED'
-          ? 'Provisional con revision requerida'
-          : data.estimateStatus?.readiness === 'PARAMETRIC_PRELIMINARY'
-            ? 'Preliminar parametrico'
-            : 'Borrador';
-  const issuanceLabel =
-    data.estimateStatus?.issuance.status === 'ISSUED_FINAL'
-      ? 'Emitido final'
-      : data.estimateStatus?.issuance.status === 'ISSUED_PROVISIONAL'
-        ? 'Emitido provisional'
-        : 'No emitido';
-  const commercialLabel =
-    data.estimateStatus?.commercialStatus === 'CONVERTED'
-      ? 'Convertido'
-      : data.estimateStatus?.commercialStatus === 'ISSUED_FINAL'
-        ? 'Emitido final'
-        : data.estimateStatus?.commercialStatus === 'ISSUED_PROVISIONAL'
-          ? 'Emitido provisional'
-          : data.estimateStatus?.commercialStatus === 'CANCELLED'
-            ? 'Cancelado'
-            : 'No emitido';
-  const acceptanceLabel =
-    data.estimateStatus?.acceptance.status === 'ACCEPTED'
-      ? 'Aceptado'
-      : data.estimateStatus?.acceptance.status === 'REJECTED'
-        ? 'Rechazado'
-        : 'No aceptado';
 
   return (
     <div className={styles.pdfContainer} id="pdf-estimate-template">
@@ -132,7 +102,7 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
             <div style={{ marginBottom: '12px' }}>
               <div style={{ width: '100%', maxWidth: '500px', maxHeight: '200px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <img 
-                  src={data.companyLogo} 
+                   src={data.companyLogo} 
                   alt="Logo" 
                   style={{ 
                     width: 'auto', height: 'auto', maxWidth: '100%', maxHeight: '100%',
@@ -253,6 +223,24 @@ export default function EstimatePDFTemplate({ data }: { data: EstimateData }) {
           </div>
         </div>
       </div>
+
+      {/* Conditions Section */}
+      {data.conditions && data.conditions.length > 0 && (
+        <div style={{ marginTop: '20px', padding: '15px', borderTop: '1px solid #eee', fontSize: '10px', color: '#444' }}>
+          <h3 style={{ fontSize: '12px', fontWeight: 'bold', marginBottom: '10px', color: data.brandColor }}>Condiciones del presupuesto</h3>
+          <ul style={{ paddingLeft: '15px', margin: 0 }}>
+            {data.conditions.map((cid) => {
+              const clause = ESTIMATE_CLAUSES.find(c => c.id === cid);
+              if (!clause) return null;
+              return (
+                <li key={cid} style={{ marginBottom: '6px', lineHeight: '1.4' }}>
+                  {clause.text}
+                </li>
+              );
+            })}
+          </ul>
+        </div>
+      )}
 
       <div className={styles.footer}>
         <div className={styles.paymentInfo}>

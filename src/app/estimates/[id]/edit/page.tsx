@@ -2,6 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
+import Link from 'next/link';
+import { ESTIMATE_CLAUSES } from '@/lib/estimate-clauses';
 import styles from '@/app/invoices/new/page.module.css';
 import { formatCurrency } from '@/lib/format';
 import { mapProposalToEstimateDraft, type Proposal as GeneratedProposal } from '@/app/estimates/new/AutoEstimateBuilder';
@@ -58,6 +60,8 @@ export default function EditEstimatePage() {
   const [spellcheckLang, setSpellcheckLang] = useState('ES');
   const [discoverySessionId, setDiscoverySessionId] = useState('');
   const [linkedProjectId, setLinkedProjectId] = useState('');
+  const [dataProtection, setDataProtection] = useState('');
+  const [selectedConditions, setSelectedConditions] = useState<string[]>([]);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [runtimeOutput, setRuntimeOutput] = useState<CommercialEstimateRuntimeOutput | null>(null);
   const [commercialEstimateProjection, setCommercialEstimateProjection] = useState<CommercialEstimateProjection | null>(null);
@@ -212,6 +216,7 @@ export default function EditEstimatePage() {
         setTaxRate((estimate.taxAmount / estimate.subtotal) * 100);
       }
       setClients(clientsData || []);
+      setSelectedConditions(estimate.conditions || []);
       setIsLoading(false);
     });
   }, [estimateId]);
@@ -367,6 +372,7 @@ export default function EditEstimatePage() {
           issueDate: issueDate || undefined,
           validUntil: validUntil || null,
           language,
+          conditions: selectedConditions,
           discoverySessionId: discoverySessionId || null,
           items: effectiveItems.map((item) => ({
             description: item.description,
@@ -692,6 +698,32 @@ export default function EditEstimatePage() {
               <span>Material</span>
               <span>{formatCurrency(subtotal)}</span>
             </div>
+
+            {/* Optional Clauses Section */}
+            <div className={styles.section} style={{ marginTop: '24px', padding: '16px', background: 'rgba(255,255,255,0.02)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+              <h3 className={styles.sectionTitle} style={{ fontSize: '16px', marginBottom: '16px', color: '#a78bfa' }}>Condiciones del Presupuesto</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px' }}>
+                {ESTIMATE_CLAUSES.map((clause) => (
+                  <label key={clause.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '12px', background: selectedConditions.includes(clause.id) ? 'rgba(139, 92, 246, 0.08)' : 'rgba(255,255,255,0.03)', borderRadius: '10px', cursor: 'pointer', border: '1px solid', borderColor: selectedConditions.includes(clause.id) ? 'rgba(139, 92, 246, 0.3)' : 'rgba(255,255,255,0.05)', transition: 'all 0.2s' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedConditions.includes(clause.id)}
+                      onChange={() => {
+                        setSelectedConditions(prev => 
+                          prev.includes(clause.id) ? prev.filter(id => id !== clause.id) : [...prev, clause.id]
+                        );
+                      }}
+                      style={{ marginTop: '4px', accentColor: '#8b5cf6' }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px', color: selectedConditions.includes(clause.id) ? 'white' : 'rgba(255,255,255,0.9)' }}>{clause.title}</div>
+                      <div style={{ fontSize: '12px', color: 'rgba(255,255,255,0.5)', lineHeight: '1.4' }}>{clause.text}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className={styles.summaryRow}>
               <span>IVA ({taxRate.toFixed(0)}%)</span>
               <span>{formatCurrency(taxAmount)}</span>

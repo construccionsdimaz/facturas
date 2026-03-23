@@ -121,6 +121,7 @@ export default function PrintEstimatePage() {
           dataProtection: settings?.dataProtection,
           commercialRuntimeOutput: commercialReadModel.commercialRuntimeOutput || undefined,
           estimateStatus: parsedGenerationNotes.estimateStatus || undefined,
+          conditions: estimate.conditions || [],
         }} />
       </div>
     </div>

@@ -157,6 +157,7 @@ model Estimate {
 
   invoiceId String?  @unique // Link to the invoice if converted
   invoice   Invoice? @relation(fields: [invoiceId], references: [id])
+  conditions Json?    @default("[]")
 }
 
 // Individual items (concepts) within an estimate

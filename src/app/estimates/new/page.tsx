@@ -2,6 +2,8 @@
 
 import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+import { ESTIMATE_CLAUSES } from '@/lib/estimate-clauses';
 import styles from '@/app/invoices/new/page.module.css';
 import EstimatePDFTemplate from '@/app/estimates/EstimatePDFTemplate';
 import { formatCurrency } from '@/lib/format';
@@ -141,7 +143,8 @@ function NewEstimateContent() {
   const [validUntil, setValidUntil] = useState('');
   const [issueDate, setIssueDate] = useState(new Date().toISOString().split('T')[0]);
   const [language, setLanguage] = useState('ES');
-  const [brandColor] = useState('#8b5cf6');
+  const [brandColor, setBrandColor] = useState('#8b5cf6');
+  const [selectedConditions, setSelectedConditions] = useState<string[]>(ESTIMATE_CLAUSES.map(c => c.id));
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState('');
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
@@ -579,6 +582,7 @@ function NewEstimateContent() {
         validUntil: validUntil || undefined,
         projectId: selectedProjectId || undefined,
         discoverySessionId: discoverySessionId || undefined,
+        conditions: selectedConditions,
         items: effectiveItems.map(item => ({
           description: item.description,
           quantity: item.quantity,
@@ -678,6 +682,7 @@ function NewEstimateContent() {
           taxRate: taxRate,
           total: total,
           brandColor: brandColor,
+          conditions: selectedConditions,
           companyName: settings?.companyName,
           companyAddress: settings?.companyAddress,
           companyCity: settings?.companyCity,
@@ -1087,6 +1092,32 @@ function NewEstimateContent() {
               <span>Material</span>
               <span>{subtotal.toFixed(2)} €</span>
             </div>
+
+            {/* Optional Clauses Section */}
+            <div className={styles.section} style={{ marginTop: '24px' }}>
+              <h3 className={styles.sectionTitle}>Condiciones del Presupuesto</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '12px' }}>
+                {ESTIMATE_CLAUSES.map((clause) => (
+                  <label key={clause.id} style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px', cursor: 'pointer', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <input 
+                      type="checkbox" 
+                      checked={selectedConditions.includes(clause.id)}
+                      onChange={() => {
+                        setSelectedConditions(prev => 
+                          prev.includes(clause.id) ? prev.filter(id => id !== clause.id) : [...prev, clause.id]
+                        );
+                      }}
+                      style={{ marginTop: '4px' }}
+                    />
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{clause.title}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{clause.text}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+
             <div className={styles.summaryRow}>
               <span>IVA ({taxRate.toFixed(0)}%)</span>
               <span>{taxAmount.toFixed(2)} €</span>
