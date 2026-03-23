@@ -675,6 +675,7 @@ function NewEstimateContent() {
           items: items,
           subtotal: subtotal,
           tax: taxAmount,
+          taxRate: taxRate,
           total: total,
           brandColor: brandColor,
           companyName: settings?.companyName,

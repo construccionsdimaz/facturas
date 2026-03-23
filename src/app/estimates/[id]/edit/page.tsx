@@ -363,6 +363,7 @@ export default function EditEstimatePage() {
           taxAmount: effectiveRuntimeOutput?.summary.vatAmount || taxAmount,
           total: effectiveRuntimeOutput?.summary.commercialTotal || total,
           status,
+          taxRate,
           issueDate: issueDate || undefined,
           validUntil: validUntil || null,
           language,

@@ -13,6 +13,7 @@ interface InvoiceData {
   items: { description: string; quantity: number; price: number }[];
   subtotal: number;
   tax: number;
+  taxRate?: number;
   total: number;
   brandColor: string;
   companyName?: string;
@@ -143,7 +144,7 @@ export default function InvoicePDFTemplate({ data }: { data: InvoiceData }) {
             <span className={styles.summaryValue}>{formatCurrency(data.subtotal)}</span>
           </div>
           <div className={styles.summaryRow}>
-            <span className={styles.summaryLabel}>{t.tax}:</span>
+            <span className={styles.summaryLabel}>{t.tax} ({data.taxRate || 21}%):</span>
             <span className={styles.summaryValue}>{formatCurrency(data.tax)}</span>
           </div>
           <div className={styles.summaryTotalRow} style={{ color: data.brandColor, borderTopColor: data.brandColor }}>

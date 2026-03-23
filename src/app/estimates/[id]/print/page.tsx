@@ -103,6 +103,7 @@ export default function PrintEstimatePage() {
           items: estimate.items || [],
           subtotal: estimate.subtotal || 0,
           tax: estimate.taxAmount || 0,
+          taxRate: estimate.taxRate,
           total: estimate.total || 0,
           brandColor: '#8b5cf6',
           companyName: settings?.companyName || estimate.user?.companyName,
