@@ -551,6 +551,38 @@ export default function EditEstimatePage() {
           <div className={`glass-panel ${styles.card}`}>
             <h3>Datos del Presupuesto</h3>
             <div className={styles.formRow}>
+              <div className={styles.formGroup} style={{ position: 'relative' }}>
+                <label>Cliente / Tomador</label>
+                <input
+                  type="text"
+                  className="input-modern"
+                  placeholder="Buscar cliente..."
+                  value={clientSearch}
+                  onChange={(e) => {
+                    setClientSearch(e.target.value);
+                    setShowClientDropdown(true);
+                  }}
+                  onFocus={() => setShowClientDropdown(true)}
+                  onBlur={() => setTimeout(() => setShowClientDropdown(false), 200)}
+                />
+                {showClientDropdown && clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).length > 0 && (
+                  <div className={styles.dropdown}>
+                    {clients.filter(c => c.name.toLowerCase().includes(clientSearch.toLowerCase())).map(client => (
+                      <div
+                        key={client.id}
+                        className={styles.dropdownItem}
+                        onMouseDown={() => {
+                          setSelectedClientId(client.id);
+                          setClientSearch(client.name);
+                          setShowClientDropdown(false);
+                        }}
+                      >
+                        {client.name}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
               <div className={styles.formGroup}>
                 <label>Nº Presupuesto</label>
                 <input type="text" className="input-modern" value={estimateNumber} onChange={(e) => setEstimateNumber(e.target.value)} />

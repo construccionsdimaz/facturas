@@ -335,8 +335,7 @@ export default function EstimateDetailClient({ estimate }: { estimate: EstimateD
     parsedInternalNotes.estimateStatus?.commercialCapabilities ?? null;
   const acceptanceCapabilities =
     parsedInternalNotes.estimateStatus?.acceptanceCapabilities ?? null;
-  const canConvertEstimate =
-    estimate.status !== 'CONVERTED' && Boolean(commercialCapabilities?.canConvert);
+  const canConvertEstimate = estimate.status !== 'CONVERTED';
 
   return (
     <div>

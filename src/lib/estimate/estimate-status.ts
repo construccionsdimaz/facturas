@@ -638,13 +638,7 @@ export function assertEstimateCanConvert(snapshot: EstimateStatusSnapshot) {
     throw new Error('El estimate esta cancelado y no puede convertirse.');
   }
 
-  if (snapshot.commercialStatus !== 'ISSUED_FINAL') {
-    throw new Error('Solo un estimate emitido final puede convertirse.');
-  }
-
-  if (snapshot.acceptance.status !== 'ACCEPTED') {
-    throw new Error('El estimate debe estar aceptado antes de convertirse.');
-  }
+  // Permitimos convertir en cualquier momento para mayor flexibilidad
 }
 
 export function buildEstimateStatusFromPipeline(params: {

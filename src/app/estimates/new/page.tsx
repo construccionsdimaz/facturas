@@ -155,6 +155,7 @@ function NewEstimateContent() {
   const [discoverySummary, setDiscoverySummary] = useState<DiscoverySessionResponse | null>(null);
   const [isApplyingDiscovery, setIsApplyingDiscovery] = useState(false);
   const [discoveryError, setDiscoveryError] = useState('');
+  const [showWizard, setShowWizard] = useState(true);
   
   // Calculation States
   const [taxRate, setTaxRate] = useState(21);
@@ -782,20 +783,41 @@ function NewEstimateContent() {
             </div>
           )}
 
-          <AutoEstimateBuilder
-            onApply={({ items, chapters, proposal }) => {
-              applyAutoProposal({ items, chapters, proposal });
-            }}
-          />
+          {showWizard ? (
+            <div style={{ marginBottom: '24px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '12px' }}>
+                <button 
+                  className="btn-secondary" 
+                  onClick={() => setShowWizard(false)}
+                >
+                  ✕ Cerrar asistente (Crear manualmente)
+                </button>
+              </div>
+              <AutoEstimateBuilder
+                onApply={({ items, chapters, proposal }) => {
+                  applyAutoProposal({ items, chapters, proposal });
+                  setShowWizard(false);
+                }}
+              />
+            </div>
+          ) : (
+             <div style={{ marginBottom: '24px', textAlign: 'right' }}>
+                <button 
+                   className="btn-secondary" 
+                   onClick={() => setShowWizard(true)}
+                >
+                  ✨ Abrir asistente de creación guiada (6 fases)
+                </button>
+             </div>
+          )}
 
-          {(!selectedClientId || meaningfulItems.length === 0 || invalidItems.length > 0 || !internalProposal) && (
+          {(!selectedClientId || meaningfulItems.length === 0 || invalidItems.length > 0) && (
             <div className={`glass-panel ${styles.card}`} style={{ border: '1px solid rgba(245, 158, 11, 0.35)', background: 'rgba(245, 158, 11, 0.08)' }}>
               <h3 style={{ marginTop: 0 }}>Checklist mínimo antes de guardar</h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '14px', color: 'var(--text-secondary)' }}>
                 <div>{selectedClientId ? '✅ Cliente seleccionado' : '⚠️ Falta seleccionar cliente'}</div>
                 <div>{meaningfulItems.length > 0 ? '✅ Hay partidas cargadas' : '⚠️ Falta añadir una partida válida'}</div>
                 <div>{invalidItems.length === 0 ? '✅ Partidas consistentes' : `⚠️ Hay ${invalidItems.length} partidas incompletas o inválidas`}</div>
-                <div>{internalProposal ? `✅ Propuesta interna conservada (${internalProposal.source}${internalProposal.typologyCode ? ` | ${internalProposal.typologyCode}` : ''})` : 'ℹ️ Puedes guardar sin propuesta automática, pero no tendrás análisis interno generado'}</div>
                 {internalProposal?.estimateStatus ? (
                   <div style={{ color: internalProposal.estimateStatus.readiness === 'COMMERCIAL_READY' || internalProposal.estimateStatus.readiness === 'TECHNICALLY_CLOSED' ? 'var(--text-secondary)' : '#fcd34d' }}>
                     {readinessLabel(internalProposal.estimateStatus.readiness)} | {estimateModeLabel(internalProposal.estimateStatus.estimateMode)} | Cobertura tecnica {internalProposal.estimateStatus.technicalCoveragePercent}% | Receta {internalProposal.estimateStatus.recipeCoveragePercent}% | Precio {internalProposal.estimateStatus.priceCoveragePercent}% | Lineas pendientes {internalProposal.estimateStatus.pendingValidationCount}
